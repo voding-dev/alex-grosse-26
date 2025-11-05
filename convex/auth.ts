@@ -135,29 +135,36 @@ export const login = mutation({
     password: v.string(),
   },
   handler: async (ctx, args) => {
-    // Normalize email
-    const email = args.email.trim().toLowerCase();
+    try {
+      // Normalize email
+      const email = args.email.trim().toLowerCase();
 
-    // Check if email is allowed
-    if (!(await isAllowedAdminEmail(ctx, email))) {
-      throw new Error("Unauthorized email address");
-    }
+      // Check if email is allowed
+      const isAllowed = await isAllowedAdminEmail(ctx, email);
+      if (!isAllowed) {
+        throw new Error("Unauthorized email address. Please run 'configureAdminEmail' mutation first.");
+      }
 
-    // Get admin auth
-    const adminAuth = await ctx.db
-      .query("adminAuth")
-      .first();
-    
-    if (!adminAuth || !adminAuth.passwordHash || adminAuth.passwordHash === "") {
-      throw new Error("Invalid email or password");
-    }
+      // Get admin auth
+      const adminAuth = await ctx.db
+        .query("adminAuth")
+        .first();
+      
+      if (!adminAuth || !adminAuth.passwordHash || adminAuth.passwordHash === "") {
+        throw new Error("Invalid email or password. Please run 'setInitialPassword' mutation first.");
+      }
 
-    // Verify password
-    const passwordMatch = bcrypt.compareSync(args.password, adminAuth.passwordHash);
-    
-    if (!passwordMatch) {
-      throw new Error("Invalid email or password");
-    }
+      // Verify password
+      let passwordMatch = false;
+      try {
+        passwordMatch = bcrypt.compareSync(args.password, adminAuth.passwordHash);
+      } catch (bcryptError: any) {
+        throw new Error(`Password verification failed: ${bcryptError.message}`);
+      }
+      
+      if (!passwordMatch) {
+        throw new Error("Invalid email or password");
+      }
 
     // Create or update user record
     let user = await ctx.db
@@ -201,11 +208,16 @@ export const login = mutation({
       }
     }
 
-    return {
-      success: true,
-      sessionToken,
-      email,
-    };
+      return {
+        success: true,
+        sessionToken,
+        email,
+      };
+    } catch (error: any) {
+      // Log the actual error for debugging
+      console.error("Login error:", error);
+      throw new Error(error.message || "Login failed. Please check your email and password.");
+    }
   },
 });
 
@@ -512,6 +524,35 @@ export const clearPassword = mutation({
     return {
       success: true,
       message: "Password cleared. All sessions invalidated. Use setInitialPassword to set a new password.",
+    };
+  },
+});
+
+// Check admin auth configuration status (for debugging)
+export const checkAdminAuthStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const adminAuth = await ctx.db
+      .query("adminAuth")
+      .first();
+    
+    const primaryEmailSetting = await ctx.db
+      .query("settings")
+      .withIndex("by_key", (q: any) => q.eq("key", "primaryAdminEmail"))
+      .first();
+    
+    const allowedEmailsSetting = await ctx.db
+      .query("settings")
+      .withIndex("by_key", (q: any) => q.eq("key", "allowedAdminEmails"))
+      .first();
+    
+    return {
+      hasAdminAuth: !!adminAuth,
+      hasPassword: !!(adminAuth && adminAuth.passwordHash && adminAuth.passwordHash !== ""),
+      primaryEmail: primaryEmailSetting?.value || null,
+      allowedEmails: allowedEmailsSetting?.value || [],
+      adminAuthPrimaryEmail: adminAuth?.primaryEmail || null,
+      adminAuthAllowedEmails: adminAuth?.allowedEmails || [],
     };
   },
 });
