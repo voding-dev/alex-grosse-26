@@ -299,13 +299,28 @@ export const reorder = mutation({
       await requireAdmin(ctx);
     }
 
-    // Update sort order for each project
-    // This also initializes sortOrder for items that don't have it yet
+    // Validate input
+    if (!ids || ids.length === 0) {
+      throw new Error("No project IDs provided");
+    }
+
+    // Validate that all IDs exist and update sort order
     for (let i = 0; i < ids.length; i++) {
-      await ctx.db.patch(ids[i], {
-        sortOrder: i,
-        updatedAt: Date.now(),
-      });
+      const project = await ctx.db.get(ids[i]);
+      if (!project) {
+        throw new Error(`Project with id ${ids[i]} not found`);
+      }
+      
+      // Patch with sortOrder - this will work even if sortOrder doesn't exist yet
+      // because it's an optional field in the schema
+      try {
+        await ctx.db.patch(ids[i], {
+          sortOrder: i,
+          updatedAt: Date.now(),
+        });
+      } catch (error: any) {
+        throw new Error(`Failed to update project ${ids[i]}: ${error.message}`);
+      }
     }
   },
 });
