@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "./auth";
+import { requireAdminWithSession } from "./adminAuth";
 
 export const list = query({
   args: { 
@@ -201,12 +202,103 @@ export const create = mutation({
       }
     }
     
-    return await ctx.db.insert("assets", {
+    const assetId = await ctx.db.insert("assets", {
       ...assetData,
       sortOrder,
       approved: false,
       createdAt: Date.now(),
     });
+
+    // Automatically create media library entry for images and videos from portfolios/projects
+    // Skip for delivery items and external videos
+    if (
+      (assetData.type === "image" || assetData.type === "video") &&
+      assetData.storageKey && // Only for actual uploaded files, not external videos
+      (assetData.portfolioId || assetData.projectId) &&
+      assetData.uploadType !== "delivery" // Skip delivery items
+    ) {
+      try {
+        // Get portfolio or project name for display location
+        let entityName: string | undefined;
+        let entityId: string;
+        let locationType: "portfolio" | "project";
+
+        if (assetData.portfolioId) {
+          const portfolio = await ctx.db.get(assetData.portfolioId);
+          entityName = portfolio?.title;
+          entityId = assetData.portfolioId;
+          locationType = "portfolio";
+        } else if (assetData.projectId) {
+          const project = await ctx.db.get(assetData.projectId);
+          entityName = project?.title;
+          entityId = assetData.projectId;
+          locationType = "project";
+        } else {
+          return assetId; // Shouldn't happen, but safety check
+        }
+
+        // Check if already exists in media library (by storage key)
+        const existing = await ctx.db
+          .query("mediaLibrary")
+          .filter((q) => q.eq(q.field("storageKey"), assetData.storageKey))
+          .first();
+
+        if (!existing) {
+          // Create media library entry
+          const now = Date.now();
+          await ctx.db.insert("mediaLibrary", {
+            filename: assetData.filename,
+            storageKey: assetData.storageKey,
+            type: assetData.type === "image" ? "image" : "video",
+            width: assetData.width,
+            height: assetData.height,
+            duration: assetData.duration,
+            size: assetData.size,
+            canonicalUrl: undefined,
+            tags: [],
+            folder: undefined,
+            alt: undefined,
+            description: undefined,
+            sourceAssetId: assetId,
+            sourceType: "asset",
+            displayLocations: [
+              {
+                type: locationType,
+                entityId: entityId,
+                entityName: entityName,
+              },
+            ],
+            createdAt: now,
+            updatedAt: now,
+          });
+        } else {
+          // Update existing entry to add display location if not already present
+          const locationExists = existing.displayLocations.some(
+            (loc) => loc.type === locationType && loc.entityId === entityId
+          );
+          if (!locationExists) {
+            const updatedLocations = [
+              ...existing.displayLocations,
+              {
+                type: locationType,
+                entityId: entityId,
+                entityName: entityName,
+              },
+            ];
+            const now = Date.now();
+            await ctx.db.patch(existing._id, {
+              displayLocations: updatedLocations,
+              updatedAt: now,
+            });
+          }
+        }
+      } catch (error) {
+        // Log error but don't fail the asset creation
+        console.error("Failed to create media library entry:", error);
+      }
+    }
+
+    return assetId;
   },
 });
 

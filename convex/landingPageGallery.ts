@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "./auth";
+import { createOrUpdateMediaLibraryEntry } from "./mediaLibraryHelpers";
 
 // Get all gallery images for a landing page
 export const list = query({
@@ -54,12 +55,33 @@ export const add = mutation({
       : -1;
 
     const now = Date.now();
-    return await ctx.db.insert("landingPageGallery", {
+    const galleryId = await ctx.db.insert("landingPageGallery", {
       ...data,
       sortOrder: maxSortOrder + 1,
       createdAt: now,
       updatedAt: now,
     });
+
+    // Get landing page name for display location
+    const landingPage = await ctx.db.get(data.landingPageId);
+
+    // Automatically create media library entry
+    await createOrUpdateMediaLibraryEntry(ctx, {
+      storageKey: data.imageStorageId,
+      filename: data.alt || "landing-page-gallery.jpg",
+      type: "image",
+      width: data.width,
+      height: data.height,
+      size: 0,
+      alt: data.alt,
+      displayLocation: {
+        type: "portfolio",
+        entityId: data.landingPageId,
+        entityName: landingPage?.title,
+      },
+    });
+
+    return galleryId;
   },
 });
 

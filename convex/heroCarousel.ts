@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "./auth";
+import { createOrUpdateMediaLibraryEntry } from "./mediaLibraryHelpers";
 
 // Get all hero carousel images
 export const list = query({
@@ -50,13 +51,31 @@ export const add = mutation({
       : -1;
 
     const now = Date.now();
-    return await ctx.db.insert("heroCarousel", {
+    const heroId = await ctx.db.insert("heroCarousel", {
       imageStorageId: data.imageStorageId,
       sortOrder: maxSortOrder + 1,
       alt: data.alt,
       createdAt: now,
       updatedAt: now,
     });
+
+    // Automatically create media library entry for hero carousel images
+    // Note: We don't have filename, size, or dimensions here, so we'll use defaults
+    // The frontend should ideally pass these, but for now we'll create a basic entry
+    await createOrUpdateMediaLibraryEntry(ctx, {
+      storageKey: data.imageStorageId,
+      filename: data.alt || "hero-carousel-image.jpg",
+      type: "image",
+      size: 0, // Will be updated if we have the info
+      alt: data.alt,
+      displayLocation: {
+        type: "portfolio", // Homepage hero carousel
+        entityId: "homepage",
+        entityName: "Homepage",
+      },
+    });
+
+    return heroId;
   },
 });
 

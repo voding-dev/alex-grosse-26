@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "./auth";
+import { createOrUpdateMediaLibraryEntry } from "./mediaLibraryHelpers";
 
 // Get all gallery images for a category
 export const listByCategory = query({
@@ -69,7 +70,7 @@ export const add = mutation({
       : -1;
 
     const now = Date.now();
-    return await ctx.db.insert("graphicDesignerCategoryGallery", {
+    const galleryId = await ctx.db.insert("graphicDesignerCategoryGallery", {
       categoryId: data.categoryId,
       imageStorageId: data.imageStorageId,
       sortOrder: maxSortOrder + 1,
@@ -79,6 +80,24 @@ export const add = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // Automatically create media library entry
+    await createOrUpdateMediaLibraryEntry(ctx, {
+      storageKey: data.imageStorageId,
+      filename: data.alt || "graphic-designer-gallery.jpg",
+      type: "image",
+      width: data.width,
+      height: data.height,
+      size: 0,
+      alt: data.alt,
+      displayLocation: {
+        type: "portfolio",
+        entityId: `graphic-designer-category-${data.categoryId}`,
+        entityName: "Graphic Designer Category Gallery",
+      },
+    });
+
+    return galleryId;
   },
 });
 

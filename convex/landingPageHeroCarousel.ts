@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "./auth";
+import { createOrUpdateMediaLibraryEntry } from "./mediaLibraryHelpers";
 
 // Get all hero carousel images for a landing page
 export const list = query({
@@ -52,12 +53,31 @@ export const add = mutation({
       : -1;
 
     const now = Date.now();
-    return await ctx.db.insert("landingPageHeroCarousel", {
+    const heroId = await ctx.db.insert("landingPageHeroCarousel", {
       ...data,
       sortOrder: maxSortOrder + 1,
       createdAt: now,
       updatedAt: now,
     });
+
+    // Get landing page name for display location
+    const landingPage = await ctx.db.get(data.landingPageId);
+
+    // Automatically create media library entry
+    await createOrUpdateMediaLibraryEntry(ctx, {
+      storageKey: data.imageStorageId,
+      filename: data.alt || "landing-page-hero.jpg",
+      type: "image",
+      size: 0,
+      alt: data.alt,
+      displayLocation: {
+        type: "portfolio",
+        entityId: data.landingPageId,
+        entityName: landingPage?.title,
+      },
+    });
+
+    return heroId;
   },
 });
 

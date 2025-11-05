@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "./auth";
+import { createOrUpdateMediaLibraryEntry } from "./mediaLibraryHelpers";
 
 // Get all portraits hero carousel images
 export const list = query({
@@ -50,13 +51,29 @@ export const add = mutation({
       : -1;
 
     const now = Date.now();
-    return await ctx.db.insert("portraitsHeroCarousel", {
+    const heroId = await ctx.db.insert("portraitsHeroCarousel", {
       imageStorageId: data.imageStorageId,
       sortOrder: maxSortOrder + 1,
       alt: data.alt,
       createdAt: now,
       updatedAt: now,
     });
+
+    // Automatically create media library entry
+    await createOrUpdateMediaLibraryEntry(ctx, {
+      storageKey: data.imageStorageId,
+      filename: data.alt || "portraits-hero.jpg",
+      type: "image",
+      size: 0,
+      alt: data.alt,
+      displayLocation: {
+        type: "portfolio",
+        entityId: "portraits",
+        entityName: "Portraits",
+      },
+    });
+
+    return heroId;
   },
 });
 

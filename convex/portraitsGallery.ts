@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "./auth";
+import { createOrUpdateMediaLibraryEntry } from "./mediaLibraryHelpers";
 
 // Get all portraits gallery images
 export const list = query({
@@ -52,7 +53,7 @@ export const add = mutation({
       : -1;
 
     const now = Date.now();
-    return await ctx.db.insert("portraitsGallery", {
+    const galleryId = await ctx.db.insert("portraitsGallery", {
       imageStorageId: data.imageStorageId,
       sortOrder: maxSortOrder + 1,
       alt: data.alt,
@@ -61,6 +62,24 @@ export const add = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // Automatically create media library entry
+    await createOrUpdateMediaLibraryEntry(ctx, {
+      storageKey: data.imageStorageId,
+      filename: data.alt || "portraits-gallery.jpg",
+      type: "image",
+      width: data.width,
+      height: data.height,
+      size: 0,
+      alt: data.alt,
+      displayLocation: {
+        type: "portfolio",
+        entityId: "portraits",
+        entityName: "Portraits Gallery",
+      },
+    });
+
+    return galleryId;
   },
 });
 
