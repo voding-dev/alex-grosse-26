@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Initialize Convex client for server-side use
+const getConvexClient = () => {
+  const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+  if (!url) {
+    throw new Error("NEXT_PUBLIC_CONVEX_URL environment variable is not set");
+  }
+  return new ConvexHttpClient(url);
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,6 +27,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Get send record by ID (token is the send ID)
+    const convex = getConvexClient();
     const send = await convex.query(api.emailMarketing.getSend, {
       id: token as any,
     });
