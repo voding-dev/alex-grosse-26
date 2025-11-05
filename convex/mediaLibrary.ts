@@ -186,6 +186,36 @@ export const getTags = query({
   },
 });
 
+// Check for duplicate by file hash (query)
+export const checkDuplicate = query({
+  args: {
+    fileHash: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("mediaLibrary")
+      .withIndex("by_file_hash", (q) => q.eq("fileHash", args.fileHash))
+      .first();
+    return existing ? existing._id : null;
+  },
+});
+
+// Check for duplicate by file hash (mutation - for use in upload flow)
+export const checkDuplicateMutation = mutation({
+  args: {
+    sessionToken: v.optional(v.string()),
+    fileHash: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await requireAdminWithSession(ctx, args.sessionToken);
+    const existing = await ctx.db
+      .query("mediaLibrary")
+      .withIndex("by_file_hash", (q) => q.eq("fileHash", args.fileHash))
+      .first();
+    return existing ? existing._id : null;
+  },
+});
+
 // Create a new media item
 export const create = mutation({
   args: {
@@ -196,7 +226,7 @@ export const create = mutation({
     width: v.optional(v.number()),
     height: v.optional(v.number()),
     duration: v.optional(v.number()),
-    size: v.number(),
+    size: v.number(), // Compressed size for images, original size for videos
     canonicalUrl: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
     folder: v.optional(v.string()),
@@ -215,6 +245,11 @@ export const create = mutation({
       entityId: v.string(),
       entityName: v.optional(v.string()),
     }))),
+    // Compression metadata
+    originalSize: v.optional(v.number()),
+    compressedSize: v.optional(v.number()),
+    compressionRatio: v.optional(v.number()),
+    fileHash: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireAdminWithSession(ctx, args.sessionToken);
@@ -236,6 +271,10 @@ export const create = mutation({
       sourceAssetId: args.sourceAssetId,
       sourceType: args.sourceType || "upload",
       displayLocations: args.displayLocations || [],
+      originalSize: args.originalSize,
+      compressedSize: args.compressedSize,
+      compressionRatio: args.compressionRatio,
+      fileHash: args.fileHash,
       createdAt: now,
       updatedAt: now,
     });

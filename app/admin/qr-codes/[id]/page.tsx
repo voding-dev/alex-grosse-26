@@ -63,15 +63,9 @@ export default function QRCodeDetailPage({ params }: { params: Promise<{ id: str
 
   // Get redirect URL for dynamic QR codes
   const getConvexRedirectUrl = () => {
-    // Check for production site URL first
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
-    if (siteUrl && !siteUrl.includes("localhost") && !siteUrl.includes("127.0.0.1")) {
-      const baseUrl = siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`;
-      return `${baseUrl}/api/qr-redirect`;
-    }
-    
-    // In browser/client-side: Use window.location.origin for production (Vercel domain)
+    // PRIORITY 1: In browser/client-side: Use window.location.origin (actual domain user is on)
     // This ensures QR codes use the actual site domain instead of Convex domain
+    // This is the most reliable way to get the production domain
     if (typeof window !== "undefined") {
       const origin = window.location.origin;
       // Only use window.location if it's not localhost (production)
@@ -80,7 +74,14 @@ export default function QRCodeDetailPage({ params }: { params: Promise<{ id: str
       }
     }
     
-    // Fallback to Convex HTTP actions if available
+    // PRIORITY 2: Check for production site URL (for local dev or when window not available)
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
+    if (siteUrl && !siteUrl.includes("localhost") && !siteUrl.includes("127.0.0.1")) {
+      const baseUrl = siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`;
+      return `${baseUrl}/api/qr-redirect`;
+    }
+    
+    // PRIORITY 3: Fallback to Convex HTTP actions if available
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
     if (!convexUrl) return "";
     

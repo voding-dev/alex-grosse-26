@@ -18,16 +18,9 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 // Get public URL for QR code redirects (always publicly accessible)
 function getConvexRedirectUrl(): string {
-  // First, check if we have a production site URL set (best for local dev)
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
-  if (siteUrl && !siteUrl.includes("localhost") && !siteUrl.includes("127.0.0.1")) {
-    // Use production site URL with Next.js API route
-    const baseUrl = siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`;
-    return `${baseUrl}/api/qr-redirect`;
-  }
-  
-  // In browser/client-side: Use window.location.origin for production (Vercel domain)
+  // PRIORITY 1: In browser/client-side: Use window.location.origin (actual domain user is on)
   // This ensures QR codes use the actual site domain instead of Convex domain
+  // This is the most reliable way to get the production domain
   if (typeof window !== "undefined") {
     const origin = window.location.origin;
     // Only use window.location if it's not localhost (production)
@@ -36,7 +29,15 @@ function getConvexRedirectUrl(): string {
     }
   }
   
-  // Check Convex URL
+  // PRIORITY 2: Check if we have a production site URL set (for local dev or when window not available)
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
+  if (siteUrl && !siteUrl.includes("localhost") && !siteUrl.includes("127.0.0.1")) {
+    // Use production site URL with Next.js API route
+    const baseUrl = siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`;
+    return `${baseUrl}/api/qr-redirect`;
+  }
+  
+  // PRIORITY 3: Check Convex URL (last resort)
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!convexUrl) {
     throw new Error("NEXT_PUBLIC_CONVEX_URL environment variable is not set");
@@ -131,6 +132,7 @@ export default function QRCodesPage() {
       } else {
         // For dynamic QR codes, use Convex HTTP action URL (always publicly accessible)
         const redirectBaseUrl = getConvexRedirectUrl();
+        console.log("[QR Code] Using redirect URL:", redirectBaseUrl);
         qrContent = `${redirectBaseUrl}?id=${qrCodeId}`;
       }
 

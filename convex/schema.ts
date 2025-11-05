@@ -727,7 +727,7 @@ export default defineSchema({
     width: v.optional(v.number()),
     height: v.optional(v.number()),
     duration: v.optional(v.number()), // for video
-    size: v.number(), // bytes
+    size: v.number(), // bytes (compressed size for images)
     canonicalUrl: v.optional(v.string()), // Canonical URL if needed
     tags: v.array(v.string()), // Tagging system
     folder: v.optional(v.string()), // Folder organization
@@ -751,6 +751,11 @@ export default defineSchema({
       entityId: v.string(), // ID of the portfolio/project/delivery/etc
       entityName: v.optional(v.string()), // Human-readable name for display
     })),
+    // Compression metadata (for images)
+    originalSize: v.optional(v.number()), // Original file size in bytes (before compression)
+    compressedSize: v.optional(v.number()), // Compressed file size in bytes (after compression)
+    compressionRatio: v.optional(v.number()), // Percentage reduction (e.g., 45 means 45% reduction)
+    fileHash: v.optional(v.string()), // SHA-256 hash of file content for duplicate detection
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -758,7 +763,8 @@ export default defineSchema({
     .index("by_folder", ["folder"])
     .index("by_type", ["type"])
     .index("by_created_at", ["createdAt"])
-    .index("by_source_asset", ["sourceAssetId"]),
+    .index("by_source_asset", ["sourceAssetId"])
+    .index("by_file_hash", ["fileHash"]),
 
   // Pitch Decks (simple storage)
   pitchDecks: defineTable({

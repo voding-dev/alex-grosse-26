@@ -49,6 +49,7 @@ import {
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { MediaThumbnail } from "@/components/media-thumbnail";
+import { compressImage, generateFileHash } from "@/lib/image-compression";
 
 type MediaItem = {
   _id: Id<"mediaLibrary">;
@@ -70,6 +71,11 @@ type MediaItem = {
     entityId: string;
     entityName?: string;
   }>;
+  // Compression metadata
+  originalSize?: number;
+  compressedSize?: number;
+  compressionRatio?: number;
+  fileHash?: string;
 };
 
 export default function MediaLibraryPage() {
@@ -121,6 +127,7 @@ export default function MediaLibraryPage() {
   
   // Mutations
   const generateUploadUrl = useMutation(api.storageMutations.generateUploadUrl);
+  const checkDuplicateMutation = useMutation(api.mediaLibrary.checkDuplicateMutation);
   const createMedia = useMutation(api.mediaLibrary.create);
   const updateMedia = useMutation(api.mediaLibrary.update);
   const deleteMedia = useMutation(api.mediaLibrary.remove);
@@ -152,18 +159,96 @@ export default function MediaLibraryPage() {
     setIsUploading(true);
     let successCount = 0;
     let errorCount = 0;
+    let duplicateCount = 0;
 
     try {
       for (const file of selectedFiles) {
         try {
+          const isImage = file.type.startsWith("image/");
+          let fileToUpload: File | Blob = file;
+          let originalSize = file.size;
+          let compressedSize = file.size;
+          let compressionRatio: number | undefined;
+          let width: number | undefined;
+          let height: number | undefined;
+          let fileHash: string | undefined;
+
+          // Generate file hash for duplicate detection (from original file)
+          try {
+            fileHash = await generateFileHash(file);
+          } catch (error) {
+            console.warn(`Failed to generate hash for ${file.name}:`, error);
+          }
+
+          // Compress images automatically
+          if (isImage) {
+            try {
+              const compressionResult = await compressImage(file, {
+                quality: 0.7, // 70% quality
+                maxWidth: 1920,
+                maxHeight: 1920,
+                outputFormat: "jpeg",
+                enableResize: true,
+              });
+
+              fileToUpload = compressionResult.blob;
+              originalSize = compressionResult.originalSize;
+              compressedSize = compressionResult.compressedSize;
+              compressionRatio = compressionResult.compressionRatio;
+              width = compressionResult.width;
+              height = compressionResult.height;
+            } catch (error) {
+              console.warn(`Failed to compress ${file.name}, using original:`, error);
+              // Fall back to original file if compression fails
+              const img = new Image();
+              const url = URL.createObjectURL(file);
+              await new Promise((resolve, reject) => {
+                img.onload = () => {
+                  width = img.width;
+                  height = img.height;
+                  URL.revokeObjectURL(url);
+                  resolve(null);
+                };
+                img.onerror = reject;
+                img.src = url;
+              });
+            }
+          } else {
+            // For videos, just get dimensions if needed
+            // Video processing is more complex, so we'll skip it for now
+          }
+
+          // Check for duplicate by file hash
+          if (fileHash) {
+            try {
+              const duplicateId = await checkDuplicateMutation({
+                sessionToken: sessionToken || undefined,
+                fileHash: fileHash,
+              });
+              
+              if (duplicateId) {
+                duplicateCount++;
+                toast({
+                  title: "Duplicate detected",
+                  description: `${file.name} already exists in the media library`,
+                  variant: "default",
+                });
+                continue; // Skip this file
+              }
+            } catch (error) {
+              console.warn(`Failed to check duplicate for ${file.name}:`, error);
+              // Continue with upload if duplicate check fails
+            }
+          }
+
           // Get upload URL
           const uploadUrl = await generateUploadUrl();
 
-          // Upload file
+          // Upload file (compressed if image, original if video)
           const result = await fetch(uploadUrl, {
             method: "POST",
-            headers: { "Content-Type": file.type },
-            body: file,
+            headers: { "Content-Type": isImage ? "image/jpeg" : file.type },
+            body: fileToUpload,
           });
 
           if (!result.ok) {
@@ -172,35 +257,22 @@ export default function MediaLibraryPage() {
 
           const { storageId } = await result.json();
 
-          // Get image dimensions if image
-          let width: number | undefined;
-          let height: number | undefined;
-          if (file.type.startsWith("image/")) {
-            const img = new Image();
-            const url = URL.createObjectURL(file);
-            await new Promise((resolve, reject) => {
-              img.onload = () => {
-                width = img.width;
-                height = img.height;
-                URL.revokeObjectURL(url);
-                resolve(null);
-              };
-              img.onerror = reject;
-              img.src = url;
-            });
-          }
-
-          // Create media record
+          // Create media record with compression metadata
           await createMedia({
             sessionToken: sessionToken || undefined,
             filename: file.name,
             storageKey: storageId,
-            type: file.type.startsWith("image/") ? "image" : "video",
+            type: isImage ? "image" : "video",
             width,
             height,
-            size: file.size,
+            size: compressedSize, // Use compressed size
             tags: [],
             folder: folderFilter !== "all" ? folderFilter : undefined,
+            // Compression metadata (only for images)
+            originalSize: isImage ? originalSize : undefined,
+            compressedSize: isImage ? compressedSize : undefined,
+            compressionRatio: isImage ? compressionRatio : undefined,
+            fileHash: fileHash,
           });
 
           successCount++;
@@ -210,12 +282,23 @@ export default function MediaLibraryPage() {
         }
       }
 
-      if (successCount > 0) {
+      const message = `${successCount} file(s) uploaded successfully`;
+      const extraMessages = [];
+      if (duplicateCount > 0) extraMessages.push(`${duplicateCount} duplicate(s) skipped`);
+      if (errorCount > 0) extraMessages.push(`${errorCount} failed`);
+
+      if (successCount > 0 || duplicateCount > 0) {
         toast({
           title: "Upload complete",
-          description: `${successCount} file(s) uploaded successfully${errorCount > 0 ? `, ${errorCount} failed` : ""}`,
+          description: [message, ...extraMessages].join(", "),
         });
         setSelectedFiles([]);
+      } else if (errorCount > 0) {
+        toast({
+          title: "Upload failed",
+          description: `${errorCount} file(s) failed to upload`,
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Upload error:", error);
@@ -539,13 +622,27 @@ export default function MediaLibraryPage() {
                     <div className="p-3 space-y-2">
                       <p className="text-xs font-medium truncate">{item.filename}</p>
                       <div className="flex items-center justify-between text-xs text-foreground/60">
-                        <span>{formatFileSize(item.size)}</span>
+                        <span>
+                          {item.compressedSize && item.originalSize ? (
+                            <span className="flex flex-col">
+                              <span className="text-green-500 font-medium">{formatFileSize(item.compressedSize)}</span>
+                              <span className="text-xs line-through opacity-60">{formatFileSize(item.originalSize)}</span>
+                            </span>
+                          ) : (
+                            formatFileSize(item.size)
+                          )}
+                        </span>
                         {item.width && item.height && (
                           <span>
                             {item.width}×{item.height}
                           </span>
                         )}
                       </div>
+                      {item.compressionRatio && item.compressionRatio > 0 && (
+                        <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600 border-green-500/20">
+                          -{Math.round(item.compressionRatio)}% compressed
+                        </Badge>
+                      )}
                       {item.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {item.tags.slice(0, 2).map((tag) => (
