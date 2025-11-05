@@ -14,6 +14,8 @@ import { Mail, Send, Eye, MousePointerClick, X, AlertTriangle, User, Tag } from 
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 
+type ContactStatus = "subscribed" | "unsubscribed" | "bounced" | "spam";
+
 export default function ContactDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -39,7 +41,7 @@ export default function ContactDetailPage() {
     firstName: contact?.firstName || "",
     lastName: contact?.lastName || "",
     tags: contact?.tags || [],
-    status: contact?.status || "subscribed",
+    status: (contact?.status as ContactStatus) || "subscribed",
   });
 
   if (!contact) {
@@ -189,7 +191,7 @@ export default function ContactDetailPage() {
                   <select
                     id="status"
                     value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as ContactStatus })}
                     className="w-full px-3 py-2 border border-foreground/20 rounded-lg bg-background text-foreground font-medium"
                   >
                     <option value="subscribed">Subscribed</option>
