@@ -148,7 +148,7 @@ export const login = mutation({
       .query("adminAuth")
       .first();
     
-    if (!adminAuth) {
+    if (!adminAuth || !adminAuth.passwordHash || adminAuth.passwordHash === "") {
       throw new Error("Invalid email or password");
     }
 
@@ -316,6 +316,98 @@ export const verifySession = query({
     }
 
     return { valid: true, email: session.email };
+  },
+});
+
+// Set initial password (one-time use - can overwrite existing password)
+// This is for production setup - use to set/overwrite password, then delete the mutation call for security
+export const setInitialPassword = mutation({
+  args: {
+    password: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Check if admin auth already exists
+    const existing = await ctx.db
+      .query("adminAuth")
+      .first();
+
+    // Validate password
+    if (args.password.length < 8) {
+      throw new Error("Password must be at least 8 characters long");
+    }
+
+    // Hash password
+    const passwordHash = bcrypt.hashSync(args.password, 10);
+
+    // Get primary email and allowed emails
+    const primaryEmail = await getPrimaryAdminEmail(ctx);
+    const allowedEmails = await getAllowedAdminEmails(ctx);
+
+    if (existing) {
+      // Update existing record (overwrites existing password)
+      await ctx.db.patch(existing._id, {
+        passwordHash,
+        updatedAt: Date.now(),
+      });
+      
+      // Invalidate all existing sessions (force re-login)
+      const allSessions = await ctx.db
+        .query("adminSessions")
+        .collect();
+      
+      for (const session of allSessions) {
+        await ctx.db.delete(session._id);
+      }
+    } else {
+      // Create new record
+      await ctx.db.insert("adminAuth", {
+        passwordHash,
+        primaryEmail: primaryEmail || "",
+        allowedEmails,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
+
+    return {
+      success: true,
+      message: "Password set successfully. All existing sessions have been invalidated. Consider deleting this mutation for security.",
+    };
+  },
+});
+
+// Clear/delete password (for security - use if password is compromised)
+// This will prevent all logins until a new password is set via setInitialPassword
+export const clearPassword = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const adminAuth = await ctx.db
+      .query("adminAuth")
+      .first();
+    
+    if (!adminAuth) {
+      throw new Error("No admin auth found");
+    }
+
+    // Clear password hash (set to empty string - login will fail)
+    await ctx.db.patch(adminAuth._id, {
+      passwordHash: "",
+      updatedAt: Date.now(),
+    });
+
+    // Invalidate all sessions
+    const allSessions = await ctx.db
+      .query("adminSessions")
+      .collect();
+    
+    for (const session of allSessions) {
+      await ctx.db.delete(session._id);
+    }
+
+    return {
+      success: true,
+      message: "Password cleared. All sessions invalidated. Use setInitialPassword to set a new password.",
+    };
   },
 });
 
