@@ -89,7 +89,10 @@ async function ensureAdminAuth(ctx: any) {
 export const getCurrentUser = query({
   args: { sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    console.log("[auth:getCurrentUser] Called with sessionToken:", args.sessionToken ? "present" : "missing");
+    
     if (!args.sessionToken) {
+      console.log("[auth:getCurrentUser] No session token provided");
       return null;
     }
 
@@ -99,17 +102,25 @@ export const getCurrentUser = query({
       .withIndex("by_token", (q: any) => q.eq("token", args.sessionToken!))
       .first();
 
+    console.log("[auth:getCurrentUser] Session found:", !!session);
+    
     if (!session) {
+      console.log("[auth:getCurrentUser] Session not found");
       return null;
     }
 
     // Check if session is expired (don't delete in query, just return null)
     if (session.expiresAt < Date.now()) {
+      console.log("[auth:getCurrentUser] Session expired");
       return null;
     }
 
     // Verify email is allowed
-    if (!(await isAllowedAdminEmail(ctx, session.email))) {
+    const isAllowed = await isAllowedAdminEmail(ctx, session.email);
+    console.log("[auth:getCurrentUser] Email allowed:", isAllowed, "email:", session.email);
+    
+    if (!isAllowed) {
+      console.log("[auth:getCurrentUser] Email not allowed");
       return null;
     }
 
@@ -119,11 +130,15 @@ export const getCurrentUser = query({
       .withIndex("by_email", (q: any) => q.eq("email", session.email))
       .first();
 
+    console.log("[auth:getCurrentUser] User found:", !!user, "role:", user?.role);
+
     // Return user only if it exists and is admin
     if (user && user.role === "admin") {
+      console.log("[auth:getCurrentUser] Returning user");
       return user;
     }
 
+    console.log("[auth:getCurrentUser] User not found or not admin");
     return null;
   },
 });

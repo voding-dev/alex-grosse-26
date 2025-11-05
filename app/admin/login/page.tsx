@@ -63,13 +63,18 @@ export default function AdminLogin() {
       localStorage.setItem("admin_session_token", result.sessionToken);
       localStorage.setItem("admin_email", result.email);
       
+      console.log("[Login] Token stored in localStorage:", result.sessionToken);
+      
       toast({
         title: "Access granted",
         description: "You can now access the admin dashboard.",
       });
       
-      // Navigate to admin dashboard
-      router.push("/admin");
+      // Small delay to ensure localStorage is set and state updates
+      setTimeout(() => {
+        console.log("[Login] Navigating to /admin");
+        router.push("/admin");
+      }, 100);
     } catch (error: any) {
       // Log full error details for debugging
       console.error("Login error details:", {
