@@ -319,8 +319,90 @@ export const verifySession = query({
   },
 });
 
+// Configure admin email (must be run before setInitialPassword if no email is configured)
+// This sets up the allowedAdminEmails and primaryAdminEmail in the settings table
+export const configureAdminEmail = mutation({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const email = args.email.trim().toLowerCase();
+    
+    // Validate email format
+    if (!email.includes("@") || !email.includes(".")) {
+      throw new Error("Invalid email address");
+    }
+
+    // Set primary email
+    const primaryEmailSetting = await ctx.db
+      .query("settings")
+      .withIndex("by_key", (q: any) => q.eq("key", "primaryAdminEmail"))
+      .first();
+    
+    if (!primaryEmailSetting) {
+      await ctx.db.insert("settings", {
+        key: "primaryAdminEmail",
+        value: email,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.patch(primaryEmailSetting._id, {
+        value: email,
+        updatedAt: Date.now(),
+      });
+    }
+
+    // Set allowed emails
+    const allowedEmailsSetting = await ctx.db
+      .query("settings")
+      .withIndex("by_key", (q: any) => q.eq("key", "allowedAdminEmails"))
+      .first();
+    
+    const emailsToAllow = [email];
+    
+    if (!allowedEmailsSetting) {
+      await ctx.db.insert("settings", {
+        key: "allowedAdminEmails",
+        value: emailsToAllow,
+        updatedAt: Date.now(),
+      });
+    } else {
+      // Update to include this email if not already present
+      const existingEmails = Array.isArray(allowedEmailsSetting.value) 
+        ? allowedEmailsSetting.value 
+        : [];
+      if (!existingEmails.includes(email)) {
+        existingEmails.push(email);
+      }
+      await ctx.db.patch(allowedEmailsSetting._id, {
+        value: existingEmails,
+        updatedAt: Date.now(),
+      });
+    }
+
+    // Update adminAuth record if it exists
+    const adminAuth = await ctx.db
+      .query("adminAuth")
+      .first();
+    
+    if (adminAuth) {
+      await ctx.db.patch(adminAuth._id, {
+        primaryEmail: email,
+        allowedEmails: emailsToAllow,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return {
+      success: true,
+      message: `Admin email configured: ${email}. You can now set the password using setInitialPassword.`,
+    };
+  },
+});
+
 // Set initial password (one-time use - can overwrite existing password)
 // This is for production setup - use to set/overwrite password, then delete the mutation call for security
+// NOTE: Run configureAdminEmail first if no email settings exist!
 export const setInitialPassword = mutation({
   args: {
     password: v.string(),
@@ -339,50 +421,30 @@ export const setInitialPassword = mutation({
     // Hash password
     const passwordHash = bcrypt.hashSync(args.password, 10);
 
-    // Get primary email and allowed emails
+    // Get primary email and allowed emails from settings
     const primaryEmail = await getPrimaryAdminEmail(ctx);
     const allowedEmails = await getAllowedAdminEmails(ctx);
 
     // Ensure settings are configured for email authorization
     // This is critical - login checks settings table, not adminAuth table
+    // If no settings exist, we can't proceed - user must run configureAdminEmail first
     const primaryEmailSetting = await ctx.db
       .query("settings")
       .withIndex("by_key", (q: any) => q.eq("key", "primaryAdminEmail"))
       .first();
     
-    if (!primaryEmailSetting && primaryEmail) {
-      await ctx.db.insert("settings", {
-        key: "primaryAdminEmail",
-        value: primaryEmail,
-        updatedAt: Date.now(),
-      });
-    } else if (primaryEmailSetting && primaryEmail && primaryEmailSetting.value !== primaryEmail) {
-      await ctx.db.patch(primaryEmailSetting._id, {
-        value: primaryEmail,
-        updatedAt: Date.now(),
-      });
-    }
-
     const allowedEmailsSetting = await ctx.db
       .query("settings")
       .withIndex("by_key", (q: any) => q.eq("key", "allowedAdminEmails"))
       .first();
-    
-    // If no allowed emails configured, allow the primary email by default
-    const emailsToAllow = allowedEmails.length > 0 ? allowedEmails : (primaryEmail ? [primaryEmail] : []);
-    
-    if (!allowedEmailsSetting && emailsToAllow.length > 0) {
-      await ctx.db.insert("settings", {
-        key: "allowedAdminEmails",
-        value: emailsToAllow,
-        updatedAt: Date.now(),
-      });
-    } else if (allowedEmailsSetting && emailsToAllow.length > 0) {
-      await ctx.db.patch(allowedEmailsSetting._id, {
-        value: emailsToAllow,
-        updatedAt: Date.now(),
-      });
+
+    // If no email settings exist, we need to configure them first
+    if (!primaryEmailSetting || !allowedEmailsSetting || allowedEmails.length === 0) {
+      throw new Error("Admin email not configured. Please run 'configureAdminEmail' mutation first with your email address.");
     }
+
+    // Use the configured emails
+    const emailsToAllow = allowedEmails.length > 0 ? allowedEmails : (primaryEmail ? [primaryEmail] : []);
 
     if (existing) {
       // Update existing record (overwrites existing password)
