@@ -31,17 +31,7 @@
    });
    ```
 
-5. **Seed sample data (development only):**
-   ```bash
-   npx convex run seed
-   ```
-   This creates:
-   - 3 sample projects (photo, video, design)
-   - Sample assets
-   - Sample delivery portals with randomly generated PINs
-   Note: Seed functions require admin authentication and are disabled in production.
-
-6. **Run development server:**
+5. **Run development server:**
    ```bash
    npm run dev
    ```
@@ -60,11 +50,9 @@ All files are stored using Convex Storage, which is built-in and requires no add
 
 ## Testing the Delivery Portal
 
-After seeding:
-
-1. Check the seed function output for the generated PINs
+1. Create a delivery portal via the admin dashboard
 2. Visit the delivery portal link: `http://localhost:3000/dl/[slug]`
-3. Enter the PIN from the seed output
+3. Enter the PIN you configured for the delivery
 4. Browse assets, leave feedback, test downloads
 
 Note: PINs are randomly generated for security. Never use hardcoded PINs in production.

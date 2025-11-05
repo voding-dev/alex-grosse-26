@@ -43,19 +43,12 @@ A minimalist, fast portfolio site with booking integration and secure client del
    NEXT_PUBLIC_CONVEX_URL=your-convex-url
    ```
 
-4. **Seed the database (development only):**
-   ```bash
-   npx convex run seed
-   ```
-   This creates 3 sample projects and sample delivery portals with randomly generated PINs.
-   Note: Seed functions are disabled in production for security.
-
-5. **Run the development server:**
+4. **Run the development server:**
    ```bash
    npm run dev
    ```
 
-6. **Set up admin authentication:**
+5. **Set up admin authentication:**
    - Sign in with Convex auth (passkey or email link)
    - Create an admin user in Convex dashboard:
      ```javascript
