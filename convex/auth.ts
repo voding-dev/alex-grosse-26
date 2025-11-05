@@ -171,12 +171,25 @@ export const login = mutation({
         adminAuth = await ctx.db
           .query("adminAuth")
           .first();
+        
+        console.log("[auth:login] adminAuth query result:", {
+          found: !!adminAuth,
+          hasPasswordHash: !!(adminAuth && adminAuth.passwordHash),
+          passwordHashType: adminAuth?.passwordHash ? typeof adminAuth.passwordHash : "none",
+          passwordHashLength: adminAuth?.passwordHash?.length || 0,
+          passwordHashEmpty: adminAuth?.passwordHash === "",
+        });
       } catch (dbError: any) {
-        console.error("Error querying adminAuth:", dbError);
+        console.error("[auth:login] Error querying adminAuth:", dbError);
         throw new Error(`Database error: ${dbError.message}`);
       }
       
       if (!adminAuth || !adminAuth.passwordHash || adminAuth.passwordHash === "") {
+        console.error("[auth:login] adminAuth check failed:", {
+          noAdminAuth: !adminAuth,
+          noPasswordHash: !adminAuth?.passwordHash,
+          emptyPasswordHash: adminAuth?.passwordHash === "",
+        });
         throw new Error("Invalid email or password. Please run 'setInitialPassword' mutation first.");
       }
 
