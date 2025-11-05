@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
@@ -20,6 +20,13 @@ export default function AdminLogin() {
   const { toast } = useToast();
 
   const login = useMutation(api.auth.login);
+
+  // Debug: Log Convex URL on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      console.log("[Login Page] Convex URL:", process.env.NEXT_PUBLIC_CONVEX_URL);
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

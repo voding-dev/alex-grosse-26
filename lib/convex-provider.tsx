@@ -5,6 +5,11 @@ import { ReactNode } from "react";
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL || "";
 
+// Log Convex URL for debugging (only in development)
+if (typeof window !== "undefined" && convexUrl) {
+  console.log("[Convex Client] Connecting to:", convexUrl);
+}
+
 const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
 
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
