@@ -54,7 +54,6 @@ export default function NewCampaignPage() {
         htmlContent: formData.htmlContent,
         textContent: formData.textContent || undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
-        adminEmail,
       });
 
       toast({

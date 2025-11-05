@@ -62,7 +62,6 @@ export default function ContactDetailPage() {
         lastName: formData.lastName || undefined,
         tags: formData.tags,
         status: formData.status as any,
-        adminEmail,
       });
       toast({
         title: "Contact updated",
@@ -82,7 +81,7 @@ export default function ContactDetailPage() {
     if (!adminEmail || !confirm("Are you sure you want to delete this contact?")) return;
 
     try {
-      await deleteContact({ id: contact._id, email: adminEmail });
+      await deleteContact({ id: contact._id });
       toast({
         title: "Contact deleted",
         description: "Contact has been deleted.",

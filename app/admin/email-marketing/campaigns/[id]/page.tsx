@@ -53,7 +53,6 @@ export default function CampaignDetailPage() {
     try {
       await sendCampaign({
         campaignId: campaign._id,
-        adminEmail,
       });
       toast({
         title: "Campaign sent",

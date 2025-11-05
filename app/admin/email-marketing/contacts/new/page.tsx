@@ -49,7 +49,6 @@ export default function NewContactPage() {
         lastName: formData.lastName || undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
         source: formData.source || undefined,
-        adminEmail,
       });
 
       toast({
