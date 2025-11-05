@@ -17,12 +17,12 @@ export default function EmailMarketingPage() {
 
   const contacts = useQuery(
     api.emailMarketing.listContacts,
-    adminEmail ? { email: adminEmail } : ("skip" as const)
+    adminEmail ? {} : ("skip" as const)
   );
 
   const campaigns = useQuery(
     api.emailMarketing.listCampaigns,
-    adminEmail ? { email: adminEmail } : ("skip" as const)
+    adminEmail ? {} : ("skip" as const)
   );
 
   // Handle loading state
