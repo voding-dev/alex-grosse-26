@@ -30,3 +30,4 @@ export function useGLTFCompressed(path: string) {
   return gltf;
 }
 
+
