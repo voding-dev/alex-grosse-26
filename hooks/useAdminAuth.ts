@@ -53,12 +53,15 @@ export function useAdminAuth() {
     sessionToken ? { sessionToken } : ("skip" as const)
   );
 
-  console.log("[useAdminAuth] State:", {
-    sessionToken: sessionToken ? "present" : "missing",
-    isChecking,
-    user: user ? "found" : "null",
-    isAuthenticated: !isChecking && sessionToken !== null && user !== null,
-  });
+  // Only log when state actually changes, not on every render
+  useEffect(() => {
+    console.log("[useAdminAuth] State:", {
+      sessionToken: sessionToken ? "present" : "missing",
+      isChecking,
+      user: user ? "found" : "null",
+      isAuthenticated: !isChecking && sessionToken !== null && user !== null,
+    });
+  }, [sessionToken, isChecking, user]);
 
   return {
     adminEmail: user?.email || null,

@@ -227,63 +227,111 @@ export default function WebsiteEditorPage() {
   
   const handleMoveUp = async (index: number) => {
     if (index === 0) return;
+    if (!adminEmail) {
+      toast({
+        title: "Authentication required",
+        description: "Please wait for authentication to complete.",
+        variant: "destructive",
+      });
+      return;
+    }
     const newOrder = [...carouselImages];
     [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
     await reorderImages({
       ids: newOrder.map((img) => img._id),
-      email: adminEmail || undefined,
+      email: adminEmail,
     });
   };
   
   const handleMoveDown = async (index: number) => {
     if (index === carouselImages.length - 1) return;
+    if (!adminEmail) {
+      toast({
+        title: "Authentication required",
+        description: "Please wait for authentication to complete.",
+        variant: "destructive",
+      });
+      return;
+    }
     const newOrder = [...carouselImages];
     [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
     await reorderImages({
       ids: newOrder.map((img) => img._id),
-      email: adminEmail || undefined,
+      email: adminEmail,
     });
   };
 
   // Portfolio reorder handlers
   const handleMovePortfolioUp = async (index: number) => {
     if (index === 0) return;
+    if (!adminEmail) {
+      toast({
+        title: "Authentication required",
+        description: "Please wait for authentication to complete.",
+        variant: "destructive",
+      });
+      return;
+    }
     const newOrder = [...portfolioItems];
     [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
     await reorderPortfolioItems({
       ids: newOrder.map((item) => item._id),
-      email: adminEmail || undefined,
+      email: adminEmail,
     });
   };
 
   const handleMovePortfolioDown = async (index: number) => {
     if (index === portfolioItems.length - 1) return;
+    if (!adminEmail) {
+      toast({
+        title: "Authentication required",
+        description: "Please wait for authentication to complete.",
+        variant: "destructive",
+      });
+      return;
+    }
     const newOrder = [...portfolioItems];
     [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
     await reorderPortfolioItems({
       ids: newOrder.map((item) => item._id),
-      email: adminEmail || undefined,
+      email: adminEmail,
     });
   };
 
   // Projects reorder handlers
   const handleMoveProjectUp = async (index: number) => {
     if (index === 0) return;
+    if (!adminEmail) {
+      toast({
+        title: "Authentication required",
+        description: "Please wait for authentication to complete.",
+        variant: "destructive",
+      });
+      return;
+    }
     const newOrder = [...projectsForProjectsSection];
     [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
     await reorderProjects({
       ids: newOrder.map((project) => project._id),
-      email: adminEmail || undefined,
+      email: adminEmail,
     });
   };
 
   const handleMoveProjectDown = async (index: number) => {
     if (index === projectsForProjectsSection.length - 1) return;
+    if (!adminEmail) {
+      toast({
+        title: "Authentication required",
+        description: "Please wait for authentication to complete.",
+        variant: "destructive",
+      });
+      return;
+    }
     const newOrder = [...projectsForProjectsSection];
     [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
     await reorderProjects({
       ids: newOrder.map((project) => project._id),
-      email: adminEmail || undefined,
+      email: adminEmail,
     });
   };
   
