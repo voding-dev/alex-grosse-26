@@ -59,9 +59,32 @@ export default function AdminLogin() {
       // Navigate to admin dashboard
       router.push("/admin");
     } catch (error: any) {
+      // Log full error details for debugging
+      console.error("Login error details:", {
+        error,
+        message: error?.message,
+        data: error?.data,
+        code: error?.code,
+        name: error?.name,
+        stack: error?.stack,
+        toString: error?.toString(),
+      });
+      
+      // Try to extract a more specific error message
+      let errorMessage = "Invalid email or password.";
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.data?.message) {
+        errorMessage = error.data.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      } else if (error?.toString && error.toString() !== "[object Object]") {
+        errorMessage = error.toString();
+      }
+      
       toast({
         title: "Login failed",
-        description: error.message || "Invalid email or password.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

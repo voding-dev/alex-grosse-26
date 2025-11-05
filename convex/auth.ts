@@ -258,8 +258,17 @@ export const login = mutation({
       };
     } catch (error: any) {
       // Log the actual error for debugging
-      console.error("Login error:", error);
-      throw new Error(error.message || "Login failed. Please check your email and password.");
+      const errorMessage = error?.message || error?.toString() || "Unknown error";
+      console.error("Login error details:", {
+        message: errorMessage,
+        error: error,
+        stack: error?.stack,
+        type: typeof error,
+        name: error?.name,
+      });
+      // Ensure we throw a proper Error with a message
+      const finalMessage = errorMessage || "Login failed. Please check your email and password.";
+      throw new Error(finalMessage);
     }
   },
 });
