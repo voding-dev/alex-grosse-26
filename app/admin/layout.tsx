@@ -58,7 +58,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   });
   
   useEffect(() => {
+    // Only redirect if we're done checking and not authenticated
+    // Give a small delay to allow queries to resolve
     if (!isChecking && !isAuthenticated && pathname !== "/admin/login") {
+      console.log("[AdminLayout] Not authenticated, redirecting to login");
       router.push("/admin/login");
       return;
     }
@@ -72,9 +75,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       setMobileMenuOpen(false);
       setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
     }
-  }, [pathname, isChecking, isAuthenticated]);
+  }, [pathname, isChecking, isAuthenticated, router]);
 
-  if (isChecking || (isAuthenticated === false && pathname !== "/admin/login")) {
+  // Show loading while checking auth, but allow login page to render
+  if (isChecking && pathname !== "/admin/login") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background transition-opacity duration-500 ease-out">
         <div className="text-center">
@@ -97,6 +101,38 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }}
           >
             Loading<span className="inline-block" style={{ animation: 'pulseDots 1.5s ease-in-out infinite 0.2s' }}>.</span><span className="inline-block" style={{ animation: 'pulseDots 1.5s ease-in-out infinite 0.4s' }}>.</span><span className="inline-block" style={{ animation: 'pulseDots 1.5s ease-in-out infinite 0.6s' }}>.</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Only redirect if we're definitely not authenticated (not checking anymore)
+  // Don't show loading screen if we're checking - let the redirect happen
+  if (!isChecking && !isAuthenticated && pathname !== "/admin/login") {
+    // This will be handled by the useEffect redirect
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background transition-opacity duration-500 ease-out">
+        <div className="text-center">
+          <div className="mb-4 flex items-center justify-center">
+            <Image
+              src="/ic-brandmark-white.svg"
+              alt="Ian Courtright"
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain"
+              style={{
+                animation: 'pulseOpacity 2s ease-in-out infinite',
+              }}
+            />
+          </div>
+          <p 
+            className="text-foreground/60 uppercase tracking-wider text-sm font-medium"
+            style={{
+              animation: 'pulseDots 1.5s ease-in-out infinite',
+            }}
+          >
+            Redirecting<span className="inline-block" style={{ animation: 'pulseDots 1.5s ease-in-out infinite 0.2s' }}>.</span><span className="inline-block" style={{ animation: 'pulseDots 1.5s ease-in-out infinite 0.4s' }}>.</span><span className="inline-block" style={{ animation: 'pulseDots 1.5s ease-in-out infinite 0.6s' }}>.</span>
           </p>
         </div>
       </div>

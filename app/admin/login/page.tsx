@@ -70,11 +70,9 @@ export default function AdminLogin() {
         description: "You can now access the admin dashboard.",
       });
       
-      // Small delay to ensure localStorage is set and state updates
-      setTimeout(() => {
-        console.log("[Login] Navigating to /admin");
-        router.push("/admin");
-      }, 100);
+      // Use window.location.href for a full page reload to ensure auth state is refreshed
+      // This ensures the session is validated before rendering the admin dashboard
+      window.location.href = "/admin";
     } catch (error: any) {
       // Log full error details for debugging
       console.error("Login error details:", {
