@@ -343,10 +343,53 @@ export const setInitialPassword = mutation({
     const primaryEmail = await getPrimaryAdminEmail(ctx);
     const allowedEmails = await getAllowedAdminEmails(ctx);
 
+    // Ensure settings are configured for email authorization
+    // This is critical - login checks settings table, not adminAuth table
+    const primaryEmailSetting = await ctx.db
+      .query("settings")
+      .withIndex("by_key", (q: any) => q.eq("key", "primaryAdminEmail"))
+      .first();
+    
+    if (!primaryEmailSetting && primaryEmail) {
+      await ctx.db.insert("settings", {
+        key: "primaryAdminEmail",
+        value: primaryEmail,
+        updatedAt: Date.now(),
+      });
+    } else if (primaryEmailSetting && primaryEmail && primaryEmailSetting.value !== primaryEmail) {
+      await ctx.db.patch(primaryEmailSetting._id, {
+        value: primaryEmail,
+        updatedAt: Date.now(),
+      });
+    }
+
+    const allowedEmailsSetting = await ctx.db
+      .query("settings")
+      .withIndex("by_key", (q: any) => q.eq("key", "allowedAdminEmails"))
+      .first();
+    
+    // If no allowed emails configured, allow the primary email by default
+    const emailsToAllow = allowedEmails.length > 0 ? allowedEmails : (primaryEmail ? [primaryEmail] : []);
+    
+    if (!allowedEmailsSetting && emailsToAllow.length > 0) {
+      await ctx.db.insert("settings", {
+        key: "allowedAdminEmails",
+        value: emailsToAllow,
+        updatedAt: Date.now(),
+      });
+    } else if (allowedEmailsSetting && emailsToAllow.length > 0) {
+      await ctx.db.patch(allowedEmailsSetting._id, {
+        value: emailsToAllow,
+        updatedAt: Date.now(),
+      });
+    }
+
     if (existing) {
       // Update existing record (overwrites existing password)
       await ctx.db.patch(existing._id, {
         passwordHash,
+        primaryEmail: primaryEmail || existing.primaryEmail,
+        allowedEmails: emailsToAllow.length > 0 ? emailsToAllow : existing.allowedEmails,
         updatedAt: Date.now(),
       });
       
@@ -363,7 +406,7 @@ export const setInitialPassword = mutation({
       await ctx.db.insert("adminAuth", {
         passwordHash,
         primaryEmail: primaryEmail || "",
-        allowedEmails,
+        allowedEmails: emailsToAllow,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
