@@ -4,11 +4,13 @@ import { requireAdmin } from "./auth";
 
 export const list = query({
   handler: async (ctx) => {
-    return await ctx.db
+    const allProjects = await ctx.db
       .query("projects")
       .withIndex("by_status")
       .order("desc")
       .collect();
+    // Sort by sortOrder ascending (default to 0 if not set)
+    return allProjects.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   },
 });
 
@@ -31,9 +33,11 @@ export const listPublic = query({
       .collect();
     
     // Only return approved or delivered projects for public display
-    return allProjects.filter(
+    const filtered = allProjects.filter(
       (p) => p.status === "approved" || p.status === "delivered"
     );
+    // Sort by sortOrder ascending (default to 0 if not set)
+    return filtered.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   },
 });
 
@@ -46,11 +50,13 @@ export const getByCategory = query({
       .collect();
     
     // Filter projects that contain the category AND are public (approved/delivered)
-    return allProjects.filter(
+    const filtered = allProjects.filter(
       (project) => 
         project.categories.includes(args.category) &&
         (project.status === "approved" || project.status === "delivered")
     );
+    // Sort by sortOrder ascending (default to 0 if not set)
+    return filtered.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   },
 });
 
@@ -97,8 +103,17 @@ export const create = mutation({
     }
     
     const now = Date.now();
+    // Get existing projects to set sortOrder
+    const existingProjects = await ctx.db
+      .query("projects")
+      .collect();
+    const sortOrder = existingProjects.length > 0
+      ? Math.max(...existingProjects.map((p) => p.sortOrder ?? 0)) + 1
+      : 0;
+    
     return await ctx.db.insert("projects", {
       ...projectData,
+      sortOrder,
       createdAt: now,
       updatedAt: now,
     });
@@ -257,6 +272,41 @@ export const deleteAll = mutation({
     }
     
     return { deletedCount };
+  },
+});
+
+// Reorder projects
+export const reorder = mutation({
+  args: {
+    ids: v.array(v.id("projects")),
+    email: v.optional(v.string()), // Dev mode: email for admin check
+  },
+  handler: async (ctx, args) => {
+    const { email: adminEmail, ids } = args;
+
+    // Development mode: check admin by email
+    if (adminEmail) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", adminEmail))
+        .first();
+
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized - admin access required");
+      }
+    } else {
+      // Production mode: use requireAdmin
+      await requireAdmin(ctx);
+    }
+
+    // Update sort order for each project
+    // This also initializes sortOrder for items that don't have it yet
+    for (let i = 0; i < ids.length; i++) {
+      await ctx.db.patch(ids[i], {
+        sortOrder: i,
+        updatedAt: Date.now(),
+      });
+    }
   },
 });
 

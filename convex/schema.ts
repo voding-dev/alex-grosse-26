@@ -44,12 +44,14 @@ export default defineSchema({
     coverAssetId: v.optional(v.id("assets")),
     notesPublic: v.optional(v.string()),
     notesPrivate: v.optional(v.string()),
+    sortOrder: v.optional(v.number()), // Order for homepage display
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_slug", ["slug"])
     .index("by_status", ["status"])
-    .index("by_category", ["categories"]),
+    .index("by_category", ["categories"])
+    .index("by_sort_order", ["sortOrder"]),
 
   assets: defineTable({
     projectId: v.optional(v.id("projects")),
@@ -620,12 +622,14 @@ export default defineSchema({
     coverAssetId: v.optional(v.id("assets")),
     notesPublic: v.optional(v.string()),
     notesPrivate: v.optional(v.string()),
+    sortOrder: v.optional(v.number()), // Order for homepage display
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_slug", ["slug"])
     .index("by_status", ["status"])
-    .index("by_category", ["categories"]),
+    .index("by_category", ["categories"])
+    .index("by_sort_order", ["sortOrder"]),
 
   // Landing Pages
   landingPages: defineTable({

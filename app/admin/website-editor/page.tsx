@@ -55,6 +55,7 @@ export default function WebsiteEditorPage() {
   const allPortfolioItems = useQuery(api.portfolio.list) || [];
   const deletePortfolioItem = useMutation(api.portfolio.remove);
   const deleteAllPortfolioItems = useMutation(api.portfolio.deleteAll);
+  const reorderPortfolioItems = useMutation(api.portfolio.reorder);
   
   // Portfolio Section - For Homepage Portfolio Display
   // Shows approved/delivered portfolio items (separate from projects)
@@ -71,6 +72,7 @@ export default function WebsiteEditorPage() {
   const allProjects = useQuery(api.projects.list) || [];
   const deleteProject = useMutation(api.projects.remove);
   const deleteAllProjects = useMutation(api.projects.deleteAll);
+  const reorderProjects = useMutation(api.projects.reorder);
   
   // Projects Section - For Homepage Projects Display
   // Shows ALL approved/delivered projects (separate from portfolio)
@@ -239,6 +241,48 @@ export default function WebsiteEditorPage() {
     [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
     await reorderImages({
       ids: newOrder.map((img) => img._id),
+      email: adminEmail || undefined,
+    });
+  };
+
+  // Portfolio reorder handlers
+  const handleMovePortfolioUp = async (index: number) => {
+    if (index === 0) return;
+    const newOrder = [...portfolioItems];
+    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+    await reorderPortfolioItems({
+      ids: newOrder.map((item) => item._id),
+      email: adminEmail || undefined,
+    });
+  };
+
+  const handleMovePortfolioDown = async (index: number) => {
+    if (index === portfolioItems.length - 1) return;
+    const newOrder = [...portfolioItems];
+    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+    await reorderPortfolioItems({
+      ids: newOrder.map((item) => item._id),
+      email: adminEmail || undefined,
+    });
+  };
+
+  // Projects reorder handlers
+  const handleMoveProjectUp = async (index: number) => {
+    if (index === 0) return;
+    const newOrder = [...projectsForProjectsSection];
+    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+    await reorderProjects({
+      ids: newOrder.map((project) => project._id),
+      email: adminEmail || undefined,
+    });
+  };
+
+  const handleMoveProjectDown = async (index: number) => {
+    if (index === projectsForProjectsSection.length - 1) return;
+    const newOrder = [...projectsForProjectsSection];
+    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+    await reorderProjects({
+      ids: newOrder.map((project) => project._id),
       email: adminEmail || undefined,
     });
   };
@@ -678,7 +722,7 @@ export default function WebsiteEditorPage() {
             </Card>
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {portfolioItems.map((item) => (
+              {portfolioItems.map((item, index) => (
                 <Card key={item._id} className="group transition-all hover:bg-foreground/10 border border-foreground/20 hover:border-accent/50 hover:shadow-lg relative">
                   <div className="cursor-pointer" onClick={() => router.push(`/admin/portfolio/${item._id}`)}>
                     <CardHeader className="pb-3">
@@ -701,18 +745,48 @@ export default function WebsiteEditorPage() {
                       </div>
                     </CardContent>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleDeletePortfolioClick(item._id, item.title);
-                    }}
-                    className="absolute bottom-4 right-4 z-10 text-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2">
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleMovePortfolioUp(index);
+                        }}
+                        disabled={index === 0}
+                        className="text-foreground/60 hover:text-foreground hover:bg-foreground/10 h-6 w-6 p-0"
+                      >
+                        <ChevronUp className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleMovePortfolioDown(index);
+                        }}
+                        disabled={index === portfolioItems.length - 1}
+                        className="text-foreground/60 hover:text-foreground hover:bg-foreground/10 h-6 w-6 p-0"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDeletePortfolioClick(item._id, item.title);
+                      }}
+                      className="text-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </Card>
               ))}
             </div>
@@ -760,7 +834,7 @@ export default function WebsiteEditorPage() {
                 <Eye className="h-5 w-5 sm:h-6 sm:w-6 text-accent" /> Visible on Public Site ({projectsForProjectsSection.length} {projectsForProjectsSection.length === 1 ? 'project' : 'projects'})
               </h3>
               <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {projectsForProjectsSection.map((project) => (
+                {projectsForProjectsSection.map((project, index) => (
                   <Card key={project._id} className="group transition-all hover:bg-foreground/10 border border-foreground/20 hover:border-accent/50 hover:shadow-lg relative">
                     <div className="cursor-pointer" onClick={() => router.push(`/admin/projects/${project._id}`)}>
                       <CardHeader className="pb-3">
@@ -782,18 +856,48 @@ export default function WebsiteEditorPage() {
                         </div>
                       </CardContent>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleDeleteProjectClick(project._id, project.title);
-                      }}
-                      className="absolute bottom-4 right-4 z-10 text-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2">
+                      <div className="flex flex-col gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleMoveProjectUp(index);
+                          }}
+                          disabled={index === 0}
+                          className="text-foreground/60 hover:text-foreground hover:bg-foreground/10 h-6 w-6 p-0"
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleMoveProjectDown(index);
+                          }}
+                          disabled={index === projectsForProjectsSection.length - 1}
+                          className="text-foreground/60 hover:text-foreground hover:bg-foreground/10 h-6 w-6 p-0"
+                        >
+                          <ChevronDown className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDeleteProjectClick(project._id, project.title);
+                        }}
+                        className="text-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </Card>
                 ))}
               </div>
