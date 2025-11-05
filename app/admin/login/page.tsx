@@ -49,10 +49,15 @@ export default function AdminLogin() {
 
     setIsLoading(true);
     try {
+      console.log("[Login] Attempting login with email:", email.trim().toLowerCase());
+      console.log("[Login] Mutation function:", login);
+      
       const result = await login({ 
         email: email.trim().toLowerCase(), 
         password 
       });
+      
+      console.log("[Login] Login successful, result:", result);
       
       // Store session token in localStorage
       localStorage.setItem("admin_session_token", result.sessionToken);
