@@ -136,22 +136,48 @@ export const login = mutation({
   },
   handler: async (ctx, args) => {
     try {
+      // Validate inputs
+      if (!args.email || typeof args.email !== "string") {
+        throw new Error("Email is required");
+      }
+      if (!args.password || typeof args.password !== "string") {
+        throw new Error("Password is required");
+      }
+
       // Normalize email
       const email = args.email.trim().toLowerCase();
 
       // Check if email is allowed
-      const isAllowed = await isAllowedAdminEmail(ctx, email);
+      let isAllowed = false;
+      try {
+        isAllowed = await isAllowedAdminEmail(ctx, email);
+      } catch (emailCheckError: any) {
+        console.error("Error checking email authorization:", emailCheckError);
+        throw new Error(`Email authorization check failed: ${emailCheckError.message}`);
+      }
+      
       if (!isAllowed) {
         throw new Error("Unauthorized email address. Please run 'configureAdminEmail' mutation first.");
       }
 
       // Get admin auth
-      const adminAuth = await ctx.db
-        .query("adminAuth")
-        .first();
+      let adminAuth;
+      try {
+        adminAuth = await ctx.db
+          .query("adminAuth")
+          .first();
+      } catch (dbError: any) {
+        console.error("Error querying adminAuth:", dbError);
+        throw new Error(`Database error: ${dbError.message}`);
+      }
       
       if (!adminAuth || !adminAuth.passwordHash || adminAuth.passwordHash === "") {
         throw new Error("Invalid email or password. Please run 'setInitialPassword' mutation first.");
+      }
+
+      // Validate password hash format
+      if (typeof adminAuth.passwordHash !== "string" || adminAuth.passwordHash.length < 50) {
+        throw new Error("Invalid password hash format. Please run 'setInitialPassword' mutation again.");
       }
 
       // Verify password
@@ -159,54 +185,71 @@ export const login = mutation({
       try {
         passwordMatch = bcrypt.compareSync(args.password, adminAuth.passwordHash);
       } catch (bcryptError: any) {
-        throw new Error(`Password verification failed: ${bcryptError.message}`);
+        console.error("bcrypt.compareSync error:", bcryptError);
+        throw new Error(`Password verification failed: ${bcryptError.message || "Invalid password format"}`);
       }
       
       if (!passwordMatch) {
         throw new Error("Invalid email or password");
       }
 
-    // Create or update user record
-    let user = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q: any) => q.eq("email", email))
-      .first();
+      // Create or update user record
+      let user;
+      try {
+        user = await ctx.db
+          .query("users")
+          .withIndex("by_email", (q: any) => q.eq("email", email))
+          .first();
 
-    if (!user) {
-      // Create user record if it doesn't exist
-      await ctx.db.insert("users", {
-        name: email.split("@")[0],
-        email: email,
-        role: "admin",
-        createdAt: Date.now(),
-      });
-    } else if (user.role !== "admin") {
-      // Update to admin if not already
-      await ctx.db.patch(user._id, { role: "admin" });
-    }
-
-    // Create session (expires in 30 days)
-    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
-    const sessionToken = generateSessionToken();
-    
-    await ctx.db.insert("adminSessions", {
-      token: sessionToken,
-      email: email,
-      expiresAt,
-      createdAt: Date.now(),
-    });
-
-    // Clean up old expired sessions for this email
-    const oldSessions = await ctx.db
-      .query("adminSessions")
-      .withIndex("by_email", (q: any) => q.eq("email", email))
-      .collect();
-    
-    for (const session of oldSessions) {
-      if (session.expiresAt < Date.now()) {
-        await ctx.db.delete(session._id);
+        if (!user) {
+          // Create user record if it doesn't exist
+          await ctx.db.insert("users", {
+            name: email.split("@")[0],
+            email: email,
+            role: "admin",
+            createdAt: Date.now(),
+          });
+        } else if (user.role !== "admin") {
+          // Update to admin if not already
+          await ctx.db.patch(user._id, { role: "admin" });
+        }
+      } catch (userError: any) {
+        console.error("Error creating/updating user:", userError);
+        throw new Error(`Failed to create user record: ${userError.message}`);
       }
-    }
+
+      // Create session (expires in 30 days)
+      const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      const sessionToken = generateSessionToken();
+      
+      try {
+        await ctx.db.insert("adminSessions", {
+          token: sessionToken,
+          email: email,
+          expiresAt,
+          createdAt: Date.now(),
+        });
+      } catch (sessionError: any) {
+        console.error("Error creating session:", sessionError);
+        throw new Error(`Failed to create session: ${sessionError.message}`);
+      }
+
+      // Clean up old expired sessions for this email
+      try {
+        const oldSessions = await ctx.db
+          .query("adminSessions")
+          .withIndex("by_email", (q: any) => q.eq("email", email))
+          .collect();
+        
+        for (const session of oldSessions) {
+          if (session.expiresAt < Date.now()) {
+            await ctx.db.delete(session._id);
+          }
+        }
+      } catch (cleanupError: any) {
+        // Don't fail login if cleanup fails, just log it
+        console.error("Error cleaning up old sessions:", cleanupError);
+      }
 
       return {
         success: true,
