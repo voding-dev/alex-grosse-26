@@ -67,7 +67,7 @@ function parseVimeoUrl(url: string): { videoId: string | null; platform: "vimeo"
 export function parseVideoUrl(url: string): VideoInfo | null {
   // Try YouTube first
   const youtubeMatch = parseYouTubeUrl(url);
-  if (youtubeMatch) {
+  if (youtubeMatch && youtubeMatch.videoId) {
     return {
       platform: "youtube",
       videoId: youtubeMatch.videoId,
@@ -78,7 +78,7 @@ export function parseVideoUrl(url: string): VideoInfo | null {
   
   // Try Vimeo
   const vimeoMatch = parseVimeoUrl(url);
-  if (vimeoMatch) {
+  if (vimeoMatch && vimeoMatch.videoId) {
     return {
       platform: "vimeo",
       videoId: vimeoMatch.videoId,

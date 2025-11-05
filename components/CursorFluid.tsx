@@ -9,7 +9,7 @@ interface CursorFluidProps {
 
 export function CursorFluid({ enabled = true }: CursorFluidProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     // Disable on reduced motion or touch devices
@@ -46,7 +46,7 @@ export function CursorFluid({ enabled = true }: CursorFluidProps) {
 
     // Animation loop
     function animate() {
-      if (!ctx) return;
+      if (!ctx || !canvas) return;
 
       // Clear with alpha for trail effect
       ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';

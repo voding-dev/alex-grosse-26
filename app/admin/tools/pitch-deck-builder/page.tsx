@@ -340,10 +340,10 @@ export default function PitchDeckBuilderPage() {
     }
     
     // Smooth UX: close dialog when all slots are filled
-    if (mediaSelectorType === "cover" && ![...coverMediaUrls].some(Boolean === false)) {
+    if (mediaSelectorType === "cover" && !coverMediaUrls.some((item) => !item)) {
       setMediaSelectorOpen(false);
     }
-    if (mediaSelectorType === "imagery" && ![...imageryMediaUrls].some(Boolean === false)) {
+    if (mediaSelectorType === "imagery" && !imageryMediaUrls.some((item) => !item)) {
       setMediaSelectorOpen(false);
     }
   };

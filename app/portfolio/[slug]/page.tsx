@@ -23,14 +23,16 @@ export default function PortfolioPage({ params }: { params: Promise<{ slug: stri
 
   // Convert assets to masonry grid format
   // Note: src will be storageId - we need to convert it to URL in the component
-  const masonryItems = (assets || []).map((asset) => ({
-    id: asset._id,
-    storageId: asset.videoUrl ? undefined : (asset.previewKey || asset.storageKey), // Only include storageId for non-external videos
-    videoUrl: asset.videoUrl, // YouTube/Vimeo URL for embedded videos
-    alt: asset.filename,
-    type: asset.type,
-    aspectRatio: asset.width && asset.height ? asset.width / asset.height : undefined,
-  }));
+  const masonryItems = (assets || [])
+    .filter((asset) => asset.type !== "other") // Filter out "other" type items
+    .map((asset) => ({
+      id: asset._id,
+      storageId: asset.videoUrl ? undefined : (asset.previewKey || asset.storageKey), // Only include storageId for non-external videos
+      videoUrl: asset.videoUrl, // YouTube/Vimeo URL for embedded videos
+      alt: asset.filename,
+      type: asset.type as "video" | "image" | "pdf", // Type assertion since we filtered out "other"
+      aspectRatio: asset.width && asset.height ? asset.width / asset.height : undefined,
+    }));
 
   // Get all images and videos for hero carousel (both types show thumbnails)
   const heroItems = masonryItems.filter(item => item.type === "image" || (item.type === "video" && item.videoUrl));

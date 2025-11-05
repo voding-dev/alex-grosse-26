@@ -72,12 +72,12 @@ export default function SettingsPage() {
     try {
       // Save all settings
       await Promise.all([
-        setSetting({ key: "supportEmail", value: formData.supportEmail || "", email: adminEmail }),
-        setSetting({ key: "defaultDeliveryExpirationDays", value: formData.defaultDeliveryExpirationDays || 30, email: adminEmail }),
-        setSetting({ key: "expirationWarningThresholdDays", value: formData.expirationWarningThresholdDays || 7, email: adminEmail }),
-        setSetting({ key: "emailNotifications", value: formData.emailNotifications, email: adminEmail }),
-        setSetting({ key: "newFeedbackNotifications", value: formData.newFeedbackNotifications, email: adminEmail }),
-        setSetting({ key: "expiringDeliveryAlerts", value: formData.expiringDeliveryAlerts, email: adminEmail }),
+        setSetting({ key: "supportEmail", value: formData.supportEmail || "" }),
+        setSetting({ key: "defaultDeliveryExpirationDays", value: formData.defaultDeliveryExpirationDays || 30 }),
+        setSetting({ key: "expirationWarningThresholdDays", value: formData.expirationWarningThresholdDays || 7 }),
+        setSetting({ key: "emailNotifications", value: formData.emailNotifications }),
+        setSetting({ key: "newFeedbackNotifications", value: formData.newFeedbackNotifications }),
+        setSetting({ key: "expiringDeliveryAlerts", value: formData.expiringDeliveryAlerts }),
       ]);
 
       toast({

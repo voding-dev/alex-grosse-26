@@ -74,6 +74,10 @@ function Model({
   useEffect(() => {
     if (!modelRef.current) return;
 
+    // Find the canvas element (parent of the Three.js scene)
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -83,7 +87,7 @@ function Model({
       { threshold: 0 }
     );
 
-    observer.observe(modelRef.current.parentElement!);
+    observer.observe(canvas);
 
     return () => observer.disconnect();
   }, []);

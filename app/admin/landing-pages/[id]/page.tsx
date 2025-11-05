@@ -121,7 +121,7 @@ export default function LandingPageEditorPage() {
     }
   };
   
-  const handleRemoveHero = async (id: Id<"designHeroCarousel">) => {
+  const handleRemoveHero = async (id: Id<"landingPageHeroCarousel">) => {
     try {
       await removeHeroImage({
         id,
@@ -224,7 +224,7 @@ export default function LandingPageEditorPage() {
     }
   };
   
-  const handleRemoveGallery = async (id: Id<"designGallery">) => {
+  const handleRemoveGallery = async (id: Id<"landingPageGallery">) => {
     try {
       await removeGalleryImage({
         id,

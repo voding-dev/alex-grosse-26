@@ -10,9 +10,12 @@ export async function GET(request: NextRequest) {
     const token = searchParams.get("token");
     
     if (!token) {
-      return NextResponse.html(
+      return new NextResponse(
         "<html><body><h1>Invalid unsubscribe link</h1></body></html>",
-        { status: 400 }
+        { 
+          status: 400,
+          headers: { "Content-Type": "text/html" }
+        }
       );
     }
     
@@ -22,9 +25,12 @@ export async function GET(request: NextRequest) {
     });
     
     if (!send) {
-      return NextResponse.html(
+      return new NextResponse(
         "<html><body><h1>Unsubscribe link not found</h1></body></html>",
-        { status: 404 }
+        { 
+          status: 404,
+          headers: { "Content-Type": "text/html" }
+        }
       );
     }
     
@@ -46,15 +52,21 @@ export async function GET(request: NextRequest) {
       type: "unsubscribed",
     });
     
-    return NextResponse.html(
+    return new NextResponse(
       "<html><body><h1>You have been unsubscribed</h1><p>You will no longer receive emails from us.</p></body></html>",
-      { status: 200 }
+      { 
+        status: 200,
+        headers: { "Content-Type": "text/html" }
+      }
     );
   } catch (error) {
     console.error("Error processing unsubscribe:", error);
-    return NextResponse.html(
+    return new NextResponse(
       "<html><body><h1>Error processing unsubscribe</h1></body></html>",
-      { status: 500 }
+      { 
+        status: 500,
+        headers: { "Content-Type": "text/html" }
+      }
     );
   }
 }

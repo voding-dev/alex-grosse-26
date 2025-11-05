@@ -10,7 +10,7 @@ import {
   updateQuote,
   deleteQuote,
 } from "@/lib/quote-calculator/storage/quoteStorage";
-import { loadSettings, getBrandCategories } from "@/lib/quote-calculator/storage/settingsStorage";
+import { loadSettings, getBrandCategories, defaultSettings } from "@/lib/quote-calculator/storage/settingsStorage";
 import { generatePDF } from "@/lib/quote-calculator/utils/pdfExport";
 import { BRANDS, DEFAULT_BRAND } from "@/lib/quote-calculator/brands";
 import { JobControlsPanel } from "@/lib/quote-calculator/components/JobControlsPanel";
@@ -48,7 +48,7 @@ export default function QuoteCalculatorPage() {
     if (typeof window !== "undefined") {
       return loadSettings();
     }
-    return { slaTerms: [], paymentInfo: { paymentMethods: [] }, quoteValidityDays: 30 };
+    return defaultSettings;
   });
 
   // Load saved quotes on mount
@@ -62,7 +62,7 @@ export default function QuoteCalculatorPage() {
   const defaultPDFOptions = useMemo(() => {
     return {
       selectedSLATermIds: settings.slaTerms.map((t) => t.id),
-      showQRCode: !!settings.paymentInfo.qrCodeUrl,
+      showQRCode: !!settings.paymentInfo?.qrCodeUrl,
       customValidityDays: undefined,
     };
   }, [settings]);

@@ -22,7 +22,6 @@ export function useLenis(): Lenis | null {
         gestureOrientation: 'vertical',
         smoothWheel: true,
         wheelMultiplier: 1,
-        smoothTouch: false,
         touchMultiplier: 2,
       });
 

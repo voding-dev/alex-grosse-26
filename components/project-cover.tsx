@@ -16,7 +16,7 @@ export function ProjectCover({ projectId, coverAssetId, className = "", isPortfo
   // If coverAssetId is provided, use it
   const coverAsset = useQuery(
     api.assets.get,
-    coverAssetId ? { id: coverAssetId } : "skip"
+    coverAssetId ? { id: coverAssetId as Id<"assets"> } : "skip"
   );
 
   // If no coverAssetId, fetch assets and use first image or video

@@ -27,16 +27,6 @@ export function PortfolioProjectCard({ id, slug, title, clientName, isPortfolio 
       <ProjectCover
         projectId={id}
         className="transition-opacity duration-300 group-hover:opacity-0 h-full w-full"
-        style={{
-          transform: 'scale(1)',
-          transition: 'opacity 300ms ease-out, transform 300ms ease-out',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.05)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
-        }}
         isPortfolio={isPortfolio}
       />
       {/* Hover carousel (shows on hover) */}

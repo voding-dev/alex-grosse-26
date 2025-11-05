@@ -55,7 +55,7 @@ export function CustomDatePicker({
   const firstDayOfWeek = getDay(monthStart);
   
   // Create calendar grid with empty cells for days before month start
-  const calendarDays = [];
+  const calendarDays: (Date | null)[] = [];
   for (let i = 0; i < firstDayOfWeek; i++) {
     calendarDays.push(null);
   }
