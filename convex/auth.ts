@@ -135,12 +135,17 @@ export const login = mutation({
     password: v.string(),
   },
   handler: async (ctx, args) => {
+    // Log the start of the mutation for debugging
+    console.log("[auth:login] Mutation called with email:", args.email);
+    
     try {
       // Validate inputs
       if (!args.email || typeof args.email !== "string") {
+        console.error("[auth:login] Email validation failed");
         throw new Error("Email is required");
       }
       if (!args.password || typeof args.password !== "string") {
+        console.error("[auth:login] Password validation failed");
         throw new Error("Password is required");
       }
 
@@ -251,6 +256,7 @@ export const login = mutation({
         console.error("Error cleaning up old sessions:", cleanupError);
       }
 
+      console.log("[auth:login] Login successful for:", email);
       return {
         success: true,
         sessionToken,
@@ -259,16 +265,20 @@ export const login = mutation({
     } catch (error: any) {
       // Log the actual error for debugging
       const errorMessage = error?.message || error?.toString() || "Unknown error";
-      console.error("Login error details:", {
+      console.error("[auth:login] Login error:", {
         message: errorMessage,
         error: error,
         stack: error?.stack,
         type: typeof error,
         name: error?.name,
+        email: args.email,
       });
       // Ensure we throw a proper Error with a message
       const finalMessage = errorMessage || "Login failed. Please check your email and password.";
-      throw new Error(finalMessage);
+      // Re-throw with a clear error message
+      const loginError = new Error(finalMessage);
+      console.error("[auth:login] Throwing error:", finalMessage);
+      throw loginError;
     }
   },
 });
