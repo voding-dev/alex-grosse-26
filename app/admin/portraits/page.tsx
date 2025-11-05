@@ -1,0 +1,1038 @@
+"use client";
+
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/use-toast";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { HeroCarouselImage } from "@/components/hero-carousel-image";
+import { PortraitsGalleryImage } from "@/components/portraits-gallery-image";
+import { X, ChevronUp, ChevronDown, Upload, Eye, ArrowLeft, Trash2 } from "lucide-react";
+import { Id } from "@/convex/_generated/dataModel";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+export default function PortraitsEditorPage() {
+  const { adminEmail } = useAdminAuth();
+  const router = useRouter();
+  
+  // Hero Carousel
+  const heroCarouselImages = useQuery(api.portraitsHeroCarousel.list) || [];
+  const addHeroImage = useMutation(api.portraitsHeroCarousel.add);
+  const removeHeroImage = useMutation(api.portraitsHeroCarousel.remove);
+  const reorderHeroImages = useMutation(api.portraitsHeroCarousel.reorder);
+  
+  // Gallery
+  const galleryImages = useQuery(api.portraitsGallery.list) || [];
+  const addGalleryImage = useMutation(api.portraitsGallery.add);
+  const removeGalleryImage = useMutation(api.portraitsGallery.remove);
+  const reorderGalleryImages = useMutation(api.portraitsGallery.reorder);
+  
+  // Portraits page content
+  const portraits = useQuery(api.portraits.get);
+  const updatePortraits = useMutation(api.portraits.update);
+  const deletePortraits = useMutation(api.portraits.deleteAll);
+  
+  const generateUploadUrl = useMutation(api.storageMutations.generateUploadUrl);
+  
+  const { toast } = useToast();
+  
+  const [uploading, setUploading] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  
+  // Portraits Form Data
+  const [portraitsFormData, setPortraitsFormData] = useState({
+    heroText: "",
+    calUrl: "",
+    stripeUrl: "",
+    howItWorksTitle: "",
+    howItWorksSteps: [] as Array<{ title: string; description: string }>,
+    services: [] as Array<{ title: string; description: string }>,
+  });
+  
+  useEffect(() => {
+    // Default "How It Works" for portraits page
+    const defaultHowItWorksTitle = "How It Works";
+    const defaultHowItWorksSteps = [
+      {
+        title: "Consultation",
+        description: "We'll discuss your vision, location, and style preferences."
+      },
+      {
+        title: "Session",
+        description: "Professional photography session at your chosen location."
+      },
+      {
+        title: "Editing",
+        description: "Professional retouching and color correction of your images."
+      },
+      {
+        title: "Delivery",
+        description: "Receive your final portraits in high-resolution format."
+      }
+    ];
+
+    // Default services for portraits page
+    const defaultServices = [
+      {
+        title: "Mini Sessions",
+        description: "Quick and affordable portrait sessions perfect for updating your profile photos or capturing a special moment."
+      },
+      {
+        title: "Personal Sessions",
+        description: "Individual or family portrait sessions tailored to your style and location preferences. Perfect for personal keepsakes or holiday cards."
+      },
+      {
+        title: "Professional Sessions",
+        description: "Headshots and professional portraits for business, LinkedIn, or corporate use. Look polished and confident in your professional image."
+      }
+    ];
+
+    if (portraits) {
+      // If no howItWorksTitle exists, use default
+      const howItWorksTitle = portraits.howItWorksTitle || defaultHowItWorksTitle;
+      
+      // If no howItWorksSteps exist, populate with defaults
+      const howItWorksSteps = portraits.howItWorksSteps && portraits.howItWorksSteps.length > 0 
+        ? portraits.howItWorksSteps 
+        : defaultHowItWorksSteps;
+
+      // If no services exist, populate with defaults
+      const services = portraits.services && portraits.services.length > 0 
+        ? portraits.services 
+        : defaultServices;
+
+      // If any defaults need to be saved, automatically save them
+      const needsUpdate = (!portraits.howItWorksTitle || portraits.howItWorksTitle === "") ||
+                          (!portraits.howItWorksSteps || portraits.howItWorksSteps.length === 0) ||
+                          (!portraits.services || portraits.services.length === 0);
+
+      if (needsUpdate) {
+        updatePortraits({
+          heroText: portraits.heroText,
+          calUrl: portraits.calUrl,
+          stripeUrl: portraits.stripeUrl,
+          howItWorksTitle: howItWorksTitle,
+          howItWorksSteps: howItWorksSteps,
+          services: services,
+          email: adminEmail || undefined,
+        });
+      }
+
+      setPortraitsFormData({
+        heroText: portraits.heroText || "",
+        calUrl: portraits.calUrl || "",
+        stripeUrl: portraits.stripeUrl || "",
+        howItWorksTitle: howItWorksTitle,
+        howItWorksSteps: howItWorksSteps,
+        services: services,
+      });
+    } else if (portraits === null) {
+      // If portraits record doesn't exist yet, create it with default data
+      updatePortraits({
+        heroText: "",
+        calUrl: "",
+        stripeUrl: "",
+        howItWorksTitle: defaultHowItWorksTitle,
+        howItWorksSteps: defaultHowItWorksSteps,
+        services: defaultServices,
+        email: adminEmail || undefined,
+      });
+      
+      setPortraitsFormData({
+        heroText: "",
+        calUrl: "",
+        stripeUrl: "",
+        howItWorksTitle: defaultHowItWorksTitle,
+        howItWorksSteps: defaultHowItWorksSteps,
+        services: defaultServices,
+      });
+    }
+  }, [portraits, updatePortraits, adminEmail]);
+  
+  // Hero Carousel handlers
+  const handleHeroImageUpload = async (file: File) => {
+    try {
+      setUploading(true);
+      const uploadUrl = await generateUploadUrl();
+      const result = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      
+      if (!result.ok) {
+        throw new Error("Failed to upload image");
+      }
+      
+      const { storageId } = await result.json();
+      
+      await addHeroImage({
+        imageStorageId: storageId,
+        alt: file.name,
+        email: adminEmail || undefined,
+      });
+      
+      toast({
+        title: "Image uploaded",
+        description: "Hero carousel image added successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload image.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+  const handleRemoveHero = async (id: Id<"portraitsHeroCarousel">) => {
+    try {
+      await removeHeroImage({
+        id,
+        email: adminEmail || undefined,
+      });
+      toast({
+        title: "Image removed",
+        description: "Hero carousel image removed successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove image.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleMoveHeroUp = async (index: number) => {
+    if (index === 0) return;
+    const newOrder = [...heroCarouselImages];
+    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+    await reorderHeroImages({
+      ids: newOrder.map((img) => img._id),
+      email: adminEmail || undefined,
+    });
+  };
+  
+  const handleMoveHeroDown = async (index: number) => {
+    if (index === heroCarouselImages.length - 1) return;
+    const newOrder = [...heroCarouselImages];
+    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+    await reorderHeroImages({
+      ids: newOrder.map((img) => img._id),
+      email: adminEmail || undefined,
+    });
+  };
+
+  // Gallery handlers
+  const handleGalleryImageUpload = async (file: File) => {
+    try {
+      setUploadingGallery(true);
+      const uploadUrl = await generateUploadUrl();
+      const result = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      
+      if (!result.ok) {
+        throw new Error("Failed to upload image");
+      }
+      
+      const { storageId } = await result.json();
+      
+      // Get image dimensions if it's an image
+      let width: number | undefined;
+      let height: number | undefined;
+      
+      if (file.type.startsWith("image/")) {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        await new Promise((resolve, reject) => {
+          img.onload = () => {
+            width = img.naturalWidth;
+            height = img.naturalHeight;
+            URL.revokeObjectURL(objectUrl);
+            resolve(null);
+          };
+          img.onerror = reject;
+          img.src = objectUrl;
+        });
+      }
+      
+      await addGalleryImage({
+        imageStorageId: storageId,
+        alt: file.name,
+        width,
+        height,
+        email: adminEmail || undefined,
+      });
+      
+      toast({
+        title: "Image uploaded",
+        description: "Gallery image added successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload image.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingGallery(false);
+    }
+  };
+  
+  const handleRemoveGallery = async (id: Id<"portraitsGallery">) => {
+    try {
+      await removeGalleryImage({
+        id,
+        email: adminEmail || undefined,
+      });
+      toast({
+        title: "Image removed",
+        description: "Gallery image removed successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove image.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleMoveGalleryUp = async (index: number) => {
+    if (index === 0) return;
+    const newOrder = [...galleryImages];
+    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+    await reorderGalleryImages({
+      ids: newOrder.map((img) => img._id),
+      email: adminEmail || undefined,
+    });
+  };
+  
+  const handleMoveGalleryDown = async (index: number) => {
+    if (index === galleryImages.length - 1) return;
+    const newOrder = [...galleryImages];
+    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+    await reorderGalleryImages({
+      ids: newOrder.map((img) => img._id),
+      email: adminEmail || undefined,
+    });
+  };
+
+  // Save portraits content
+  const handleSavePortraits = async () => {
+    try {
+      await updatePortraits({
+        heroText: portraitsFormData.heroText,
+        calUrl: portraitsFormData.calUrl || undefined,
+        stripeUrl: portraitsFormData.stripeUrl || undefined,
+        howItWorksTitle: portraitsFormData.howItWorksTitle || undefined,
+        howItWorksSteps: portraitsFormData.howItWorksSteps.length > 0 ? portraitsFormData.howItWorksSteps : undefined,
+        services: portraitsFormData.services.length > 0 ? portraitsFormData.services : undefined,
+        email: adminEmail || undefined,
+      });
+      toast({
+        title: "Saved",
+        description: "Portraits page content updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save changes.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // How It Works handlers
+  const addHowItWorksStep = () => {
+    setPortraitsFormData({
+      ...portraitsFormData,
+      howItWorksSteps: [...portraitsFormData.howItWorksSteps, { title: "", description: "" }],
+    });
+  };
+
+  const updateHowItWorksStep = (index: number, field: "title" | "description", value: string) => {
+    const newSteps = [...portraitsFormData.howItWorksSteps];
+    newSteps[index] = { ...newSteps[index], [field]: value };
+    setPortraitsFormData({ ...portraitsFormData, howItWorksSteps: newSteps });
+  };
+
+  const removeHowItWorksStep = (index: number) => {
+    setPortraitsFormData({
+      ...portraitsFormData,
+      howItWorksSteps: portraitsFormData.howItWorksSteps.filter((_, i) => i !== index),
+    });
+  };
+
+  // Services handlers
+  const addService = () => {
+    setPortraitsFormData({
+      ...portraitsFormData,
+      services: [...portraitsFormData.services, { title: "", description: "" }],
+    });
+  };
+
+  const updateService = (index: number, field: "title" | "description", value: string) => {
+    const newServices = [...portraitsFormData.services];
+    newServices[index] = { ...newServices[index], [field]: value };
+    setPortraitsFormData({ ...portraitsFormData, services: newServices });
+  };
+
+  const removeService = (index: number) => {
+    setPortraitsFormData({
+      ...portraitsFormData,
+      services: portraitsFormData.services.filter((_, i) => i !== index),
+    });
+  };
+
+  // Delete handler
+  const handleDeleteConfirm = async () => {
+    try {
+      await deletePortraits({ email: adminEmail || undefined });
+      toast({
+        title: "Portraits page deleted",
+        description: "The portraits page and all its associated assets have been permanently deleted.",
+      });
+      setDeleteDialogOpen(false);
+      router.push("/admin/page-builder");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete portraits page.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
+      <div className="mb-8 sm:mb-12">
+        <Link href="/admin/page-builder" className="text-sm text-accent hover:text-accent/80 font-bold uppercase tracking-wider inline-flex items-center gap-1 group mb-4">
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+          Back to Page Builder
+        </Link>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+              Portraits Page Editor
+            </h1>
+            <p className="text-foreground/70 text-base sm:text-lg">
+              Manage the portraits booking page content, hero carousel, and gallery.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+            <Link href="/portraits" target="_blank" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full sm:w-auto flex items-center gap-2 font-bold uppercase tracking-wider border-foreground/20 hover:border-accent/50 hover:text-accent" style={{ fontWeight: '700' }}>
+                <Eye className="h-4 w-4" />
+                View Page
+              </Button>
+            </Link>
+            <Button
+              variant="destructive"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="w-full sm:w-auto flex items-center gap-2 font-bold uppercase tracking-wider"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Page
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <Tabs defaultValue="booking" className="space-y-6 sm:space-y-8">
+        <TabsList className="grid w-full grid-cols-5 max-w-3xl bg-foreground/5 border border-foreground/20 rounded-lg p-1.5 !h-auto items-center gap-1">
+          <TabsTrigger 
+            value="booking" 
+            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+          >
+            Booking
+          </TabsTrigger>
+          <TabsTrigger 
+            value="hero" 
+            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+          >
+            Hero
+          </TabsTrigger>
+          <TabsTrigger 
+            value="howItWorks" 
+            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+          >
+            How It Works
+          </TabsTrigger>
+          <TabsTrigger 
+            value="services" 
+            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+          >
+            Services
+          </TabsTrigger>
+          <TabsTrigger 
+            value="gallery" 
+            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+          >
+            Gallery
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Booking Tab */}
+        <TabsContent value="booking" className="space-y-6 sm:space-y-8 mt-6 sm:mt-8">
+          <Card className="border border-foreground/20">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                Booking Links
+              </CardTitle>
+              <CardDescription className="text-base">
+                Configure booking and payment links for the portraits page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              <div>
+                <Label htmlFor="calUrl" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Cal.com Booking Link
+                </Label>
+                <Input
+                  id="calUrl"
+                  value={portraitsFormData.calUrl}
+                  onChange={(e) => setPortraitsFormData({ ...portraitsFormData, calUrl: e.target.value })}
+                  className="h-12 text-base border-foreground/20 focus:border-accent/50"
+                  placeholder="https://cal.com/your-username"
+                />
+                <p className="mt-2 text-xs text-foreground/60">
+                  URL for Cal.com booking. This will appear as a "Book Session" button on the portraits page.
+                </p>
+              </div>
+
+              <Separator className="bg-foreground/10" />
+
+              <div>
+                <Label htmlFor="stripeUrl" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Stripe Payment Link
+                </Label>
+                <Input
+                  id="stripeUrl"
+                  value={portraitsFormData.stripeUrl}
+                  onChange={(e) => setPortraitsFormData({ ...portraitsFormData, stripeUrl: e.target.value })}
+                  className="h-12 text-base border-foreground/20 focus:border-accent/50"
+                  placeholder="https://buy.stripe.com/..."
+                />
+                <p className="mt-2 text-xs text-foreground/60">
+                  URL for Stripe payment. This will appear as a "Pay Deposit" button on the portraits page.
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button 
+                  onClick={handleSavePortraits} 
+                  size="lg"
+                  className="w-full sm:w-auto sm:min-w-[200px] font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+                  style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Hero Tab */}
+        <TabsContent value="hero" className="space-y-6 sm:space-y-8 mt-6 sm:mt-8">
+          <Card className="border border-foreground/20">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                Hero Text
+              </CardTitle>
+              <CardDescription className="text-base">
+                Edit the text displayed below the logo in the hero section.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              <div>
+                <Label htmlFor="heroText" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Hero Text
+                </Label>
+                <Input
+                  id="heroText"
+                  value={portraitsFormData.heroText}
+                  onChange={(e) => setPortraitsFormData({ ...portraitsFormData, heroText: e.target.value })}
+                  className="h-12 text-base border-foreground/20 focus:border-accent/50"
+                  placeholder="Personal & Professional Portrait Photography. Book your session today."
+                />
+                <p className="mt-2 text-xs text-foreground/60">
+                  This text appears below the logo in the hero section.
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button 
+                  onClick={handleSavePortraits} 
+                  size="lg"
+                  className="w-full sm:w-auto sm:min-w-[200px] font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+                  style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-foreground/20">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                Add Hero Image
+              </CardTitle>
+              <CardDescription className="text-base">
+                Upload a new image for the hero carousel. Images will auto-rotate every 5 seconds.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <Label htmlFor="hero-upload" className="cursor-pointer">
+                  <div className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-6 py-3 hover:bg-accent/20 transition-colors font-bold uppercase tracking-wider">
+                    <Upload className="h-5 w-5" />
+                    <span>{uploading ? "Uploading..." : "Choose Image"}</span>
+                  </div>
+                </Label>
+                <input
+                  id="hero-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleHeroImageUpload(file);
+                  }}
+                  disabled={uploading}
+                />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border border-foreground/20">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                Hero Carousel Images ({heroCarouselImages.length})
+              </CardTitle>
+              <CardDescription className="text-base">
+                {heroCarouselImages.length === 0
+                  ? "No images uploaded yet. Upload images above to get started."
+                  : "Reorder images using the arrows. Images will display in this order."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {heroCarouselImages.length === 0 ? (
+                <div className="py-16 text-center">
+                  <Eye className="mx-auto h-16 w-16 text-foreground/40 mb-6" />
+                  <p className="mb-4 text-xl font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                    No hero images yet.
+                  </p>
+                  <p className="text-sm text-foreground/70">
+                    Upload an image to get started.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {heroCarouselImages.map((image, index) => (
+                    <div
+                      key={image._id}
+                      className="flex items-center gap-4 rounded-lg border border-foreground/10 bg-foreground/5 p-4 hover:bg-foreground/10 transition-colors"
+                    >
+                      <div className="relative h-24 w-32 overflow-hidden rounded-md bg-black">
+                        <HeroCarouselImage
+                          storageId={image.imageStorageId}
+                          alt={image.alt}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold">{image.alt || "Untitled"}</p>
+                        <p className="text-xs text-foreground/60 font-medium uppercase tracking-wider">Position: {index + 1}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleMoveHeroUp(index)}
+                          disabled={index === 0}
+                          className="text-foreground/60 hover:text-foreground hover:bg-foreground/10"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleMoveHeroDown(index)}
+                          disabled={index === heroCarouselImages.length - 1}
+                          className="text-foreground/60 hover:text-foreground hover:bg-foreground/10"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveHero(image._id)}
+                          className="text-foreground/60 hover:text-foreground hover:bg-foreground/10"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* How It Works Tab */}
+        <TabsContent value="howItWorks" className="space-y-6 sm:space-y-8 mt-6 sm:mt-8">
+          <Card className="border border-foreground/20">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                How It Works Section
+              </CardTitle>
+              <CardDescription className="text-base">
+                Configure the "How It Works" section with steps and descriptions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              <div>
+                <Label htmlFor="howItWorksTitle" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Section Title
+                </Label>
+                <Input
+                  id="howItWorksTitle"
+                  value={portraitsFormData.howItWorksTitle}
+                  onChange={(e) => setPortraitsFormData({ ...portraitsFormData, howItWorksTitle: e.target.value })}
+                  className="h-12 text-base border-foreground/20 focus:border-accent/50"
+                  placeholder="How It Works"
+                />
+                <p className="mt-2 text-xs text-foreground/60">
+                  The title for the "How It Works" section on the portraits page.
+                </p>
+              </div>
+
+              <Separator className="bg-foreground/10" />
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="text-sm font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                    Steps ({portraitsFormData.howItWorksSteps.length})
+                  </Label>
+                  <Button
+                    type="button"
+                    onClick={addHowItWorksStep}
+                    size="sm"
+                    variant="outline"
+                    className="text-xs font-bold uppercase tracking-wider"
+                  >
+                    + Add Step
+                  </Button>
+                </div>
+                {portraitsFormData.howItWorksSteps.map((step, idx) => (
+                  <div key={idx} className="mb-4 p-4 border border-foreground/10 rounded-lg bg-foreground/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold uppercase tracking-wider">Step {idx + 1}</span>
+                      <Button
+                        type="button"
+                        onClick={() => removeHowItWorksStep(idx)}
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-500 hover:text-red-600 h-6 w-6 p-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      <Input
+                        value={step.title}
+                        onChange={(e) => updateHowItWorksStep(idx, "title", e.target.value)}
+                        placeholder="Step title"
+                        className="h-10 text-sm"
+                      />
+                      <Textarea
+                        value={step.description}
+                        onChange={(e) => updateHowItWorksStep(idx, "description", e.target.value)}
+                        placeholder="Step description"
+                        rows={3}
+                        className="text-sm resize-none"
+                      />
+                    </div>
+                  </div>
+                ))}
+                {portraitsFormData.howItWorksSteps.length === 0 && (
+                  <p className="text-sm text-foreground/60 py-4 text-center">
+                    No steps added yet. Click "Add Step" to get started.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button 
+                  onClick={handleSavePortraits} 
+                  size="lg"
+                  className="w-full sm:w-auto sm:min-w-[200px] font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+                  style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Services Tab */}
+        <TabsContent value="services" className="space-y-6 sm:space-y-8 mt-6 sm:mt-8">
+          <Card className="border border-foreground/20">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                Services Section
+              </CardTitle>
+              <CardDescription className="text-base">
+                Configure the services section with service cards displayed on the portraits page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="text-sm font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                    Service Cards ({portraitsFormData.services.length})
+                  </Label>
+                  <Button
+                    type="button"
+                    onClick={addService}
+                    size="sm"
+                    variant="outline"
+                    className="text-xs font-bold uppercase tracking-wider"
+                  >
+                    + Add Service
+                  </Button>
+                </div>
+                {portraitsFormData.services.map((service, idx) => (
+                  <div key={idx} className="mb-4 p-4 border border-foreground/10 rounded-lg bg-foreground/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold uppercase tracking-wider">Service {idx + 1}</span>
+                      <Button
+                        type="button"
+                        onClick={() => removeService(idx)}
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-500 hover:text-red-600 h-6 w-6 p-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      <Input
+                        value={service.title}
+                        onChange={(e) => updateService(idx, "title", e.target.value)}
+                        placeholder="Service title"
+                        className="h-10 text-sm"
+                      />
+                      <Textarea
+                        value={service.description}
+                        onChange={(e) => updateService(idx, "description", e.target.value)}
+                        placeholder="Service description"
+                        rows={4}
+                        className="text-sm resize-none"
+                      />
+                    </div>
+                  </div>
+                ))}
+                {portraitsFormData.services.length === 0 && (
+                  <p className="text-sm text-foreground/60 py-4 text-center">
+                    No services added yet. Click "Add Service" to get started.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button 
+                  onClick={handleSavePortraits} 
+                  size="lg"
+                  className="w-full sm:w-auto sm:min-w-[200px] font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+                  style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Gallery Tab */}
+        <TabsContent value="gallery" className="space-y-6 sm:space-y-8 mt-6 sm:mt-8">
+          <Card className="border border-foreground/20">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                Add Gallery Image
+              </CardTitle>
+              <CardDescription className="text-base">
+                Upload a new image for the gallery section below the booking form.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <Label htmlFor="gallery-upload" className="cursor-pointer">
+                  <div className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-6 py-3 hover:bg-accent/20 transition-colors font-bold uppercase tracking-wider">
+                    <Upload className="h-5 w-5" />
+                    <span>{uploadingGallery ? "Uploading..." : "Choose Image"}</span>
+                  </div>
+                </Label>
+                <input
+                  id="gallery-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleGalleryImageUpload(file);
+                  }}
+                  disabled={uploadingGallery}
+                />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border border-foreground/20">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                Gallery Images ({galleryImages.length})
+              </CardTitle>
+              <CardDescription className="text-base">
+                {galleryImages.length === 0
+                  ? "No images uploaded yet. Upload images above to get started."
+                  : "Reorder images using the arrows. Images will display in this order."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {galleryImages.length === 0 ? (
+                <div className="py-16 text-center">
+                  <Eye className="mx-auto h-16 w-16 text-foreground/40 mb-6" />
+                  <p className="mb-4 text-xl font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                    No gallery images yet.
+                  </p>
+                  <p className="text-sm text-foreground/70">
+                    Upload an image to get started.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {galleryImages.map((image, index) => {
+                    const aspectRatio = image.width && image.height ? image.width / image.height : 3 / 4;
+                    return (
+                      <div key={image._id} className="group relative overflow-hidden rounded-lg border border-foreground/10 bg-background">
+                        <div style={{ aspectRatio }} className="bg-black">
+                          <PortraitsGalleryImage
+                            storageId={image.imageStorageId}
+                            alt={image.alt}
+                            aspectRatio={aspectRatio}
+                            onClick={() => {}}
+                          />
+                        </div>
+                        <div className="absolute right-2 top-2 flex gap-2">
+                          <Button
+                            size="icon"
+                            variant="destructive"
+                            className="h-8 w-8 bg-background/90 hover:bg-destructive"
+                            onClick={() => handleRemoveGallery(image._id)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="absolute left-2 top-2 flex flex-col gap-1">
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="h-8 w-8 bg-background/90 hover:bg-foreground/10"
+                            onClick={() => handleMoveGalleryUp(index)}
+                            disabled={index === 0}
+                          >
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="h-8 w-8 bg-background/90 hover:bg-foreground/10"
+                            onClick={() => handleMoveGalleryDown(index)}
+                            disabled={index === galleryImages.length - 1}
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="p-3 bg-background">
+                          <p className="text-sm font-medium">Position {index + 1}</p>
+                          {image.alt && (
+                            <p className="text-xs text-foreground/60">{image.alt}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Delete Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase tracking-wider text-destructive" style={{ fontWeight: '900' }}>
+              ⚠️ PERMANENT DELETION
+            </DialogTitle>
+            <DialogDescription className="text-base pt-2">
+              Are you absolutely sure you want to delete the <strong>Portraits</strong> page?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4">
+              <p className="text-sm font-bold text-destructive uppercase tracking-wider mb-2" style={{ fontWeight: '900' }}>
+                ⚠️ WARNING: THIS ACTION IS PERMANENT
+              </p>
+              <p className="text-sm text-foreground/80 leading-relaxed">
+                This will permanently delete the portraits page and <strong>all of its associated assets</strong> (hero carousel images, gallery images, page content). 
+                This action cannot be undone.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              className="font-bold uppercase tracking-wider"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              className="font-black uppercase tracking-wider"
+              style={{ fontWeight: '900' }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+

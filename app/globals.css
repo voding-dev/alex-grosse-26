@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #161616;
+  --color-foreground: #FFFFFF;
+  --color-accent: #FFA617;
+  --color-frame: #EAEAEA;
+  --color-cta-primary: #247BA0;
+  --color-cta-secondary: #D65780;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  --background: #161616;
+  --foreground: #FFFFFF;
+  --accent: #FFA617;
+  --frame: #EAEAEA;
+  --cta-primary: #247BA0;
+  --cta-secondary: #D65780;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-weight: 400;
+}
+
+/* Modern bold typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+}
+
+/* Bounce animation using transform only */
+@keyframes bounceTransform {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Pulse animation using opacity only */
+@keyframes pulseOpacity {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Pulsing dots animation */
+@keyframes pulseDots {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Disable animations on reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
