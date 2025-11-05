@@ -26,6 +26,16 @@ function getConvexRedirectUrl(): string {
     return `${baseUrl}/api/qr-redirect`;
   }
   
+  // In browser/client-side: Use window.location.origin for production (Vercel domain)
+  // This ensures QR codes use the actual site domain instead of Convex domain
+  if (typeof window !== "undefined") {
+    const origin = window.location.origin;
+    // Only use window.location if it's not localhost (production)
+    if (origin && !origin.includes("localhost") && !origin.includes("127.0.0.1")) {
+      return `${origin}/api/qr-redirect`;
+    }
+  }
+  
   // Check Convex URL
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!convexUrl) {
@@ -49,6 +59,7 @@ function getConvexRedirectUrl(): string {
     throw new Error(errorMessage);
   }
   
+  // Last resort: Use Convex HTTP actions (only if site URL not available)
   // Production: Extract deployment ID from Convex URL (e.g., https://xyz.convex.cloud -> xyz)
   // Convex HTTP actions are available at: https://[deployment-id].convex.site/[path]
   const url = new URL(convexUrl);

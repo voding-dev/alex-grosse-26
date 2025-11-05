@@ -70,6 +70,16 @@ export default function QRCodeDetailPage({ params }: { params: Promise<{ id: str
       return `${baseUrl}/api/qr-redirect`;
     }
     
+    // In browser/client-side: Use window.location.origin for production (Vercel domain)
+    // This ensures QR codes use the actual site domain instead of Convex domain
+    if (typeof window !== "undefined") {
+      const origin = window.location.origin;
+      // Only use window.location if it's not localhost (production)
+      if (origin && !origin.includes("localhost") && !origin.includes("127.0.0.1")) {
+        return `${origin}/api/qr-redirect`;
+      }
+    }
+    
     // Fallback to Convex HTTP actions if available
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
     if (!convexUrl) return "";
@@ -78,6 +88,7 @@ export default function QRCodeDetailPage({ params }: { params: Promise<{ id: str
       return ""; // Can't determine public URL in local dev
     }
     
+    // Last resort: Use Convex HTTP actions (only if site URL not available)
     // Production: Extract deployment ID
     const url = new URL(convexUrl);
     const deploymentId = url.hostname.split(".")[0];
