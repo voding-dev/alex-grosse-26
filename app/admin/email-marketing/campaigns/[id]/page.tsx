@@ -299,10 +299,20 @@ export default function CampaignDetailPage() {
         </CardHeader>
         <CardContent>
           <div className="border border-foreground/10 rounded-lg p-6 bg-foreground/5">
-            <div
-              className="prose prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ __html: campaign.htmlContent }}
-            />
+            {campaign.htmlContent && campaign.htmlContent.trim() ? (
+              <div
+                className="prose prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: campaign.htmlContent }}
+              />
+            ) : campaign.textContent && campaign.textContent.trim() ? (
+              <div className="whitespace-pre-wrap text-sm text-foreground font-mono">
+                {campaign.textContent}
+              </div>
+            ) : (
+              <div className="text-center text-foreground/40 py-8">
+                <p>No content available</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
