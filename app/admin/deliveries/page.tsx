@@ -277,7 +277,7 @@ export default function DeliveriesPage() {
                             )}
                           </div>
                           <p className="text-sm text-foreground/70 font-medium">
-                            {delivery.allowedAssetIds.length} assets • Created {new Date(delivery.originalDeliveryDate || delivery.createdAt).toLocaleDateString()}
+                            {(delivery.allowedAssetIds || []).length} assets • Created {new Date(delivery.originalDeliveryDate || delivery.createdAt).toLocaleDateString()}
                           </p>
                         </div>
 
@@ -438,7 +438,7 @@ export default function DeliveriesPage() {
                           </h3>
                         </div>
                         <p className="text-sm text-foreground/70 font-medium">
-                          {delivery.allowedAssetIds.length} assets • Expired {expiresAtDate?.toLocaleDateString()}
+                          {(delivery.allowedAssetIds || []).length} assets • Expired {expiresAtDate?.toLocaleDateString()}
                         </p>
                         
                         {/* PIN Section for Expired */}
