@@ -3,7 +3,7 @@
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, ExternalLink, Info, Image as ImageIcon, FileText, Video } from "lucide-react";
+import { MessageSquare, ExternalLink, Info, Image as ImageIcon, FileText, Video, Eye, EyeOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -11,9 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { StorageImage } from "@/components/storage-image";
 import { Id } from "@/convex/_generated/dataModel";
+import { useState } from "react";
+import { PortalDashboard } from "@/components/portal-dashboard";
+import { FeedbackDetailModal } from "@/components/feedback-detail-modal";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function FeedbackPage() {
   const { adminEmail } = useAdminAuth();
+  const [selectedFeedback, setSelectedFeedback] = useState<any | null>(null);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [expandedDashboards, setExpandedDashboards] = useState<Set<string>>(new Set());
 
   // Safely check if feedback function exists before calling
   const feedbackQuery = (api.feedback as any)?.getRecentFeedback;
@@ -36,6 +43,29 @@ export default function FeedbackPage() {
   }, {});
 
   const deliveryIds = Object.keys(feedbackByDelivery);
+
+  const handleFeedbackClick = (feedback: any) => {
+    setSelectedFeedback(feedback);
+    setFeedbackModalOpen(true);
+  };
+
+  const toggleDashboard = (deliveryId: string) => {
+    const newExpanded = new Set(expandedDashboards);
+    if (newExpanded.has(deliveryId)) {
+      newExpanded.delete(deliveryId);
+    } else {
+      newExpanded.add(deliveryId);
+    }
+    setExpandedDashboards(newExpanded);
+  };
+
+  const handleAssetClick = (assetId: string) => {
+    // Find feedback for this asset
+    const assetFeedback = feedbackArray.find((fb: any) => fb.assetId === assetId);
+    if (assetFeedback) {
+      handleFeedbackClick(assetFeedback);
+    }
+  };
 
   const getDecisionBadge = (decision: string | null) => {
     if (!decision) return null;
@@ -138,6 +168,8 @@ export default function FeedbackPage() {
             const delivery = firstItem.delivery;
             const project = firstItem.project;
 
+            const isDashboardExpanded = expandedDashboards.has(deliveryId);
+
             return (
               <Card key={deliveryId} className="border border-foreground/20 hover:border-accent/50 transition-all hover:shadow-lg rounded-xl">
                 <CardHeader className="pb-4">
@@ -150,7 +182,7 @@ export default function FeedbackPage() {
                           className="text-lg sm:text-xl font-black uppercase tracking-wider hover:text-accent transition-colors break-all"
                           style={{ fontWeight: '900' }}
                         >
-                          /dl/{delivery?.slug || 'Unknown'}
+                          {delivery?.title || `/dl/${delivery?.slug || 'Unknown'}`}
                         </Link>
                         <Link href={`/dl/${delivery?.slug || ''}`} target="_blank">
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent/10">
@@ -166,51 +198,98 @@ export default function FeedbackPage() {
                       <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-foreground/10 border border-foreground/20 text-foreground/80" style={{ fontWeight: '900' }}>
                         {feedbackItems.length} {feedbackItems.length === 1 ? 'ITEM' : 'ITEMS'}
                       </span>
-                      <Link href="/admin/deliveries" className="w-full sm:w-auto">
-                        <Button variant="outline" size="sm" className="w-full sm:w-auto font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors" style={{ fontWeight: '900' }}>
-                          View Delivery
-                        </Button>
-                      </Link>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleDashboard(deliveryId)}
+                        className="font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
+                        style={{ fontWeight: '900' }}
+                      >
+                        {isDashboardExpanded ? (
+                          <>
+                            <EyeOff className="h-4 w-4 mr-2" />
+                            Hide Dashboard
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Dashboard
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {feedbackItems.map((fb: any) => (
-                    <div 
-                      key={fb._id} 
-                      className="rounded-xl border border-foreground/10 bg-foreground/5 p-4 sm:p-5 hover:border-accent/30 transition-colors"
-                    >
-                      <div className="flex items-start gap-4">
-                        {/* Asset Thumbnail */}
-                        {fb.assetId && (
-                          <FeedbackAssetThumbnail assetId={fb.assetId} />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="mb-3 flex flex-wrap items-center gap-2.5">
-                            {fb.decision && getDecisionBadge(fb.decision)}
-                            {fb.assetId ? (
-                              <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded bg-accent/10 border border-accent/20 text-accent" style={{ fontWeight: '900' }}>
-                                PER-ASSET
-                              </span>
-                            ) : (
-                              <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded bg-foreground/10 border border-foreground/20 text-foreground/80" style={{ fontWeight: '900' }}>
-                                PROJECT
-                              </span>
-                            )}
-                            <span className="text-xs text-foreground/60 font-medium">
-                              {new Date(fb.createdAt).toLocaleDateString()} at {new Date(fb.createdAt).toLocaleTimeString()}
-                            </span>
-                          </div>
-                          <p className="text-sm text-foreground/80 leading-relaxed">{fb.body}</p>
-                        </div>
-                      </div>
+                  {/* Portal Dashboard */}
+                  {isDashboardExpanded && delivery?._id && (
+                    <div className="mb-6 pb-6 border-b border-foreground/10">
+                      <PortalDashboard
+                        deliveryId={delivery._id as Id<"deliveries">}
+                        onAssetClick={handleAssetClick}
+                      />
                     </div>
-                  ))}
+                  )}
+
+                  {/* Feedback Items */}
+                  <Tabs defaultValue="feedback" className="w-full">
+                    <TabsList className="mb-4">
+                      <TabsTrigger value="feedback" className="font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                        Feedback ({feedbackItems.length})
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="feedback" className="space-y-4">
+                      {feedbackItems.map((fb: any) => (
+                        <div 
+                          key={fb._id} 
+                          onClick={() => handleFeedbackClick(fb)}
+                          className="rounded-xl border border-foreground/10 bg-foreground/5 p-4 sm:p-5 hover:border-accent/30 transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-start gap-4">
+                            {/* Asset Thumbnail */}
+                            {fb.assetId && (
+                              <FeedbackAssetThumbnail assetId={fb.assetId} />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="mb-3 flex flex-wrap items-center gap-2.5">
+                                {fb.decision && getDecisionBadge(fb.decision)}
+                                {fb.assetId ? (
+                                  <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded bg-accent/10 border border-accent/20 text-accent" style={{ fontWeight: '900' }}>
+                                    PER-ASSET
+                                  </span>
+                                ) : (
+                                  <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded bg-foreground/10 border border-foreground/20 text-foreground/80" style={{ fontWeight: '900' }}>
+                                    PROJECT
+                                  </span>
+                                )}
+                                <span className="text-xs text-foreground/60 font-medium">
+                                  {new Date(fb.createdAt).toLocaleDateString()} at {new Date(fb.createdAt).toLocaleTimeString()}
+                                </span>
+                              </div>
+                              <p className="text-sm text-foreground/80 leading-relaxed">{fb.body}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </TabsContent>
+                  </Tabs>
                 </CardContent>
               </Card>
             );
           })}
         </div>
+      )}
+
+      {/* Feedback Detail Modal */}
+      {selectedFeedback && (
+        <FeedbackDetailModal
+          feedback={selectedFeedback}
+          isOpen={feedbackModalOpen}
+          onClose={() => {
+            setFeedbackModalOpen(false);
+            setSelectedFeedback(null);
+          }}
+        />
       )}
     </div>
   );

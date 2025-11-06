@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
 import { Lightbox } from "./lightbox";
-import { Eye, MessageSquare, Download } from "lucide-react";
+import { Eye, MessageSquare, Download, CheckCircle } from "lucide-react";
 import { MasonryImage } from "./masonry-image";
 import { getVideoThumbnailUrl } from "@/lib/video-utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 interface MasonryGridProps {
   items: Array<{
@@ -16,6 +17,9 @@ interface MasonryGridProps {
     alt?: string;
     type: "image" | "video" | "pdf";
     aspectRatio?: number;
+    hasFeedback?: boolean;
+    isApproved?: boolean;
+    feedbackCount?: number;
   }>;
   onItemClick?: (index: number) => void;
   selectable?: boolean;
@@ -23,9 +27,10 @@ interface MasonryGridProps {
   onToggleSelect?: (id: string) => void;
   onFeedbackClick?: (assetId: string) => void;
   onDownloadClick?: (assetId: string) => void;
+  showFeedbackStatus?: boolean;
 }
 
-export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onToggleSelect, onFeedbackClick, onDownloadClick }: MasonryGridProps) {
+export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onToggleSelect, onFeedbackClick, onDownloadClick, showFeedbackStatus = false }: MasonryGridProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [columnCount, setColumnCount] = useState(3);
@@ -194,6 +199,24 @@ export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onTog
               )}
 
 
+              {/* Status Badges */}
+              {showFeedbackStatus && (
+                <div className="absolute top-2 right-2 z-10 flex flex-col gap-1.5">
+                  {item.isApproved && (
+                    <Badge className="bg-green-500/20 text-green-600 border-green-500/30 text-xs font-black uppercase tracking-wider px-2 py-0.5" style={{ fontWeight: '900' }}>
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      APPROVED
+                    </Badge>
+                  )}
+                  {item.hasFeedback && !item.isApproved && (
+                    <Badge className="bg-accent/20 text-accent border-accent/30 text-xs font-black uppercase tracking-wider px-2 py-0.5" style={{ fontWeight: '900' }}>
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      {item.feedbackCount || 1} {item.feedbackCount === 1 ? 'FEEDBACK' : 'FEEDBACK'}
+                    </Badge>
+                  )}
+                </div>
+              )}
+
               {/* Action buttons on hover */}
               {(hoveredId === item.id && (onFeedbackClick || onDownloadClick)) && (
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 transition-opacity">
@@ -206,11 +229,20 @@ export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onTog
                       className="px-4 py-2 rounded-full bg-accent text-background hover:bg-accent/90 font-black uppercase tracking-wider text-xs shadow-lg transition-all hover:scale-105"
                       style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
                     >
-                      <MessageSquare className="h-4 w-4 inline mr-2" />
-                      Feedback
+                      {showFeedbackStatus && item.hasFeedback ? (
+                        <>
+                          <Eye className="h-4 w-4 inline mr-2" />
+                          View Feedback
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare className="h-4 w-4 inline mr-2" />
+                          Feedback
+                        </>
+                      )}
                     </button>
                   )}
-                  {onDownloadClick && (
+                  {onDownloadClick && !(showFeedbackStatus && item.hasFeedback) && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
