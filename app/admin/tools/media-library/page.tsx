@@ -432,6 +432,7 @@ export default function MediaLibraryPage() {
       "NamNomTruck.jpg",
       "CrookedClub_StoreMock_Expanded.jpg",
       "CSS - Van Mockup.jpg",
+      "RBS_Store.jpg",
     ];
 
     if (!confirm(`Are you sure you want to delete ${filenamesToDelete.length} specific files? This action cannot be undone.`)) {
