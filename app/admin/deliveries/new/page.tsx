@@ -42,9 +42,8 @@ export default function NewDeliveryPage() {
   defaultExpirationDate.setDate(defaultExpirationDate.getDate() + 30);
   const defaultExpirationString = defaultExpirationDate.toISOString().split('T')[0];
 
-  // Get all assets to select from (we'll show recently uploaded ones)
-  // In a better implementation, we could track which assets were just uploaded
-  const allAssets = useQuery(api.assets.list, {});
+  // Get only delivery assets to select from (filter out portfolio/project assets)
+  const allAssets = useQuery(api.assets.list, { uploadType: "delivery" });
 
   // Filter to show recently uploaded assets or allow filtering
   const recentAssets = allAssets?.slice(0, 100) || []; // Show recent assets
