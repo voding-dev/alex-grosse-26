@@ -114,6 +114,7 @@ export default function MediaLibraryPage() {
   });
   const folders = useQuery(api.mediaLibrary.getFolders);
   const tags = useQuery(api.mediaLibrary.getTags);
+  const uncompressedMediaIds = useQuery(api.mediaLibrary.getUncompressedMedia);
   
   // Get all portfolios, projects, and deliveries for display location linking
   const portfolios = useQuery(api.portfolio.list);
@@ -133,6 +134,7 @@ export default function MediaLibraryPage() {
   const createMedia = useMutation(api.mediaLibrary.create);
   const updateMedia = useMutation(api.mediaLibrary.update);
   const deleteMedia = useMutation(api.mediaLibrary.remove);
+  const bulkDeleteMedia = useMutation(api.mediaLibrary.bulkDelete);
   const importFromAsset = useMutation(api.mediaLibrary.importFromAsset);
   const addDisplayLocation = useMutation(api.mediaLibrary.addDisplayLocation);
   const removeDisplayLocation = useMutation(api.mediaLibrary.removeDisplayLocation);
@@ -375,6 +377,49 @@ export default function MediaLibraryPage() {
     }
   };
 
+  const handleBulkDeleteUncompressed = async () => {
+    if (!uncompressedMediaIds || uncompressedMediaIds.length === 0) {
+      toast({
+        title: "No uncompressed items",
+        description: "There are no uncompressed images to delete",
+        variant: "default",
+      });
+      return;
+    }
+
+    const count = uncompressedMediaIds.length;
+    if (!confirm(`Are you sure you want to delete ${count} uncompressed image${count !== 1 ? 's' : ''}? This action cannot be undone.`)) {
+      return;
+    }
+
+    if (!sessionToken) {
+      toast({
+        title: "Authentication required",
+        description: "Please refresh the page and try again",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await bulkDeleteMedia({ 
+        sessionToken: sessionToken, 
+        ids: uncompressedMediaIds 
+      });
+      toast({
+        title: "Deleted",
+        description: `Successfully deleted ${count} uncompressed image${count !== 1 ? 's' : ''}`,
+      });
+    } catch (error) {
+      console.error("Bulk delete error:", error);
+      toast({
+        title: "Delete failed",
+        description: "Failed to delete uncompressed images",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleImportAsset = async (assetId: Id<"assets">) => {
     try {
       await importFromAsset({ sessionToken: sessionToken || undefined, assetId });
@@ -605,6 +650,16 @@ export default function MediaLibraryPage() {
             >
               {includeAssets ? "Show All Site Media" : "Show Media Library Only"}
             </Button>
+            {uncompressedMediaIds && uncompressedMediaIds.length > 0 && (
+              <Button
+                variant="destructive"
+                onClick={handleBulkDeleteUncompressed}
+                title={`Delete ${uncompressedMediaIds.length} uncompressed image${uncompressedMediaIds.length !== 1 ? 's' : ''}`}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete {uncompressedMediaIds.length} Uncompressed
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}

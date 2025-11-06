@@ -550,10 +550,32 @@ export const remove = mutation({
       throw new Error("Media not found");
     }
 
-    // Delete the file from storage
-    await ctx.storage.delete(media.storageKey);
+    // Validate storage key before attempting deletion
+    const storageKey = media.storageKey;
+    if (storageKey && typeof storageKey === "string") {
+      // Check for invalid storage keys (Windows paths, seed data, etc.)
+      const hasBackslash = storageKey.includes("\\");
+      const hasDriveLetter = /^[a-zA-Z]:/.test(storageKey);
+      const hasInvalidColon = storageKey.includes(":") && !storageKey.startsWith("http://") && !storageKey.startsWith("https://");
+      const isSeedData = storageKey.startsWith("seed-") || storageKey.startsWith("mock-") || storageKey.includes("seed-storage");
+      const isTooShort = storageKey.length < 10;
 
-    // Delete the record
+      if (!hasBackslash && !hasDriveLetter && !hasInvalidColon && !isSeedData && !isTooShort) {
+        // Valid storage key - try to delete from storage
+        try {
+          await ctx.storage.delete(storageKey);
+        } catch (error) {
+          // If storage deletion fails (e.g., file doesn't exist), log but continue
+          // This allows cleanup of orphaned database records
+          console.warn(`Failed to delete storage key ${storageKey}:`, error);
+        }
+      } else {
+        // Invalid storage key - skip storage deletion but still delete the record
+        console.warn(`Skipping storage deletion for invalid storage key: ${storageKey}`);
+      }
+    }
+
+    // Delete the record (always delete the database record, even if storage deletion failed)
     await ctx.db.delete(args.id);
   },
 });
@@ -570,10 +592,63 @@ export const bulkDelete = mutation({
     for (const id of args.ids) {
       const media = await ctx.db.get(id);
       if (media) {
-        await ctx.storage.delete(media.storageKey);
+        // Validate storage key before attempting deletion
+        const storageKey = media.storageKey;
+        if (storageKey && typeof storageKey === "string") {
+          // Check for invalid storage keys (Windows paths, seed data, etc.)
+          const hasBackslash = storageKey.includes("\\");
+          const hasDriveLetter = /^[a-zA-Z]:/.test(storageKey);
+          const hasInvalidColon = storageKey.includes(":") && !storageKey.startsWith("http://") && !storageKey.startsWith("https://");
+          const isSeedData = storageKey.startsWith("seed-") || storageKey.startsWith("mock-") || storageKey.includes("seed-storage");
+          const isTooShort = storageKey.length < 10;
+
+          if (!hasBackslash && !hasDriveLetter && !hasInvalidColon && !isSeedData && !isTooShort) {
+            // Valid storage key - try to delete from storage
+            try {
+              await ctx.storage.delete(storageKey);
+            } catch (error) {
+              // If storage deletion fails (e.g., file doesn't exist), log but continue
+              console.warn(`Failed to delete storage key ${storageKey}:`, error);
+            }
+          } else {
+            // Invalid storage key - skip storage deletion but still delete the record
+            console.warn(`Skipping storage deletion for invalid storage key: ${storageKey}`);
+          }
+        }
+        // Always delete the database record
         await ctx.db.delete(id);
       }
     }
+  },
+});
+
+// Get uncompressed media items (for bulk deletion)
+export const getUncompressedMedia = query({
+  args: {},
+  handler: async (ctx) => {
+    // Note: This query doesn't require auth since it's just listing data
+    // The actual deletion mutations require auth
+    
+    // Get all media items
+    const allMedia = await ctx.db.query("mediaLibrary").collect();
+    
+    // Filter for uncompressed items (images without compression metadata)
+    const uncompressed = allMedia.filter((media) => {
+      // Only include images (videos don't need compression)
+      if (media.type !== "image") {
+        return false;
+      }
+      
+      // Exclude items that have been compressed
+      // An item is compressed if it has compressionRatio (and optionally compressedSize/originalSize)
+      if (media.compressionRatio !== undefined && media.compressionRatio !== null) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    return uncompressed.map((media) => media._id);
   },
 });
 
