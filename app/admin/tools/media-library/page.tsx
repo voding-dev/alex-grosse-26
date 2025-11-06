@@ -114,7 +114,7 @@ export default function MediaLibraryPage() {
   const [includeAssets, setIncludeAssets] = useState(true); // Show all site media by default
   const media = useQuery(api.mediaLibrary.list, {
     type: typeFilter === "all" ? undefined : typeFilter,
-    folder: folderFilter === "all" ? undefined : folderFilter,
+    folder: folderFilter === "all" ? undefined : folderFilter === "not_in_folder" ? "__not_in_folder__" : folderFilter,
     tags: selectedTags.length > 0 ? selectedTags : undefined,
     search: searchQuery || undefined,
     includeAssets: includeAssets,
@@ -588,8 +588,10 @@ export default function MediaLibraryPage() {
   };
 
   const addTagToFilter = () => {
-    if (newTag.trim() && !selectedTags.includes(newTag.trim())) {
-      setSelectedTags((prev) => [...prev, newTag.trim()]);
+    const trimmedTag = newTag.trim();
+    // Prevent adding the special "__not_tagged__" value as a regular tag
+    if (trimmedTag && trimmedTag !== "__not_tagged__" && !selectedTags.includes(trimmedTag)) {
+      setSelectedTags((prev) => [...prev, trimmedTag]);
       setNewTag("");
     }
   };
@@ -663,6 +665,7 @@ export default function MediaLibraryPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Folders</SelectItem>
+                  <SelectItem value="not_in_folder">Not in a folder</SelectItem>
                   {folders?.map((folder) => (
                     <SelectItem key={folder} value={folder}>
                       {folder}
@@ -693,6 +696,13 @@ export default function MediaLibraryPage() {
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <Badge
+                        variant={selectedTags.includes("__not_tagged__") ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => handleTagToggle("__not_tagged__")}
+                      >
+                        Not tagged
+                      </Badge>
                       {tags?.map((tag) => (
                         <Badge
                           key={tag}
@@ -966,15 +976,82 @@ export default function MediaLibraryPage() {
                   <Input
                     value={editTags}
                     onChange={(e) => {
-                      setEditTags(e.target.value);
-                      const lastCommaIndex = e.target.value.lastIndexOf(",");
+                      const value = e.target.value;
+                      const lastCommaIndex = value.lastIndexOf(",");
                       const currentTag = lastCommaIndex >= 0 
-                        ? e.target.value.substring(lastCommaIndex + 1).trim()
-                        : e.target.value.trim();
+                        ? value.substring(lastCommaIndex + 1).trim()
+                        : value.trim();
+                      
+                      // Check if a comma was just typed (detect when user types a comma)
+                      const lastChar = value[value.length - 1];
+                      const prevLastChar = editTags[editTags.length - 1];
+                      if (lastChar === "," && prevLastChar !== "," && lastCommaIndex >= 0) {
+                        // User just typed a comma - extract and add the tag before it
+                        const beforeComma = value.substring(0, lastCommaIndex).trim();
+                        const tagToAdd = beforeComma.split(",").pop()?.trim() || "";
+                        
+                        if (tagToAdd.length > 0) {
+                          // Add the tag before the comma
+                          const existingTags = editTags.split(",").map(t => t.trim()).filter(t => t.length > 0);
+                          if (!existingTags.includes(tagToAdd)) {
+                            // Add the tag and format properly
+                            const newTags = existingTags.length > 0 
+                              ? [...existingTags, tagToAdd].join(", ") + ", "
+                              : tagToAdd + ", ";
+                            setEditTags(newTags);
+                            setTagInputValue("");
+                            setTagSuggestionsOpen(false);
+                            return;
+                          } else {
+                            // Tag already exists, just format properly
+                            const newTags = existingTags.join(", ") + ", ";
+                            setEditTags(newTags);
+                            setTagInputValue("");
+                            setTagSuggestionsOpen(false);
+                            return;
+                          }
+                        } else {
+                          // Just a comma with no tag before it, keep the comma for formatting
+                          setEditTags(value);
+                          setTagInputValue("");
+                          setTagSuggestionsOpen(false);
+                          return;
+                        }
+                      }
+                      
+                      setEditTags(value);
                       setTagInputValue(currentTag);
                       // Show suggestions if there's text or if there are tags available
                       if (currentTag.length > 0 || (tags && tags.length > 0)) {
                         setTagSuggestionsOpen(true);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const lastCommaIndex = editTags.lastIndexOf(",");
+                        const currentTag = lastCommaIndex >= 0 
+                          ? editTags.substring(lastCommaIndex + 1).trim()
+                          : editTags.trim();
+                        
+                        if (currentTag.length > 0) {
+                          const existingTags = editTags.split(",").map(t => t.trim()).filter(t => t.length > 0);
+                          if (!existingTags.includes(currentTag)) {
+                            // Add the tag
+                            const newTags = existingTags.length > 0 
+                              ? [...existingTags, currentTag].join(", ") + ", "
+                              : currentTag + ", ";
+                            setEditTags(newTags);
+                            setTagInputValue("");
+                            setTagSuggestionsOpen(false);
+                          } else {
+                            // Tag already exists, just format properly and clear current tag
+                            const newTags = existingTags.join(", ") + ", ";
+                            setEditTags(newTags);
+                            setTagInputValue("");
+                            setTagSuggestionsOpen(false);
+                          }
+                        }
                       }
                     }}
                     onFocus={() => {

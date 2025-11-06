@@ -122,14 +122,33 @@ export const list = query({
 
     // Filter by folder
     if (args.folder) {
-      media = media.filter((m) => m.folder === args.folder);
+      if (args.folder === "__not_in_folder__") {
+        // Filter for items not in a folder (folder is undefined or empty)
+        media = media.filter((m) => !m.folder || m.folder.trim() === "");
+      } else {
+        media = media.filter((m) => m.folder === args.folder);
+      }
     }
 
     // Filter by tags (any matching tag)
     if (args.tags && args.tags.length > 0) {
-      media = media.filter((m) =>
-        args.tags!.some((tag) => m.tags.includes(tag))
-      );
+      const hasNotTagged = args.tags.includes("__not_tagged__");
+      const otherTags = args.tags.filter((tag) => tag !== "__not_tagged__");
+      
+      if (hasNotTagged && otherTags.length > 0) {
+        // If both "not tagged" and other tags are selected, show items that are either not tagged OR have one of the other tags
+        media = media.filter((m) => 
+          m.tags.length === 0 || otherTags.some((tag) => m.tags.includes(tag))
+        );
+      } else if (hasNotTagged) {
+        // Filter for items with no tags
+        media = media.filter((m) => m.tags.length === 0);
+      } else {
+        // Filter for items with any of the selected tags
+        media = media.filter((m) =>
+          otherTags.some((tag) => m.tags.includes(tag))
+        );
+      }
     }
 
     // Filter by display location type
