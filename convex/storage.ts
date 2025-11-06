@@ -9,8 +9,67 @@ export const getSignedDownloadUrl = action({
     storageKey: v.string(),
   },
   handler: async (ctx, args) => {
-    // storageKey is a Convex storage ID, get its URL
-    return await ctx.storage.getUrl(args.storageKey);
+    const storageKey = args.storageKey;
+    
+    // Validate storage key format - reject invalid keys
+    if (!storageKey || typeof storageKey !== "string") {
+      throw new Error("Invalid storage key: storage key is required and must be a string");
+    }
+    
+    // Check for Windows drive letters (case insensitive)
+    const lowerKey = storageKey.toLowerCase();
+    
+    // Reject any drive letter pattern (c:, d:, etc.)
+    if (/[a-z]:/.test(lowerKey)) {
+      throw new Error(`Invalid storage key: appears to be a Windows file path (${storageKey}). Storage keys must be Convex storage IDs.`);
+    }
+    
+    // Reject drive letter with path separator
+    if (/[a-z]:[\\/]/.test(lowerKey)) {
+      throw new Error(`Invalid storage key: appears to be a Windows file path (${storageKey}). Storage keys must be Convex storage IDs.`);
+    }
+    
+    // Reject backslashes (Windows path separator)
+    if (storageKey.includes("\\")) {
+      throw new Error(`Invalid storage key: contains backslashes (${storageKey}). Storage keys must be Convex storage IDs.`);
+    }
+    
+    // Reject colons except in http/https URLs
+    if (storageKey.includes(":")) {
+      if (!storageKey.startsWith("http://") && !storageKey.startsWith("https://")) {
+        throw new Error(`Invalid storage key: contains colon (${storageKey}). Storage keys must be Convex storage IDs.`);
+      }
+    }
+    
+    // Filter out seed/mock data
+    if (storageKey.startsWith("seed-") || storageKey.startsWith("mock-")) {
+      throw new Error(`Invalid storage key: seed/mock data (${storageKey})`);
+    }
+    if (storageKey.includes("seed-storage")) {
+      throw new Error(`Invalid storage key: seed storage (${storageKey})`);
+    }
+    
+    // Must be at least 10 characters (valid storage IDs are longer)
+    if (storageKey.length < 10) {
+      throw new Error(`Invalid storage key: too short (${storageKey}). Storage keys must be Convex storage IDs.`);
+    }
+    
+    try {
+      // Final check before calling getUrl
+      if (storageKey.includes("\\") || /[a-zA-Z]:/.test(storageKey)) {
+        throw new Error(`Invalid storage key: appears to be a file path (${storageKey}). Storage keys must be Convex storage IDs.`);
+      }
+      
+      // storageKey is a Convex storage ID, get its URL
+      return await ctx.storage.getUrl(storageKey);
+    } catch (error: any) {
+      // If storage ID is invalid, provide a helpful error message
+      const errorMessage = error?.message || String(error);
+      if (errorMessage.includes("protocol") || errorMessage.includes("c:") || errorMessage.includes("file://")) {
+        throw new Error(`Invalid storage key: appears to be a file path instead of a Convex storage ID. Value: ${storageKey}`);
+      }
+      throw new Error(`Failed to get download URL: ${errorMessage}`);
+    }
   },
 });
 

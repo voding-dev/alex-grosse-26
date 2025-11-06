@@ -431,11 +431,33 @@ export default function MediaLibraryPage() {
     setCompressingItemId(item._id);
     
     try {
+      // Validate storage key before calling the action
+      const storageKey = item.storageKey;
+      
+      if (!storageKey || typeof storageKey !== "string") {
+        throw new Error("Invalid storage key: media item has no storage key");
+      }
+      
+      // Check for Windows file paths (common issue)
+      if (storageKey.includes("\\") || /[a-zA-Z]:/.test(storageKey)) {
+        throw new Error(`Invalid storage key: media item appears to have a file path instead of a Convex storage ID. This media item may need to be re-uploaded.`);
+      }
+      
+      // Check for seed/mock data
+      if (storageKey.startsWith("seed-") || storageKey.startsWith("mock-") || storageKey.includes("seed-storage")) {
+        throw new Error("Invalid storage key: this media item appears to be test/seed data and cannot be compressed");
+      }
+      
+      // Check minimum length
+      if (storageKey.length < 10) {
+        throw new Error(`Invalid storage key: storage key is too short (${storageKey.length} characters). This media item may need to be re-uploaded.`);
+      }
+
       // Get the image URL using action
-      const imageUrl = await getSignedDownloadUrl({ storageKey: item.storageKey });
+      const imageUrl = await getSignedDownloadUrl({ storageKey: storageKey });
 
       if (!imageUrl) {
-        throw new Error("Could not get image URL");
+        throw new Error("Could not get image URL. The storage key may be invalid or the file may have been deleted.");
       }
 
       // Download the image
@@ -470,10 +492,17 @@ export default function MediaLibraryPage() {
 
       const { storageId } = await uploadResult.json();
 
-      // Validate compression results
+      // Validate compression results - ensure all values are valid numbers
       if (!compressionResult.width || !compressionResult.height || 
-          isNaN(compressionResult.compressedSize) || isNaN(compressionResult.compressionRatio)) {
-        throw new Error("Invalid compression results");
+          isNaN(compressionResult.compressedSize) || isNaN(compressionResult.compressionRatio) ||
+          !isFinite(compressionResult.compressedSize) || !isFinite(compressionResult.compressionRatio) ||
+          compressionResult.compressedSize <= 0 || compressionResult.width <= 0 || compressionResult.height <= 0) {
+        throw new Error("Invalid compression results - compression failed");
+      }
+
+      // Validate storage ID
+      if (!storageId || typeof storageId !== "string" || storageId.trim().length === 0) {
+        throw new Error("Invalid storage ID returned from upload");
       }
 
       // Ensure we have a valid session token
@@ -481,22 +510,43 @@ export default function MediaLibraryPage() {
         throw new Error("Authentication required - please refresh the page");
       }
 
-      // Prepare update data - only include defined values
-      const updateData = {
+      // Prepare update data with proper typing and validation
+      const originalSizeValue = item.originalSize || item.size;
+      
+      // Ensure all numeric values are valid and finite
+      const compressedSize = Math.round(compressionResult.compressedSize);
+      const compressionRatio = Math.round(compressionResult.compressionRatio * 100) / 100; // Round to 2 decimal places
+      const width = Math.round(compressionResult.width);
+      const height = Math.round(compressionResult.height);
+      
+      if (compressedSize <= 0 || width <= 0 || height <= 0 || !isFinite(compressionRatio)) {
+        throw new Error("Invalid compression results - compression failed");
+      }
+
+      const updateData: {
+        sessionToken: string;
+        id: Id<"mediaLibrary">;
+        storageKey: string;
+        size: number;
+        compressedSize: number;
+        compressionRatio: number;
+        width: number;
+        height: number;
+        originalSize?: number;
+      } = {
         sessionToken: sessionToken,
         id: item._id as Id<"mediaLibrary">,
         storageKey: storageId,
-        size: compressionResult.compressedSize,
-        compressedSize: compressionResult.compressedSize,
-        compressionRatio: compressionResult.compressionRatio,
-        width: compressionResult.width,
-        height: compressionResult.height,
+        size: compressedSize,
+        compressedSize: compressedSize,
+        compressionRatio: compressionRatio,
+        width: width,
+        height: height,
       };
 
       // Only include originalSize if we have a valid value
-      const originalSizeValue = item.originalSize || item.size;
-      if (originalSizeValue && originalSizeValue > 0) {
-        updateData.originalSize = originalSizeValue;
+      if (originalSizeValue && originalSizeValue > 0 && isFinite(originalSizeValue)) {
+        updateData.originalSize = Math.round(originalSizeValue);
       }
 
       // Update media library record with compressed version

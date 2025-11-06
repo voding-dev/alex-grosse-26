@@ -450,14 +450,14 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
 
           {/* Alternative: Buttons for file selection and media library */}
           <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
               className="flex-1"
-            >
-              <Upload className="mr-2 h-4 w-4" />
+          >
+            <Upload className="mr-2 h-4 w-4" />
               Select Files
             </Button>
             <Button
@@ -469,7 +469,7 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
             >
               <ImageIcon className="mr-2 h-4 w-4" />
               Select from Library
-            </Button>
+          </Button>
           </div>
 
           {selectedFiles.length > 0 && (
