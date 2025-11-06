@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireAdmin } from "./auth";
+import { requireAdminWithSession } from "./adminAuth";
 
 export const get = query({
   args: { key: v.string() },
@@ -17,10 +17,11 @@ export const set = mutation({
   args: {
     key: v.string(),
     value: v.any(),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Require admin authentication
-    await requireAdmin(ctx);
+    // Require admin authentication (supports both Convex auth and session-based auth)
+    await requireAdminWithSession(ctx, args.sessionToken);
     
     const existing = await ctx.db
       .query("settings")

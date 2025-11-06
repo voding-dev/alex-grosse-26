@@ -59,7 +59,7 @@ export default function SettingsPage() {
   }, [settings]);
 
   const handleSave = async () => {
-    if (!adminEmail) {
+    if (!adminEmail || !sessionToken) {
       toast({
         title: "Error",
         description: "Not authenticated. Please log in.",
@@ -70,14 +70,14 @@ export default function SettingsPage() {
 
     setIsSaving(true);
     try {
-      // Save all settings
+      // Save all settings with session token
       await Promise.all([
-        setSetting({ key: "supportEmail", value: formData.supportEmail || "" }),
-        setSetting({ key: "defaultDeliveryExpirationDays", value: formData.defaultDeliveryExpirationDays || 30 }),
-        setSetting({ key: "expirationWarningThresholdDays", value: formData.expirationWarningThresholdDays || 7 }),
-        setSetting({ key: "emailNotifications", value: formData.emailNotifications }),
-        setSetting({ key: "newFeedbackNotifications", value: formData.newFeedbackNotifications }),
-        setSetting({ key: "expiringDeliveryAlerts", value: formData.expiringDeliveryAlerts }),
+        setSetting({ key: "supportEmail", value: formData.supportEmail || "", sessionToken }),
+        setSetting({ key: "defaultDeliveryExpirationDays", value: formData.defaultDeliveryExpirationDays || 30, sessionToken }),
+        setSetting({ key: "expirationWarningThresholdDays", value: formData.expirationWarningThresholdDays || 7, sessionToken }),
+        setSetting({ key: "emailNotifications", value: formData.emailNotifications, sessionToken }),
+        setSetting({ key: "newFeedbackNotifications", value: formData.newFeedbackNotifications, sessionToken }),
+        setSetting({ key: "expiringDeliveryAlerts", value: formData.expiringDeliveryAlerts, sessionToken }),
       ]);
 
       toast({
