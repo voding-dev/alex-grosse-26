@@ -281,7 +281,7 @@ export const createCampaign = mutation({
     subject: v.string(),
     fromEmail: v.optional(v.string()),
     fromName: v.optional(v.string()),
-    htmlContent: v.string(),
+    htmlContent: v.optional(v.string()),
     textContent: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
   },
@@ -301,10 +301,16 @@ export const createCampaign = mutation({
       await requireAdmin(ctx);
     }
     
+    // Validate that at least one content type is provided
+    if (!args.htmlContent && !args.textContent) {
+      throw new Error("Either HTML content or plain text content is required");
+    }
+    
     const now = Date.now();
     const { adminEmail, ...campaignData } = args;
     return await ctx.db.insert("emailCampaigns", {
       ...campaignData,
+      htmlContent: args.htmlContent || "",
       status: "draft",
       tags: args.tags || [],
       createdAt: now,
@@ -457,18 +463,73 @@ export const sendCampaign = mutation({
       
       sendIds.push(sendId);
       
+      // Process content with short codes replacement
+      const unsubscribeUrl = `${baseUrl}/api/email/unsubscribe?token=${sendId}`;
+      
+      // Replace short codes in HTML content (if it exists)
+      let personalizedHtml = "";
+      if (campaign.htmlContent) {
+        personalizedHtml = campaign.htmlContent;
+        personalizedHtml = personalizedHtml.replace(/{{\s*unsubscribe_url\s*}}/g, unsubscribeUrl);
+        personalizedHtml = personalizedHtml.replace(/{{\s*first_name\s*}}/g, contact.firstName || "");
+        personalizedHtml = personalizedHtml.replace(/{{\s*last_name\s*}}/g, contact.lastName || "");
+        personalizedHtml = personalizedHtml.replace(/{{\s*email\s*}}/g, contact.email);
+        personalizedHtml = personalizedHtml.replace(/{{\s*full_name\s*}}/g, 
+          contact.firstName || contact.lastName 
+            ? `${contact.firstName || ""} ${contact.lastName || ""}`.trim()
+            : contact.email
+        );
+      }
+      
+      // Replace short codes in subject line
+      let personalizedSubject = campaign.subject || "";
+      personalizedSubject = personalizedSubject.replace(/{{\s*first_name\s*}}/g, contact.firstName || "");
+      personalizedSubject = personalizedSubject.replace(/{{\s*last_name\s*}}/g, contact.lastName || "");
+      personalizedSubject = personalizedSubject.replace(/{{\s*email\s*}}/g, contact.email);
+      personalizedSubject = personalizedSubject.replace(/{{\s*full_name\s*}}/g,
+        contact.firstName || contact.lastName 
+          ? `${contact.firstName || ""} ${contact.lastName || ""}`.trim()
+          : contact.email
+      );
+      
+      // Replace short codes in plain text content
+      let personalizedText = campaign.textContent || "";
+      if (personalizedText) {
+        personalizedText = personalizedText.replace(/{{\s*unsubscribe_url\s*}}/g, unsubscribeUrl);
+        personalizedText = personalizedText.replace(/{{\s*first_name\s*}}/g, contact.firstName || "");
+        personalizedText = personalizedText.replace(/{{\s*last_name\s*}}/g, contact.lastName || "");
+        personalizedText = personalizedText.replace(/{{\s*email\s*}}/g, contact.email);
+        personalizedText = personalizedText.replace(/{{\s*full_name\s*}}/g,
+          contact.firstName || contact.lastName 
+            ? `${contact.firstName || ""} ${contact.lastName || ""}`.trim()
+            : contact.email
+        );
+      }
+      
       // Send email via Resend
       try {
-        const result = await resend.emails.send({
+        const emailData: any = {
           from: `${fromName} <${fromEmail}>`,
           to: contact.email,
-          subject: campaign.subject,
-          html: campaign.htmlContent.replace(
-            /{{\s*unsubscribe_url\s*}}/g,
-            `${baseUrl}/api/email/unsubscribe?token=${sendId}`
-          ),
-          text: campaign.textContent,
-        });
+          subject: personalizedSubject,
+        };
+        
+        // Only include html if it exists and is not empty
+        if (personalizedHtml && personalizedHtml.trim()) {
+          emailData.html = personalizedHtml;
+        }
+        
+        // Only include text if it exists and is not empty
+        if (personalizedText && personalizedText.trim()) {
+          emailData.text = personalizedText;
+        }
+        
+        // At least one content type must be provided
+        if (!emailData.html && !emailData.text) {
+          throw new Error("Campaign must have either HTML or plain text content");
+        }
+        
+        const result = await resend.emails.send(emailData);
         
         // Update send record with Resend email ID
         const resendEmailId = (result.data && 'id' in result.data) ? result.data.id : null;
@@ -690,6 +751,47 @@ export const getCampaignAnalytics = query({
       unsubscribeRate: total > 0 ? (unsubscribed / total) * 100 : 0,
       spamRate: total > 0 ? (spam / total) * 100 : 0,
     };
+  },
+});
+
+// Get all unique tags from contacts and campaigns
+export const getAllTags = query({
+  args: {
+    email: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Development mode: check admin by email
+    if (args.email) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.email!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized - admin access required");
+      }
+    } else {
+      // Production mode: use requireAdmin
+      await requireAdmin(ctx);
+    }
+    
+    // Get all tags from contacts
+    const contacts = await ctx.db.query("emailContacts").collect();
+    const contactTags = new Set<string>();
+    contacts.forEach(contact => {
+      contact.tags.forEach(tag => contactTags.add(tag));
+    });
+    
+    // Get all tags from campaigns
+    const campaigns = await ctx.db.query("emailCampaigns").collect();
+    const campaignTags = new Set<string>();
+    campaigns.forEach(campaign => {
+      campaign.tags.forEach(tag => campaignTags.add(tag));
+    });
+    
+    // Combine and return sorted unique tags
+    const allTags = new Set([...contactTags, ...campaignTags]);
+    return Array.from(allTags).sort();
   },
 });
 

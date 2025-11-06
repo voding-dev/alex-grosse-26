@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, TrendingUp, Eye, MousePointerClick, Mail, X, AlertTriangle } from "lucide-react";
+import { Send, TrendingUp, Eye, MousePointerClick, Mail, X, AlertTriangle, Edit } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 
@@ -85,17 +85,28 @@ export default function CampaignDetailPage() {
             {campaign.name}
           </h1>
         </div>
-        {campaign.status === "draft" && (
-          <Button
-            onClick={handleSend}
-            disabled={isSending}
-            className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
-            style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
-          >
-            <Send className="mr-2 h-4 w-4" />
-            {isSending ? "Sending..." : "Send Campaign"}
-          </Button>
-        )}
+        <div className="flex gap-3">
+          <Link href={`/admin/email-marketing/campaigns/edit/${campaign._id}`}>
+            <Button
+              variant="outline"
+              className="font-black uppercase tracking-wider"
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+          </Link>
+          {campaign.status === "draft" && (
+            <Button
+              onClick={handleSend}
+              disabled={isSending}
+              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              {isSending ? "Sending..." : "Send Campaign"}
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

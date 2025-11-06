@@ -5,15 +5,30 @@ import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { useToast } from "@/components/ui/use-toast";
 import { Plus, Mail, Users, TrendingUp, Send, Eye, MousePointerClick, X, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
 export default function EmailMarketingPage() {
   const { adminEmail } = useAdminAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
+  const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
+  const [contactFormData, setContactFormData] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    tags: "",
+    source: "",
+  });
+  const [isSubmittingContact, setIsSubmittingContact] = useState(false);
+  const createContact = useMutation(api.emailMarketing.createContact);
 
   const contacts = useQuery(
     api.emailMarketing.listContacts,
@@ -24,6 +39,58 @@ export default function EmailMarketingPage() {
     api.emailMarketing.listCampaigns,
     adminEmail ? { email: adminEmail } : ("skip" as const)
   );
+
+  const handleAddContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminEmail) {
+      toast({
+        title: "Error",
+        description: "Not authenticated. Please log in.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmittingContact(true);
+    try {
+      const tagsArray = contactFormData.tags
+        ? contactFormData.tags.split(",").map(tag => tag.trim()).filter(tag => tag.length > 0)
+        : [];
+
+      await createContact({
+        adminEmail: adminEmail,
+        email: contactFormData.email,
+        firstName: contactFormData.firstName || undefined,
+        lastName: contactFormData.lastName || undefined,
+        tags: tagsArray.length > 0 ? tagsArray : undefined,
+        source: contactFormData.source || undefined,
+      });
+
+      toast({
+        title: "Contact created",
+        description: "The contact has been added successfully.",
+      });
+
+      // Reset form and close modal
+      setContactFormData({
+        email: "",
+        firstName: "",
+        lastName: "",
+        tags: "",
+        source: "",
+      });
+      setIsAddContactModalOpen(false);
+    } catch (error) {
+      console.error("Error creating contact:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create contact.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingContact(false);
+    }
+  };
 
   // Handle loading state
   if (contacts === undefined || campaigns === undefined) {
@@ -65,12 +132,14 @@ export default function EmailMarketingPage() {
               New Campaign
             </Button>
           </Link>
-          <Link href="/admin/email-marketing/contacts/new">
-            <Button variant="outline" className="font-black uppercase tracking-wider">
-              <Users className="mr-2 h-4 w-4" />
-              Add Contact
-            </Button>
-          </Link>
+          <Button 
+            variant="outline" 
+            className="font-black uppercase tracking-wider"
+            onClick={() => setIsAddContactModalOpen(true)}
+          >
+            <Users className="mr-2 h-4 w-4" />
+            Add Contact
+          </Button>
         </div>
       </div>
 
@@ -162,11 +231,13 @@ export default function EmailMarketingPage() {
                 <div className="py-8 text-center">
                   <Users className="mx-auto h-12 w-12 text-foreground/40 mb-4" />
                   <p className="text-foreground/60 mb-2">No contacts yet</p>
-                  <Link href="/admin/email-marketing/contacts/new">
-                    <Button variant="outline" className="font-black uppercase tracking-wider">
-                      Add First Contact
-                    </Button>
-                  </Link>
+                  <Button 
+                    variant="outline" 
+                    className="font-black uppercase tracking-wider"
+                    onClick={() => setIsAddContactModalOpen(true)}
+                  >
+                    Add First Contact
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -288,12 +359,14 @@ export default function EmailMarketingPage() {
                   <p className="text-sm text-foreground/70 mb-6">
                     Add contacts to start sending emails
                   </p>
-                  <Link href="/admin/email-marketing/contacts/new">
-                    <Button className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors" style={{ backgroundColor: '#FFA617', fontWeight: '900' }}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Contact
-                    </Button>
-                  </Link>
+                  <Button 
+                    className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors" 
+                    style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+                    onClick={() => setIsAddContactModalOpen(true)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Contact
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -424,6 +497,115 @@ export default function EmailMarketingPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Add Contact Modal */}
+      <Dialog open={isAddContactModalOpen} onOpenChange={setIsAddContactModalOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+              Add New Contact
+            </DialogTitle>
+            <DialogDescription className="text-base text-foreground/70">
+              Add a new contact to your email marketing list.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddContact} className="space-y-6 mt-4">
+            <div>
+              <Label htmlFor="modal-email" className="text-sm font-bold uppercase tracking-wider text-foreground/70 mb-2 block">
+                Email Address <span className="text-accent">*</span>
+              </Label>
+              <Input
+                id="modal-email"
+                type="email"
+                value={contactFormData.email}
+                onChange={(e) => setContactFormData({ ...contactFormData, email: e.target.value })}
+                required
+                className="font-medium"
+                placeholder="contact@example.com"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="modal-firstName" className="text-sm font-bold uppercase tracking-wider text-foreground/70 mb-2 block">
+                  First Name
+                </Label>
+                <Input
+                  id="modal-firstName"
+                  value={contactFormData.firstName}
+                  onChange={(e) => setContactFormData({ ...contactFormData, firstName: e.target.value })}
+                  className="font-medium"
+                  placeholder="John"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="modal-lastName" className="text-sm font-bold uppercase tracking-wider text-foreground/70 mb-2 block">
+                  Last Name
+                </Label>
+                <Input
+                  id="modal-lastName"
+                  value={contactFormData.lastName}
+                  onChange={(e) => setContactFormData({ ...contactFormData, lastName: e.target.value })}
+                  className="font-medium"
+                  placeholder="Doe"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="modal-tags" className="text-sm font-bold uppercase tracking-wider text-foreground/70 mb-2 block">
+                Tags
+              </Label>
+              <Input
+                id="modal-tags"
+                value={contactFormData.tags}
+                onChange={(e) => setContactFormData({ ...contactFormData, tags: e.target.value })}
+                className="font-medium"
+                placeholder="customer, vip, newsletter (comma-separated)"
+              />
+              <p className="text-xs text-foreground/50 mt-2">
+                Separate multiple tags with commas
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="modal-source" className="text-sm font-bold uppercase tracking-wider text-foreground/70 mb-2 block">
+                Source
+              </Label>
+              <Input
+                id="modal-source"
+                value={contactFormData.source}
+                onChange={(e) => setContactFormData({ ...contactFormData, source: e.target.value })}
+                className="font-medium"
+                placeholder="Website, Referral, Event, etc."
+              />
+              <p className="text-xs text-foreground/50 mt-2">
+                Where did this contact come from?
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                type="submit"
+                disabled={isSubmittingContact}
+                className="flex-1 font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+                style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              >
+                {isSubmittingContact ? "Creating..." : "Create Contact"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsAddContactModalOpen(false)}
+                className="font-black uppercase tracking-wider"
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

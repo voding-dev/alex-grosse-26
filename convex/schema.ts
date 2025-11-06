@@ -481,7 +481,7 @@ export default defineSchema({
     subject: v.string(),
     fromEmail: v.optional(v.string()),
     fromName: v.optional(v.string()),
-    htmlContent: v.string(),
+    htmlContent: v.optional(v.string()),
     textContent: v.optional(v.string()),
     status: v.union(
       v.literal("draft"),

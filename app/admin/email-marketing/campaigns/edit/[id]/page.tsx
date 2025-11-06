@@ -1,40 +1,32 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useToast } from "@/components/ui/use-toast";
 import { Save, Eye, Code, X, Tag } from "lucide-react";
 import Link from "next/link";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
-export default function NewCampaignPage() {
+export default function EditCampaignPage() {
+  const params = useParams();
   const router = useRouter();
   const { adminEmail } = useAdminAuth();
   const { toast } = useToast();
-  const createCampaign = useMutation(api.emailMarketing.createCampaign);
+  const id = params.id as string;
 
-  const [formData, setFormData] = useState({
-    name: "",
-    subject: "",
-    fromEmail: "",
-    fromName: "",
-    htmlContent: "",
-    textContent: "",
-    tags: [] as string[],
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const campaign = useQuery(
+    api.emailMarketing.getCampaign,
+    adminEmail ? { id: id as any, email: adminEmail } : ("skip" as const)
+  );
+
+  const updateCampaign = useMutation(api.emailMarketing.updateCampaign);
+  const [isSaving, setIsSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState<"preview" | "code">("preview");
   const [contentType, setContentType] = useState<"html" | "text">("html");
   const [tagInput, setTagInput] = useState("");
@@ -47,6 +39,37 @@ export default function NewCampaignPage() {
     adminEmail ? { email: adminEmail } : ("skip" as const)
   ) || [];
 
+  const [formData, setFormData] = useState({
+    name: "",
+    subject: "",
+    fromEmail: "",
+    fromName: "",
+    htmlContent: "",
+    textContent: "",
+    tags: [] as string[],
+  });
+
+  // Load campaign data when it's available
+  useEffect(() => {
+    if (campaign) {
+      setFormData({
+        name: campaign.name || "",
+        subject: campaign.subject || "",
+        fromEmail: campaign.fromEmail || "",
+        fromName: campaign.fromName || "",
+        htmlContent: campaign.htmlContent || "",
+        textContent: campaign.textContent || "",
+        tags: campaign.tags || [],
+      });
+      // Determine content type based on what exists
+      if (campaign.htmlContent && campaign.htmlContent.trim()) {
+        setContentType("html");
+      } else if (campaign.textContent && campaign.textContent.trim()) {
+        setContentType("text");
+      }
+    }
+  }, [campaign]);
+
   // Filter tags based on input
   const filteredTags = tagInput
     ? allTags.filter(tag => 
@@ -55,7 +78,17 @@ export default function NewCampaignPage() {
       )
     : allTags.filter(tag => !formData.tags.includes(tag));
 
-  const handleSubmit = async () => {
+  if (!campaign) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
+        <div className="text-center">
+          <p className="text-foreground/60">Loading campaign...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleSave = async () => {
     if (!adminEmail) {
       toast({
         title: "Error",
@@ -83,9 +116,10 @@ export default function NewCampaignPage() {
       return;
     }
 
-    setIsSubmitting(true);
+    setIsSaving(true);
     try {
-      await createCampaign({
+      await updateCampaign({
+        id: campaign._id,
         adminEmail: adminEmail,
         name: formData.name,
         subject: formData.subject,
@@ -97,20 +131,18 @@ export default function NewCampaignPage() {
       });
 
       toast({
-        title: "Campaign created",
-        description: "The campaign has been created successfully.",
+        title: "Campaign updated",
+        description: "The campaign has been updated successfully.",
       });
-
-      router.push("/admin/email-marketing");
     } catch (error) {
-      console.error("Error creating campaign:", error);
+      console.error("Error updating campaign:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create campaign.",
+        description: error instanceof Error ? error.message : "Failed to update campaign.",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsSaving(false);
     }
   };
 
@@ -203,7 +235,7 @@ export default function NewCampaignPage() {
             ← Back
           </Link>
           <h1 className="text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
-            New Campaign
+            Edit Campaign: {formData.name || "Untitled"}
           </h1>
         </div>
         <div className="flex items-center gap-3">
@@ -226,13 +258,13 @@ export default function NewCampaignPage() {
             )}
           </Button>
           <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
+            onClick={handleSave}
+            disabled={isSaving}
             className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
             style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
           >
             <Save className="mr-2 h-4 w-4" />
-            {isSubmitting ? "Creating..." : "Create Campaign"}
+            {isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       </div>
