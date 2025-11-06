@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
 import { Lightbox } from "./lightbox";
-import { Eye } from "lucide-react";
+import { Eye, MessageSquare } from "lucide-react";
 import { MasonryImage } from "./masonry-image";
 import { getVideoThumbnailUrl } from "@/lib/video-utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface MasonryGridProps {
   items: Array<{
@@ -160,22 +161,45 @@ export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onTog
                     if (el) itemRefs.current.set(item.id, el);
                   }}
                   onClick={(e) => handleItemClick(index, e)}
-                  className={`group relative cursor-pointer overflow-hidden bg-foreground/5 transition-all masonry-item ${
+                  className={`group relative cursor-pointer overflow-hidden bg-foreground/5 transition-all masonry-item rounded-lg border border-foreground/10 hover:border-accent/40 shadow-sm ${
                     isSelected ? "ring-2 ring-blue-500" : ""
                   }`}
                   style={{
                     width: '100%',
                   }}
                 >
-              {selectable && (
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => onToggleSelect?.(item.id)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="absolute right-2 top-2 z-10 h-5 w-5 cursor-pointer rounded border-foreground/20"
-                />
-              )}
+              {/* Floating actions */}
+              <div className="absolute right-2 top-2 z-10 flex items-center gap-2">
+                {selectable && (
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => onToggleSelect?.(item.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-5 w-5 cursor-pointer rounded border-foreground/20 bg-background/80 backdrop-blur"
+                  />
+                )}
+                {onFeedbackClick && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onFeedbackClick(item.id);
+                          }}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-background/80 border border-foreground/10 text-foreground shadow-sm hover:bg-accent hover:text-background hover:border-accent transition-colors"
+                          aria-label="Give feedback"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Open feedback for this file</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              
               
               {item.type === "image" && (item.src || item.storageId) && (
                 <>

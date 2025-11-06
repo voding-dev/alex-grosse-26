@@ -3,11 +3,12 @@
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, ExternalLink } from "lucide-react";
+import { MessageSquare, ExternalLink, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function FeedbackPage() {
   const { adminEmail } = useAdminAuth();
@@ -51,13 +52,39 @@ export default function FeedbackPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
-      <div className="mb-8 sm:mb-12">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
-          Client Feedback
-        </h1>
-        <p className="text-foreground/70 text-base sm:text-lg">
-          View and manage all client feedback from delivery portals. Feedback is organized by delivery portal and linked to specific projects.
-        </p>
+      <div className="mb-8 sm:mb-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+            Client Feedback
+          </h1>
+          <p className="text-foreground/70 text-base sm:text-lg">
+            Review client interactions (access, downloads, approvals, comments) across delivery portals.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-foreground/20 text-foreground/70 hover:text-accent hover:border-accent"
+                  aria-label="How to read feedback"
+                >
+                  <Info className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[320px] text-xs leading-relaxed">
+                - Badges indicate decision per entry.
+                <br />- "Per-asset" entries are feedback on a single file; "Project" entries are overall comments.
+                <br />- Click the link icon to view the delivery as the client sees it.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Link href="/admin/deliveries" className="w-full sm:w-auto">
+            <Button variant="outline" className="w-full sm:w-auto font-bold uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors">
+              Go to Deliveries
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Info Banner */}

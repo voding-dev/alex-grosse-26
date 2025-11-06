@@ -13,6 +13,8 @@ import { Download, Calendar, AlertCircle, CreditCard, MessageSquare, Send, Check
 import { MasonryGrid } from "@/components/masonry-grid";
 import { Textarea } from "@/components/ui/textarea";
 import { AssetFeedbackModal } from "@/components/asset-feedback-modal";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 export default function DeliveryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -353,10 +355,10 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
           )}
         </div>
 
-        {/* Download Actions */}
+        {/* Actions + Help */}
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-2xl font-light">Your Files</h2>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             {selectedAssets.size > 0 && (
               <>
                 <Button 
@@ -381,6 +383,24 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
                 Download All
               </Button>
             )}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-foreground/20 text-foreground/70 hover:text-accent hover:border-accent"
+                    aria-label="How to provide feedback"
+                  >
+                    <Info className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[320px] text-xs leading-relaxed">
+                  - Click any card to view it large in a lightbox.
+                  <br />- Use the bubble icon on a card (or in the lightbox footer) to leave feedback on that specific file. You can also approve without commenting.
+                  <br />- Use Approve Selected to approve multiple files at once; Download Selected/All to retrieve files.
+                  <br />- Use the Delivery Feedback box below for comments about the whole project.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
