@@ -5,9 +5,10 @@ interface LightboxFooterProps {
   totalImages: number;
   onPrev: () => void;
   onNext: () => void;
+  onFeedbackClick?: () => void;
 }
 
-export function LightboxFooter({ currentIndex, totalImages, onPrev, onNext }: LightboxFooterProps) {
+export function LightboxFooter({ currentIndex, totalImages, onPrev, onNext, onFeedbackClick }: LightboxFooterProps) {
   return (
     <footer className="flex flex-col items-center justify-between gap-3 bg-accent px-4 py-3 text-xs text-white sm:flex-row sm:gap-0 sm:px-6 sm:py-4 sm:text-sm">
       <div className="order-2 sm:order-1">{currentIndex + 1} / {totalImages}</div>
@@ -16,9 +17,19 @@ export function LightboxFooter({ currentIndex, totalImages, onPrev, onNext }: Li
         <span> / </span>
         <button onClick={onNext} className="transition-opacity hover:opacity-80">Next</button>
       </div>
-      <button className="order-3 uppercase tracking-wide transition-opacity hover:opacity-80">
-        Share
-      </button>
+      <div className="order-3 flex gap-3">
+        {onFeedbackClick && (
+          <button 
+            onClick={onFeedbackClick} 
+            className="uppercase tracking-wide transition-opacity hover:opacity-80"
+          >
+            Feedback
+          </button>
+        )}
+        <button className="uppercase tracking-wide transition-opacity hover:opacity-80">
+          Share
+        </button>
+      </div>
     </footer>
   );
 }

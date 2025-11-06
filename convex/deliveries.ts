@@ -76,7 +76,7 @@ export const listAll = query({
 export const verifyPin = mutation({
   args: {
     slug: v.string(),
-    pin: v.string(),
+    pin: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const delivery = await ctx.db
@@ -100,7 +100,18 @@ export const verifyPin = mutation({
       throw new Error("Delivery has expired. Please contact admin or subscribe to monthly storage.");
     }
 
-    const isValid = bcrypt.compareSync(args.pin, delivery.pinHash);
+    // If no PIN is set for this delivery, allow access
+    if (!delivery.pinHash) {
+      await ctx.db.insert("events", {
+        deliveryId: delivery._id,
+        type: "view",
+        meta: { success: true, pinRequired: false },
+        createdAt: Date.now(),
+      });
+      return { success: true, deliveryId: delivery._id };
+    }
+
+    const isValid = args.pin ? bcrypt.compareSync(args.pin, delivery.pinHash) : false;
     
     if (!isValid) {
       // Log failed attempt
@@ -130,11 +141,11 @@ export const create = mutation({
     title: v.string(),
     clientName: v.string(),
     slug: v.string(),
-    pin: v.string(),
+    pin: v.optional(v.string()),
     expiresAt: v.optional(v.number()),
     watermark: v.boolean(),
     allowZip: v.boolean(),
-    allowedAssetIds: v.array(v.id("assets")),
+    allowedAssetIds: v.optional(v.array(v.id("assets"))),
     notesPublic: v.optional(v.string()),
     email: v.optional(v.string()), // Dev mode: email for admin check
   },
@@ -156,7 +167,7 @@ export const create = mutation({
       await requireAdmin(ctx);
     }
     
-    const pinHash = bcrypt.hashSync(deliveryData.pin, 10);
+    const pinHash = deliveryData.pin ? bcrypt.hashSync(deliveryData.pin, 10) : undefined;
     const now = Date.now();
     
     // Default expiration: 30 days from now if not specified
@@ -172,7 +183,7 @@ export const create = mutation({
       originalDeliveryDate: now,
       watermark: deliveryData.watermark,
       allowZip: deliveryData.allowZip,
-      allowedAssetIds: deliveryData.allowedAssetIds,
+      allowedAssetIds: deliveryData.allowedAssetIds || [],
       notesPublic: deliveryData.notesPublic,
       createdAt: now,
       updatedAt: now,

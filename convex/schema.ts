@@ -83,13 +83,13 @@ export default defineSchema({
     title: v.string(),
     clientName: v.string(),
     slug: v.string(),
-    pinHash: v.string(), // bcrypt hash
+    pinHash: v.optional(v.string()), // bcrypt hash; optional when portal has no PIN
     pinPlaintext: v.optional(v.string()), // Plaintext PIN for admin viewing
     expiresAt: v.optional(v.number()), // Auto-expiration date (free storage expires)
     originalDeliveryDate: v.number(), // When delivery was first created
     watermark: v.boolean(),
     allowZip: v.boolean(),
-    allowedAssetIds: v.array(v.id("assets")),
+    allowedAssetIds: v.optional(v.array(v.id("assets"))),
     notesPublic: v.optional(v.string()), // Public notes for delivery
     // Storage subscription (client pays monthly to extend storage)
     storageSubscriptionId: v.optional(v.string()), // Stripe subscription ID

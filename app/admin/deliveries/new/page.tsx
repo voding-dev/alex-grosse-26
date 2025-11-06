@@ -33,6 +33,8 @@ export default function NewDeliveryPage() {
     selectedAssetIds: [] as string[],
   });
 
+  const [requirePin, setRequirePin] = useState(false);
+
   // Get uploaded assets for this delivery (will be populated after delivery is created)
   // For now, we'll use a state to track uploaded asset IDs before delivery creation
   const [uploadedAssetIds, setUploadedAssetIds] = useState<string[]>([]);
@@ -51,19 +53,19 @@ export default function NewDeliveryPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.slug || !formData.pin || !formData.title || !formData.clientName) {
+    if (!formData.slug || !formData.title || !formData.clientName) {
       toast({
         title: "Error",
-        description: "Please fill in title, client name, delivery slug, and PIN.",
+        description: "Please fill in title, client name, and delivery slug.",
         variant: "destructive",
       });
       return;
     }
 
-    if (formData.selectedAssetIds.length === 0) {
+    if (requirePin && !formData.pin) {
       toast({
         title: "Error",
-        description: "Please select at least one asset.",
+        description: "Please enter a PIN or uncheck 'Require PIN'.",
         variant: "destructive",
       });
       return;
@@ -78,11 +80,11 @@ export default function NewDeliveryPage() {
         title: formData.title,
         clientName: formData.clientName,
         slug: formData.slug,
-        pin: formData.pin,
+        pin: requirePin ? formData.pin : undefined,
         expiresAt,
         watermark: true,
         allowZip: true,
-        allowedAssetIds: formData.selectedAssetIds as any[],
+        allowedAssetIds: (formData.selectedAssetIds as any[]) || [],
         notesPublic: formData.notesPublic || undefined,
         email: adminEmail || undefined,
       });
@@ -251,20 +253,33 @@ export default function NewDeliveryPage() {
 
             <div>
               <Label htmlFor="pin" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                PIN Code *
+                Require PIN
               </Label>
-              <Input
-                id="pin"
-                type="password"
-                value={formData.pin}
-                onChange={(e) => setFormData({ ...formData, pin: e.target.value })}
-                placeholder="Enter PIN for client access"
-                required
-                className="h-12 text-base"
-              />
-              <p className="mt-2 text-xs text-foreground/60">
-                Client will need this PIN to access the delivery portal
-              </p>
+              <div className="flex items-center gap-3">
+                <input
+                  id="requirePin"
+                  type="checkbox"
+                  checked={requirePin}
+                  onChange={(e) => setRequirePin(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="requirePin" className="text-sm font-medium">Require PIN to access</Label>
+              </div>
+              {requirePin && (
+                <div className="mt-3">
+                  <Input
+                    id="pin"
+                    type="password"
+                    value={formData.pin}
+                    onChange={(e) => setFormData({ ...formData, pin: e.target.value })}
+                    placeholder="Enter PIN for client access"
+                    className="h-12 text-base"
+                  />
+                  <p className="mt-2 text-xs text-foreground/60">
+                    Client will need this PIN to access the delivery portal
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>

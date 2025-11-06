@@ -14,9 +14,10 @@ interface LightboxProps {
   onClose: () => void;
   onNext: () => void;
   onPrev: () => void;
+  onFeedbackClick?: (assetId: string) => void;
 }
 
-export function Lightbox({ images, currentIndex, onClose, onNext, onPrev }: LightboxProps) {
+export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onFeedbackClick }: LightboxProps) {
   const [isLoading, setIsLoading] = useState(true);
   const currentImage = images[currentIndex];
   
@@ -177,7 +178,8 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev }: Ligh
         currentIndex={currentIndex} 
         totalImages={images.length} 
         onPrev={onPrev} 
-        onNext={onNext} 
+        onNext={onNext}
+        onFeedbackClick={onFeedbackClick && currentImage ? () => onFeedbackClick(currentImage.id) : undefined}
       />
     </div>
   );

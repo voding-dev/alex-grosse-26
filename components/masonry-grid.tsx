@@ -20,9 +20,10 @@ interface MasonryGridProps {
   selectable?: boolean;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
+  onFeedbackClick?: (assetId: string) => void;
 }
 
-export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onToggleSelect }: MasonryGridProps) {
+export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onToggleSelect, onFeedbackClick }: MasonryGridProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [columnCount, setColumnCount] = useState(3);
@@ -268,6 +269,7 @@ export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onTog
           onClose={() => setLightboxOpen(false)}
           onNext={handleNext}
           onPrev={handlePrev}
+          onFeedbackClick={onFeedbackClick}
         />
       )}
     </>

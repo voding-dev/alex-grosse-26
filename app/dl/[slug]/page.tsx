@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { useSearchParams } from "next/navigation";
-import { Download, Calendar, AlertCircle, CreditCard, MessageSquare, Send } from "lucide-react";
+import { Download, Calendar, AlertCircle, CreditCard, MessageSquare, Send, CheckCircle } from "lucide-react";
 import { MasonryGrid } from "@/components/masonry-grid";
 import { Textarea } from "@/components/ui/textarea";
+import { AssetFeedbackModal } from "@/components/asset-feedback-modal";
 
 export default function DeliveryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -23,6 +24,8 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
   const [projectFeedback, setProjectFeedback] = useState("");
   const [assetFeedback, setAssetFeedback] = useState<Record<string, string>>({});
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [selectedAssetForFeedback, setSelectedAssetForFeedback] = useState<string | null>(null);
 
   const delivery = useQuery(api.deliveries.getBySlug, { slug });
   const verifyPin = useMutation(api.deliveries.verifyPin);
@@ -37,24 +40,21 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
   );
 
   useEffect(() => {
-    if (pin && delivery && !isVerified) {
+    if (!delivery) return;
+    // Auto-verify if delivery has no PIN requirement
+    if (!delivery.pinHash) {
+      setIsVerified(true);
+      return;
+    }
+    if (pin && !isVerified) {
       handleVerify();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin, delivery]);
 
   const handleVerify = async () => {
-    if (!pin) {
-      toast({
-        title: "PIN required",
-        description: "Please enter a PIN to access this delivery.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
-      const result = await verifyPin({ slug, pin });
+      const result = await verifyPin({ slug, pin: pin || undefined });
       if (result.success) {
         setIsVerified(true);
         toast({
@@ -84,21 +84,25 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Enter PIN</CardTitle>
-            <CardDescription>Please enter your PIN to access this delivery</CardDescription>
+            <CardTitle>{delivery.pinHash ? "Enter PIN" : "One moment"}</CardTitle>
+            <CardDescription>
+              {delivery.pinHash ? "Please enter your PIN to access this delivery" : "Verifying access..."}
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Input
-              type="password"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              placeholder="Enter PIN"
-              onKeyDown={(e) => e.key === "Enter" && handleVerify()}
-            />
-            <Button onClick={handleVerify} className="w-full">
-              Access Delivery
-            </Button>
-          </CardContent>
+          {delivery.pinHash && (
+            <CardContent className="space-y-4">
+              <Input
+                type="password"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                placeholder="Enter PIN"
+                onKeyDown={(e) => e.key === "Enter" && handleVerify()}
+              />
+              <Button onClick={handleVerify} className="w-full">
+                Access Delivery
+              </Button>
+            </CardContent>
+          )}
         </Card>
       </div>
     );
@@ -106,7 +110,7 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
 
   // Deliveries are now standalone - no project needed
   const filteredAssets =
-    assets?.filter((asset) => delivery.allowedAssetIds.includes(asset._id)) || [];
+    assets?.filter((asset) => (delivery.allowedAssetIds || []).includes(asset._id)) || [];
 
   // Calculate expiration status
   const now = Date.now();
@@ -212,8 +216,8 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
     }
   };
 
-  const handleSubmitAssetFeedback = async (assetId: string, decision: "approve" | "changes" | "reject") => {
-    const feedbackText = assetFeedback[assetId] || decision;
+  const handleSubmitAssetFeedback = async (assetId: string, decision: "approve" | "changes" | "reject", comment: string) => {
+    const feedbackText = comment || decision;
 
     try {
       await createFeedback({
@@ -229,6 +233,8 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
       });
       
       setAssetFeedback({ ...assetFeedback, [assetId]: "" });
+      setFeedbackModalOpen(false);
+      setSelectedAssetForFeedback(null);
     } catch (error) {
       toast({
         title: "Error",
@@ -238,13 +244,55 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
     }
   };
 
+  const handleBulkApprove = async () => {
+    if (selectedAssets.size === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one asset to approve.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const approvePromises = Array.from(selectedAssets).map((assetId) =>
+        createFeedback({
+          deliveryId: delivery._id,
+          assetId: assetId as any,
+          body: "Bulk approved",
+          decision: "approve",
+        })
+      );
+
+      await Promise.all(approvePromises);
+      
+      toast({
+        title: "Assets approved",
+        description: `${selectedAssets.size} asset(s) have been approved.`,
+      });
+      
+      setSelectedAssets(new Set());
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to approve assets.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOpenFeedbackModal = (assetId: string) => {
+    setSelectedAssetForFeedback(assetId);
+    setFeedbackModalOpen(true);
+  };
+
   // Convert assets to masonry grid format
   // Filter out assets with type "other" as MasonryGrid only supports "image" | "video" | "pdf"
   const masonryItems = filteredAssets
     .filter((asset) => asset.type !== "other")
     .map((asset) => ({
       id: asset._id,
-      src: delivery.watermark && asset.previewKey ? asset.previewKey : asset.storageKey,
+      storageId: delivery.watermark && asset.previewKey ? asset.previewKey : asset.storageKey,
       alt: asset.filename,
       type: asset.type as "image" | "video" | "pdf",
       aspectRatio: asset.width && asset.height ? asset.width / asset.height : undefined,
@@ -308,20 +356,30 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
         {/* Download Actions */}
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-2xl font-light">Your Files</h2>
-          <div className="flex gap-2">
-            {delivery.allowZip && (
+          <div className="flex gap-2 flex-wrap">
+            {selectedAssets.size > 0 && (
               <>
-                {selectedAssets.size > 0 && (
+                <Button 
+                  onClick={handleBulkApprove} 
+                  variant="outline"
+                  className="font-bold uppercase tracking-wider hover:bg-green-50 hover:border-green-300 hover:text-green-700"
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Approve Selected ({selectedAssets.size})
+                </Button>
+                {delivery.allowZip && (
                   <Button onClick={handleDownloadSelected} variant="outline">
                     <Download className="mr-2 h-4 w-4" />
                     Download Selected ({selectedAssets.size})
                   </Button>
                 )}
-                <Button onClick={handleDownloadAll} variant="outline">
-                  <Download className="mr-2 h-4 w-4" />
-                  Download All
-                </Button>
               </>
+            )}
+            {delivery.allowZip && (
+              <Button onClick={handleDownloadAll} variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Download All
+              </Button>
             )}
           </div>
         </div>
@@ -331,9 +389,10 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
           <div className="mb-12">
             <MasonryGrid 
               items={masonryItems} 
-              selectable={delivery.allowZip}
+              selectable={true}
               selectedIds={selectedAssets}
               onToggleSelect={toggleAsset}
+              onFeedbackClick={handleOpenFeedbackModal}
             />
           </div>
         ) : (
@@ -377,94 +436,20 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
           </CardContent>
         </Card>
 
-        {/* Asset-Level Feedback */}
-        {filteredAssets.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Feedback on Individual Files</CardTitle>
-              <CardDescription>
-                Review and provide feedback on each file
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {filteredAssets.map((asset) => {
-                  const assetFb = feedback?.filter((f) => f.assetId === asset._id);
-                  return (
-                    <div key={asset._id} className="rounded-md border border-foreground/10 p-4">
-                      <div className="mb-3 flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">{asset.filename}</h4>
-                          <p className="text-sm text-foreground/60">
-                            {asset.type} • {asset.size ? `${(asset.size / 1024 / 1024).toFixed(2)} MB` : "Unknown size"}
-                          </p>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDownload(asset._id)}
-                        >
-                          <Download className="mr-2 h-3 w-3" />
-                          Download
-                        </Button>
-                      </div>
-                      <div className="mb-3 flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSubmitAssetFeedback(asset._id, "approve")}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSubmitAssetFeedback(asset._id, "changes")}
-                        >
-                          Needs Changes
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSubmitAssetFeedback(asset._id, "reject")}
-                        >
-                          Reject
-                        </Button>
-                      </div>
-                      <Textarea
-                        value={assetFeedback[asset._id] || ""}
-                        onChange={(e) => setAssetFeedback({ ...assetFeedback, [asset._id]: e.target.value })}
-                        placeholder="Add a comment..."
-                        rows={2}
-                        className="mb-2"
-                      />
-                      {assetFb && assetFb.length > 0 && (
-                        <div className="mt-3 space-y-2">
-                          {assetFb.map((f) => (
-                            <div key={f._id} className="rounded-md bg-foreground/5 p-2">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-xs font-medium ${
-                                  f.decision === "approve" ? "text-green-600" :
-                                  f.decision === "reject" ? "text-red-600" :
-                                  "text-yellow-600"
-                                }`}>
-                                  {f.decision?.toUpperCase()}
-                                </span>
-                                <span className="text-xs text-foreground/60">
-                                  {new Date(f.createdAt).toLocaleDateString()}
-                                </span>
-                              </div>
-                              <p className="mt-1 text-sm text-foreground/80">{f.body}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+        {/* Asset Feedback Modal */}
+        {selectedAssetForFeedback && (
+          <AssetFeedbackModal
+            assetId={selectedAssetForFeedback}
+            assetName={filteredAssets.find((a) => a._id === selectedAssetForFeedback)?.filename || "Asset"}
+            isOpen={feedbackModalOpen}
+            onClose={() => {
+              setFeedbackModalOpen(false);
+              setSelectedAssetForFeedback(null);
+            }}
+            onSubmitFeedback={handleSubmitAssetFeedback}
+            onDownload={handleDownload}
+            existingFeedback={feedback?.filter((f) => f.assetId === selectedAssetForFeedback) || []}
+          />
         )}
       </div>
     </div>
