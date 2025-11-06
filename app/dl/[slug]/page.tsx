@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/components/ui/use-toast";
 import { useSearchParams } from "next/navigation";
 import { Download, Calendar, AlertCircle, CreditCard, MessageSquare, Send, CheckCircle, MousePointerClick, MousePointer2, X, Sparkles } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MasonryGrid } from "@/components/masonry-grid";
 import { DeliveryGrid } from "@/components/delivery-grid";
@@ -98,14 +100,35 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
 
   if (!isVerified) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>{delivery.pinHash ? "Enter PIN" : "One moment"}</CardTitle>
-            <CardDescription>
-              {delivery.pinHash ? "Please enter your PIN to access this delivery" : "Verifying access..."}
-            </CardDescription>
-          </CardHeader>
+      <div className="flex min-h-screen flex-col bg-background">
+        {/* Subtle Branding Header */}
+        <header className="sticky top-0 z-40 border-b border-foreground/10 bg-background/80 backdrop-blur-xl supports-backdrop-filter:bg-background/60">
+          <div className="mx-auto max-w-7xl px-6 py-4">
+            <div className="flex items-center justify-center">
+              <Link href="/" className="flex flex-col items-center gap-2 group transition-opacity hover:opacity-80">
+                <Image
+                  src="/ic-wordmark-white.svg"
+                  alt="COURTRIGHT"
+                  width={200}
+                  height={50}
+                  className="h-8 w-auto object-contain opacity-60 group-hover:opacity-80 transition-opacity"
+                />
+                <span className="text-xs font-black uppercase tracking-wider text-foreground/60 group-hover:text-foreground/80 transition-colors" style={{ fontWeight: '900' }}>
+                  Delivery Portal
+                </span>
+              </Link>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex flex-1 items-center justify-center px-6 py-12">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-center">{delivery.pinHash ? "Enter PIN" : "One moment"}</CardTitle>
+              <CardDescription className="text-center">
+                {delivery.pinHash ? "Please enter your PIN to access this project" : "Verifying access..."}
+              </CardDescription>
+            </CardHeader>
           {delivery.pinHash && (
             <CardContent className="space-y-4">
               <Input
@@ -140,6 +163,27 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
             </CardContent>
           )}
         </Card>
+        </div>
+
+        {/* Subtle Branding Footer */}
+        <footer className="border-t border-foreground/10 py-8">
+          <div className="mx-auto max-w-7xl px-6">
+            <div className="flex flex-col items-center justify-center gap-3">
+              <Link href="/" className="flex items-center gap-2 group transition-opacity hover:opacity-80">
+                <Image
+                  src="/ic-brandmark-white.svg"
+                  alt="Ian Courtright"
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 object-contain opacity-40 group-hover:opacity-60 transition-opacity"
+                />
+              </Link>
+              <p className="text-xs text-foreground/40 font-medium">
+                Secure delivery portal by Ian Courtright
+              </p>
+            </div>
+          </div>
+        </footer>
       </div>
     );
   }
@@ -392,6 +436,26 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Subtle Branding Header */}
+      <header className="sticky top-0 z-40 border-b border-foreground/10 bg-background/80 backdrop-blur-xl supports-backdrop-filter:bg-background/60">
+        <div className="mx-auto max-w-7xl px-6 py-4">
+          <div className="flex items-center justify-center">
+            <Link href="/" className="flex flex-col items-center gap-2 group transition-opacity hover:opacity-80">
+              <Image
+                src="/ic-wordmark-white.svg"
+                alt="COURTRIGHT"
+                width={200}
+                height={50}
+                className="h-8 w-auto object-contain opacity-60 group-hover:opacity-80 transition-opacity"
+              />
+              <span className="text-xs font-black uppercase tracking-wider text-foreground/60 group-hover:text-foreground/80 transition-colors" style={{ fontWeight: '900' }}>
+                Delivery Portal
+              </span>
+            </Link>
+          </div>
+        </div>
+      </header>
+
       <div className="mx-auto max-w-7xl px-6 py-12">
         {/* Expiration Warning */}
         {!isPaidStorage && (isExpired || (daysUntilExpiry !== null && daysUntilExpiry <= 7)) && (
@@ -744,6 +808,26 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
           />
         )}
       </div>
+
+      {/* Subtle Branding Footer */}
+      <footer className="mt-16 border-t border-foreground/10 py-8">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="flex flex-col items-center justify-center gap-3">
+            <Link href="/" className="flex items-center gap-2 group transition-opacity hover:opacity-80">
+              <Image
+                src="/ic-brandmark-white.svg"
+                alt="Ian Courtright"
+                width={24}
+                height={24}
+                className="h-6 w-6 object-contain opacity-40 group-hover:opacity-60 transition-opacity"
+              />
+            </Link>
+            <p className="text-xs text-foreground/40 font-medium">
+              Secure delivery portal by Ian Courtright
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
