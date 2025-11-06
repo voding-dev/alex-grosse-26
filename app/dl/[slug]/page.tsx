@@ -55,13 +55,17 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
       setIsVerified(true);
       return;
     }
-    if (pin && !isVerified) {
-      handleVerify();
-    }
+    // Don't verify on every keystroke - verification is handled in onChange
+    // This prevents errors from incomplete PINs
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pin, delivery]);
+  }, [delivery]);
 
   const handleVerify = async () => {
+    // Don't verify if PIN is too short (incomplete)
+    if (!pin || pin.length < 4) {
+      return;
+    }
+
     try {
       const result = await verifyPin({ slug, pin: pin || undefined });
       if (result.success) {
@@ -72,11 +76,15 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
         });
       }
     } catch (error: any) {
-      toast({
-        title: "Access denied",
-        description: error.message || "Invalid PIN",
-        variant: "destructive",
-      });
+      // Only show error toast if PIN is complete (4+ characters)
+      // This prevents showing errors for incomplete PINs while typing
+      if (pin && pin.length >= 4) {
+        toast({
+          title: "Access denied",
+          description: error.message || "Invalid PIN",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -103,11 +111,30 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
               <Input
                 type="password"
                 value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                placeholder="Enter PIN"
-                onKeyDown={(e) => e.key === "Enter" && handleVerify()}
+                onChange={(e) => {
+                  const newPin = e.target.value.replace(/\D/g, ''); // Only allow digits
+                  setPin(newPin);
+                  // Auto-verify when PIN reaches 4 digits
+                  if (newPin.length === 4 && !isVerified) {
+                    // Small delay to let the state update
+                    setTimeout(() => {
+                      handleVerify();
+                    }, 100);
+                  }
+                }}
+                placeholder="Enter 4-digit PIN"
+                maxLength={4}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && pin.length >= 4) {
+                    handleVerify();
+                  }
+                }}
               />
-              <Button onClick={handleVerify} className="w-full">
+              <Button 
+                onClick={handleVerify} 
+                className="w-full"
+                disabled={!pin || pin.length < 4}
+              >
                 Access Delivery
               </Button>
             </CardContent>
