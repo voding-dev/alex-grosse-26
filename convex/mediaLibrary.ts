@@ -675,3 +675,106 @@ export const getUncompressedMedia = query({
   },
 });
 
+// Delete media items by filename (for removing specific unwanted entries)
+export const deleteByFilenames = mutation({
+  args: {
+    sessionToken: v.optional(v.string()),
+    filenames: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdminWithSession(ctx, args.sessionToken);
+
+    const deletedMediaLibrary = [];
+    const deletedAssets = [];
+    const notFound = [];
+
+    // Delete from mediaLibrary
+    for (const filename of args.filenames) {
+      let found = false;
+
+      // First, try to find in mediaLibrary
+      const allMediaLibrary = await ctx.db.query("mediaLibrary").collect();
+      for (const media of allMediaLibrary) {
+        // Check if filename matches (exact or starts with, accounting for truncation)
+        const matches = media.filename === filename || 
+                       media.filename.startsWith(filename) ||
+                       media.filename === filename + ".jpg" ||
+                       media.filename === filename + ".png";
+        
+        if (matches) {
+          found = true;
+          // Validate storage key before attempting deletion
+          const storageKey = media.storageKey;
+          if (storageKey && typeof storageKey === "string") {
+            // Check for invalid storage keys (Windows paths, seed data, etc.)
+            const hasBackslash = storageKey.includes("\\");
+            const hasDriveLetter = /^[a-zA-Z]:/.test(storageKey);
+            const hasInvalidColon = storageKey.includes(":") && !storageKey.startsWith("http://") && !storageKey.startsWith("https://");
+            const isSeedData = storageKey.startsWith("seed-") || storageKey.startsWith("mock-") || storageKey.includes("seed-storage");
+            const isTooShort = storageKey.length < 10;
+
+            if (!hasBackslash && !hasDriveLetter && !hasInvalidColon && !isSeedData && !isTooShort) {
+              // Valid storage key - try to delete from storage
+              try {
+                await ctx.storage.delete(storageKey);
+              } catch (error) {
+                console.warn(`Failed to delete storage key ${storageKey}:`, error);
+              }
+            } else {
+              console.warn(`Skipping storage deletion for invalid storage key: ${storageKey}`);
+            }
+          }
+          // Always delete the database record
+          await ctx.db.delete(media._id);
+          deletedMediaLibrary.push(media.filename);
+        }
+      }
+
+      // If not found in mediaLibrary, try assets table
+      if (!found) {
+        const allAssets = await ctx.db.query("assets").collect();
+        for (const asset of allAssets) {
+          const matches = asset.filename === filename || 
+                         asset.filename.startsWith(filename) ||
+                         asset.filename === filename + ".jpg" ||
+                         asset.filename === filename + ".png";
+          
+          if (matches) {
+            found = true;
+            // Delete storage key if valid
+            const storageKey = asset.storageKey;
+            if (storageKey && typeof storageKey === "string") {
+              const hasBackslash = storageKey.includes("\\");
+              const hasDriveLetter = /^[a-zA-Z]:/.test(storageKey);
+              const hasInvalidColon = storageKey.includes(":") && !storageKey.startsWith("http://") && !storageKey.startsWith("https://");
+              const isSeedData = storageKey.startsWith("seed-") || storageKey.startsWith("mock-") || storageKey.includes("seed-storage");
+              const isTooShort = storageKey.length < 10;
+
+              if (!hasBackslash && !hasDriveLetter && !hasInvalidColon && !isSeedData && !isTooShort) {
+                try {
+                  await ctx.storage.delete(storageKey);
+                } catch (error) {
+                  console.warn(`Failed to delete storage key ${storageKey}:`, error);
+                }
+              }
+            }
+            await ctx.db.delete(asset._id);
+            deletedAssets.push(asset.filename);
+          }
+        }
+      }
+
+      if (!found) {
+        notFound.push(filename);
+      }
+    }
+
+    return {
+      deletedMediaLibrary,
+      deletedAssets,
+      notFound,
+      totalDeleted: deletedMediaLibrary.length + deletedAssets.length,
+    };
+  },
+});
+

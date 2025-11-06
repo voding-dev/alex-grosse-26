@@ -135,6 +135,7 @@ export default function MediaLibraryPage() {
   const updateMedia = useMutation(api.mediaLibrary.update);
   const deleteMedia = useMutation(api.mediaLibrary.remove);
   const bulkDeleteMedia = useMutation(api.mediaLibrary.bulkDelete);
+  const deleteByFilenames = useMutation(api.mediaLibrary.deleteByFilenames);
   const importFromAsset = useMutation(api.mediaLibrary.importFromAsset);
   const addDisplayLocation = useMutation(api.mediaLibrary.addDisplayLocation);
   const removeDisplayLocation = useMutation(api.mediaLibrary.removeDisplayLocation);
@@ -420,6 +421,62 @@ export default function MediaLibraryPage() {
     }
   };
 
+  const handleDeleteSpecificFiles = async () => {
+    const filenamesToDelete = [
+      "luck-store-streetwear@4x.png",
+      "CSS Business Cards.jpg",
+      "02.jpg",
+      "revolve-bik-shop-logo@4x.png",
+      "presentation folder 2.jpg",
+      "CJBC_Building.jpg",
+      "NamNomTruck.jpg",
+      "CrookedClub_StoreMock_Expanded.jpg",
+      "CSS - Van Mockup.jpg",
+    ];
+
+    if (!confirm(`Are you sure you want to delete ${filenamesToDelete.length} specific files? This action cannot be undone.`)) {
+      return;
+    }
+
+    if (!sessionToken) {
+      toast({
+        title: "Authentication required",
+        description: "Please refresh the page and try again",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const result = await deleteByFilenames({
+        sessionToken: sessionToken,
+        filenames: filenamesToDelete,
+      });
+
+      const message = [
+        result.deletedMediaLibrary.length > 0 && `${result.deletedMediaLibrary.length} from media library`,
+        result.deletedAssets.length > 0 && `${result.deletedAssets.length} from assets`,
+        result.notFound.length > 0 && `${result.notFound.length} not found`,
+      ].filter(Boolean).join(", ");
+
+      toast({
+        title: "Deletion complete",
+        description: `Deleted: ${message}. Total: ${result.totalDeleted}`,
+      });
+
+      if (result.notFound.length > 0) {
+        console.log("Files not found:", result.notFound);
+      }
+    } catch (error) {
+      console.error("Delete specific files error:", error);
+      toast({
+        title: "Delete failed",
+        description: "Failed to delete specific files",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleImportAsset = async (assetId: Id<"assets">) => {
     try {
       await importFromAsset({ sessionToken: sessionToken || undefined, assetId });
@@ -660,6 +717,14 @@ export default function MediaLibraryPage() {
                 Delete {uncompressedMediaIds.length} Uncompressed
               </Button>
             )}
+            <Button
+              variant="destructive"
+              onClick={handleDeleteSpecificFiles}
+              title="Delete specific unwanted files"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Remove Unwanted Files
+            </Button>
             <Button
               variant="outline"
               onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
