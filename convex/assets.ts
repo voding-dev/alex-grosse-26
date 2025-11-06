@@ -238,13 +238,15 @@ export const create = mutation({
         }
 
         // Check if already exists in media library (by storage key)
+        // This prevents duplicates when selecting from media library
         const existing = await ctx.db
           .query("mediaLibrary")
           .filter((q) => q.eq(q.field("storageKey"), assetData.storageKey))
           .first();
 
         if (!existing) {
-          // Create media library entry
+          // Only create media library entry if it doesn't already exist
+          // This means the file was uploaded directly, not selected from media library
           const now = Date.now();
           await ctx.db.insert("mediaLibrary", {
             filename: assetData.filename,
@@ -272,7 +274,8 @@ export const create = mutation({
             updatedAt: now,
           });
         } else {
-          // Update existing entry to add display location if not already present
+          // Media library entry already exists - just update display locations
+          // This happens when selecting from media library - no duplicate created
           const locationExists = existing.displayLocations.some(
             (loc) => loc.type === locationType && loc.entityId === entityId
           );
@@ -291,6 +294,8 @@ export const create = mutation({
               updatedAt: now,
             });
           }
+          // If sourceAssetId is not set and this is a new asset, we could optionally link it
+          // but we don't want to overwrite existing sourceAssetId if media was uploaded directly
         }
       } catch (error) {
         // Log error but don't fail the asset creation

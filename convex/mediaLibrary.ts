@@ -21,6 +21,10 @@ export const list = query({
   handler: async (ctx, args) => {
     let media = await ctx.db.query("mediaLibrary").order("desc").collect();
 
+    // Create a Set of storageKeys that already exist in media library
+    // This prevents duplicates when including assets
+    const existingStorageKeys = new Set(media.map((m) => m.storageKey));
+
     // If includeAssets is true, also fetch assets from assets table
     if (args.includeAssets) {
       const assets = await ctx.db
@@ -35,16 +39,25 @@ export const list = query({
         .collect();
 
       // Convert assets to media library format
+      // Only include assets whose storageKey doesn't already exist in media library
       const assetMedia = await Promise.all(
         assets
           .filter((asset) => {
             // Filter out assets with invalid storage keys (seed data, etc.)
             const storageKey = asset.storageKey;
-            return storageKey && 
-              !storageKey.startsWith("seed-") && 
-              !storageKey.startsWith("mock-") &&
-              !storageKey.includes("seed-storage") &&
-              storageKey.length > 0;
+            if (!storageKey || 
+                storageKey.startsWith("seed-") || 
+                storageKey.startsWith("mock-") ||
+                storageKey.includes("seed-storage") ||
+                storageKey.length === 0) {
+              return false;
+            }
+            // Skip assets whose storageKey already exists in media library
+            // This prevents duplicates - the media library entry is the source of truth
+            if (existingStorageKeys.has(storageKey)) {
+              return false;
+            }
+            return true;
           })
           .map(async (asset) => {
             // Build display locations with entity names
@@ -292,6 +305,13 @@ export const update = mutation({
     folder: v.optional(v.string()),
     alt: v.optional(v.string()),
     description: v.optional(v.string()),
+    storageKey: v.optional(v.string()),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
+    size: v.optional(v.number()),
+    originalSize: v.optional(v.number()),
+    compressedSize: v.optional(v.number()),
+    compressionRatio: v.optional(v.number()),
     displayLocations: v.optional(v.array(v.object({
       type: v.union(
         v.literal("portfolio"),

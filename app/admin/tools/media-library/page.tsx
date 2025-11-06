@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,7 @@ import {
   Filter,
   Grid,
   List,
+  Minimize2,
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { MediaThumbnail } from "@/components/media-thumbnail";
@@ -86,6 +87,7 @@ export default function MediaLibraryPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [compressingItemId, setCompressingItemId] = useState<Id<"mediaLibrary"> | null>(null);
   
   // Filters
   const [typeFilter, setTypeFilter] = useState<"all" | "image" | "video">("all");
@@ -134,6 +136,7 @@ export default function MediaLibraryPage() {
   const importFromAsset = useMutation(api.mediaLibrary.importFromAsset);
   const addDisplayLocation = useMutation(api.mediaLibrary.addDisplayLocation);
   const removeDisplayLocation = useMutation(api.mediaLibrary.removeDisplayLocation);
+  const getSignedDownloadUrl = useAction(api.storage.getSignedDownloadUrl);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -386,6 +389,92 @@ export default function MediaLibraryPage() {
         description: "Failed to import asset",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleCompressImage = async (item: MediaItem) => {
+    if (item.type !== "image" || item._id.toString().startsWith("asset_")) {
+      return; // Only compress images that are in the media library
+    }
+
+    // Check if already compressed
+    if (item.compressedSize && item.originalSize && item.compressionRatio) {
+      toast({
+        title: "Already compressed",
+        description: "This image has already been compressed",
+        variant: "default",
+      });
+      return;
+    }
+
+    setCompressingItemId(item._id);
+    
+    try {
+      // Get the image URL using action
+      const imageUrl = await getSignedDownloadUrl({ storageKey: item.storageKey });
+
+      if (!imageUrl) {
+        throw new Error("Could not get image URL");
+      }
+
+      // Download the image
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error("Failed to download image");
+      }
+      
+      const blob = await response.blob();
+      const file = new File([blob], item.filename, { type: blob.type || "image/jpeg" });
+
+      // Compress the image
+      const compressionResult = await compressImage(file, {
+        quality: 0.7, // 70% quality
+        maxWidth: 1920,
+        maxHeight: 1920,
+        outputFormat: "jpeg",
+        enableResize: true,
+      });
+
+      // Upload compressed image
+      const uploadUrl = await generateUploadUrl();
+      const uploadResult = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": "image/jpeg" },
+        body: compressionResult.blob,
+      });
+
+      if (!uploadResult.ok) {
+        throw new Error("Failed to upload compressed image");
+      }
+
+      const { storageId } = await uploadResult.json();
+
+      // Update media library record with compressed version
+      await updateMedia({
+        sessionToken: sessionToken || undefined,
+        id: item._id,
+        storageKey: storageId,
+        size: compressionResult.compressedSize,
+        originalSize: item.originalSize || item.size,
+        compressedSize: compressionResult.compressedSize,
+        compressionRatio: compressionResult.compressionRatio,
+        width: compressionResult.width,
+        height: compressionResult.height,
+      });
+
+      toast({
+        title: "Compressed successfully",
+        description: `Image compressed from ${formatFileSize(compressionResult.originalSize)} to ${formatFileSize(compressionResult.compressedSize)} (${Math.round(compressionResult.compressionRatio)}% reduction)`,
+      });
+    } catch (error: any) {
+      console.error("Compression error:", error);
+      toast({
+        title: "Compression failed",
+        description: error.message || "Failed to compress image",
+        variant: "destructive",
+      });
+    } finally {
+      setCompressingItemId(null);
     }
   };
 
@@ -690,6 +779,23 @@ export default function MediaLibraryPage() {
                       >
                         <Edit className="h-3 w-3" />
                       </Button>
+                      {/* Compress button for uncompressed images */}
+                      {item.type === "image" && !item._id.toString().startsWith("asset_") && !(item.compressedSize && item.originalSize && item.compressionRatio) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleCompressImage(item)}
+                          disabled={compressingItemId === item._id}
+                          className="h-7 w-7 p-0"
+                          title="Compress image"
+                        >
+                          {compressingItemId === item._id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Minimize2 className="h-3 w-3" />
+                          )}
+                        </Button>
+                      )}
                       {item.sourceType === "asset" && typeof item._id === "string" && item._id.startsWith("asset_") && (
                         <Button
                           size="sm"

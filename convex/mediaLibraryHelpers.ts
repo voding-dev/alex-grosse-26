@@ -32,6 +32,7 @@ export async function createOrUpdateMediaLibraryEntry(
 ): Promise<void> {
   try {
     // Check if already exists in media library (by storage key)
+    // This prevents duplicates when selecting from media library
     const existing = await ctx.db
       .query("mediaLibrary")
       .filter((q) => q.eq(q.field("storageKey"), params.storageKey))
@@ -40,7 +41,8 @@ export async function createOrUpdateMediaLibraryEntry(
     const now = Date.now();
 
     if (!existing) {
-      // Create new media library entry
+      // Only create new media library entry if it doesn't already exist
+      // This happens when uploading a new file directly
       await ctx.db.insert("mediaLibrary", {
         filename: params.filename,
         storageKey: params.storageKey,
@@ -67,7 +69,8 @@ export async function createOrUpdateMediaLibraryEntry(
         updatedAt: now,
       });
     } else {
-      // Update existing entry to add display location if not already present
+      // Media library entry already exists - just update display locations
+      // This happens when selecting from media library - no duplicate created
       if (params.displayLocation) {
         const locationExists = existing.displayLocations.some(
           (loc) =>
