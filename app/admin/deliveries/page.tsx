@@ -338,7 +338,7 @@ export default function DeliveriesPage() {
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-2.5 flex-1 min-w-0">
                                 <h3 className="font-black uppercase tracking-wider text-base sm:text-lg break-words text-foreground leading-tight flex-1 min-w-0" style={{ fontWeight: '900' }}>
-                                  {fullUrl}
+                                  {delivery.title || fullUrl}
                                 </h3>
                                 {feedbackCount > 0 && (
                                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-xs font-black text-background shrink-0" style={{ fontWeight: '900' }}>
