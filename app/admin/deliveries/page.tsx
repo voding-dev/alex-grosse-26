@@ -5,7 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Package, Calendar, AlertCircle, Copy, ExternalLink, MessageSquare, Eye, EyeOff, Key, RefreshCw } from "lucide-react";
+import { Plus, Package, Calendar, AlertCircle, Copy, ExternalLink, MessageSquare, Eye, EyeOff, Key, RefreshCw, Edit } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useState } from "react";
@@ -256,22 +256,22 @@ export default function DeliveriesPage() {
               return (
                 <Card 
                   key={delivery._id}
-                  className={`border transition-all hover:shadow-lg ${
+                  className={`border transition-all hover:shadow-xl rounded-xl ${
                     daysUntilExpiry !== null && daysUntilExpiry <= 7 
                       ? "border-accent/50 bg-accent/5 hover:border-accent" 
-                      : "border-foreground/20 hover:border-accent/50"
+                      : "border-foreground/20 bg-background hover:border-accent/50"
                   }`}
                 >
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-start sm:justify-between gap-4">
-                      <div className="flex-1 space-y-4 w-full">
+                  <CardContent className="p-6 sm:p-8">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-start sm:justify-between gap-6">
+                      <div className="flex-1 space-y-5 w-full">
                         <div>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                            <h3 className="font-black uppercase tracking-wider text-base sm:text-lg break-all" style={{ fontWeight: '900' }}>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
+                            <h3 className="font-black uppercase tracking-wider text-lg sm:text-xl break-all text-foreground" style={{ fontWeight: '900' }}>
                               {fullUrl}
                             </h3>
                             {feedbackCount > 0 && (
-                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-xs font-black text-background" style={{ fontWeight: '900' }}>
+                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-xs font-black text-background shrink-0" style={{ fontWeight: '900' }}>
                                 {feedbackCount}
                               </span>
                             )}
@@ -282,37 +282,37 @@ export default function DeliveriesPage() {
                         </div>
 
                         {/* PIN Section */}
-                        <div className="rounded-lg border border-foreground/20 bg-foreground/5 p-3 sm:p-4">
-                          <div className="flex items-center justify-between gap-3 mb-2">
-                            <div className="flex items-center gap-2">
+                        <div className="rounded-xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
+                          <div className="flex items-center justify-between gap-3 mb-3">
+                            <div className="flex items-center gap-2.5">
                               <Key className="h-4 w-4 text-accent" />
-                              <span className="text-xs font-bold uppercase tracking-wider text-foreground/80">PIN</span>
+                              <span className="text-xs font-black uppercase tracking-wider text-foreground/90" style={{ fontWeight: '900' }}>PIN</span>
                               {!delivery.pinPlaintext && (
                                 <span className="text-xs text-yellow-500/80 font-medium">(Needs reset)</span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               {delivery.pinPlaintext ? (
                                 <>
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => togglePinVisibility(delivery._id)}
-                                    className="h-7 px-2 text-xs"
+                                    className="h-8 w-8 p-0 hover:bg-accent/10"
                                   >
                                     {visiblePins[delivery._id] ? (
-                                      <EyeOff className="h-3 w-3" />
+                                      <EyeOff className="h-4 w-4" />
                                     ) : (
-                                      <Eye className="h-3 w-3" />
+                                      <Eye className="h-4 w-4" />
                                     )}
                                   </Button>
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => copyPin(delivery.pinPlaintext || "", delivery.title)}
-                                    className="h-7 px-2 text-xs"
+                                    className="h-8 w-8 p-0 hover:bg-accent/10"
                                   >
-                                    <Copy className="h-3 w-3" />
+                                    <Copy className="h-4 w-4" />
                                   </Button>
                                 </>
                               ) : null}
@@ -321,51 +321,51 @@ export default function DeliveriesPage() {
                                 size="sm"
                                 onClick={() => handleResetPin(delivery._id, delivery.title)}
                                 disabled={resettingPin[delivery._id]}
-                                className="h-7 px-2 text-xs"
+                                className="h-8 w-8 p-0 hover:bg-accent/10"
                                 title={delivery.pinPlaintext ? "Reset PIN" : "Set PIN (no PIN stored)"}
                               >
                                 {resettingPin[delivery._id] ? (
-                                  <RefreshCw className="h-3 w-3 animate-spin" />
+                                  <RefreshCw className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  <RefreshCw className="h-3 w-3" />
+                                  <RefreshCw className="h-4 w-4" />
                                 )}
                               </Button>
                             </div>
                           </div>
                           {!delivery.pinPlaintext ? (
-                            <div className="px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded">
-                              <span className="text-xs text-yellow-500/80 font-medium">
+                            <div className="px-4 py-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                              <span className="text-xs text-yellow-500/90 font-medium">
                                 PIN not stored. Click reset to generate a new PIN and view it here.
                               </span>
                             </div>
                           ) : visiblePins[delivery._id] ? (
                             <div className="flex items-center gap-2">
-                              <code className="flex-1 px-3 py-2 bg-background border border-foreground/20 rounded font-mono text-base font-bold text-foreground tracking-wider">
+                              <code className="flex-1 px-4 py-3 bg-background border border-foreground/20 rounded-lg font-mono text-base font-bold text-foreground tracking-wider">
                                 {delivery.pinPlaintext}
                               </code>
                             </div>
                           ) : (
-                            <div className="px-3 py-2 bg-background border border-foreground/20 rounded">
+                            <div className="px-4 py-3 bg-background border border-foreground/20 rounded-lg">
                               <span className="text-xs text-foreground/50 font-medium">Click eye icon to reveal PIN</span>
                             </div>
                           )}
                         </div>
 
                         {/* Storage Status */}
-                        <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
+                        <div className="flex flex-wrap gap-2.5 text-xs sm:text-sm">
                           {isPaidStorage && paidExpiresAtDate && (
-                            <div className="flex items-center gap-2 rounded-full bg-accent/20 border border-accent/30 px-4 py-2 text-xs font-bold uppercase tracking-wider text-accent">
-                              <Calendar className="h-3 w-3" />
+                            <div className="flex items-center gap-2 rounded-full bg-accent/20 border border-accent/30 px-4 py-2 text-xs font-black uppercase tracking-wider text-accent" style={{ fontWeight: '900' }}>
+                              <Calendar className="h-3.5 w-3.5" />
                               Paid until {paidExpiresAtDate.toLocaleDateString()}
                             </div>
                           )}
                           {!isPaidStorage && expiresAtDate && (
-                            <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wider ${
+                            <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black uppercase tracking-wider ${
                               daysUntilExpiry !== null && daysUntilExpiry <= 7
                                 ? "bg-accent/20 border border-accent/30 text-accent"
                                 : "bg-foreground/10 border border-foreground/20 text-foreground/80"
-                            }`}>
-                              <Calendar className="h-3 w-3" />
+                            }`} style={{ fontWeight: '900' }}>
+                              <Calendar className="h-3.5 w-3.5" />
                               {daysUntilExpiry !== null && daysUntilExpiry <= 7
                                 ? `Expires in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''}`
                                 : `Expires ${expiresAtDate.toLocaleDateString()}`
@@ -373,33 +373,46 @@ export default function DeliveriesPage() {
                             </div>
                           )}
                           {feedbackCount > 0 && (
-                            <div className="flex items-center gap-2 rounded-full bg-accent/20 border border-accent/30 px-4 py-2 text-xs font-bold uppercase tracking-wider text-accent">
-                              <MessageSquare className="h-3 w-3" />
+                            <div className="flex items-center gap-2 rounded-full bg-accent/20 border border-accent/30 px-4 py-2 text-xs font-black uppercase tracking-wider text-accent" style={{ fontWeight: '900' }}>
+                              <MessageSquare className="h-3.5 w-3.5" />
                               {feedbackCount} feedback
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                      <div className="flex flex-col sm:flex-row gap-2.5 w-full sm:w-auto shrink-0">
+                        <Link href={`/admin/deliveries/${delivery._id}`} className="w-full sm:w-auto">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full sm:w-auto font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
+                            style={{ fontWeight: '900' }}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </Button>
+                        </Link>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => {
                             copyDeliveryLink(delivery.slug);
                           }}
-                          className="w-full sm:w-auto font-bold uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
+                          className="w-full sm:w-auto font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
+                          style={{ fontWeight: '900' }}
                         >
-                          <Copy className="mr-2 h-3 w-3" />
+                          <Copy className="mr-2 h-4 w-4" />
                           Copy Link
                         </Button>
                         <Link href={deliveryUrl} target="_blank" className="w-full sm:w-auto">
                           <Button 
                             variant="outline" 
                             size="sm"
-                            className="w-full sm:w-auto font-bold uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
+                            className="w-full sm:w-auto font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
+                            style={{ fontWeight: '900' }}
                           >
-                            <ExternalLink className="h-3 w-3" />
+                            <ExternalLink className="h-4 w-4" />
                           </Button>
                         </Link>
                       </div>
@@ -426,14 +439,14 @@ export default function DeliveriesPage() {
               return (
                 <Card 
                   key={delivery._id}
-                  className="border border-foreground/20 bg-foreground/5 hover:border-foreground/30 transition-all"
+                  className="border border-foreground/20 bg-foreground/5 hover:border-foreground/30 transition-all rounded-xl"
                 >
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-start sm:justify-between gap-4">
+                  <CardContent className="p-6 sm:p-8">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-start sm:justify-between gap-6">
                       <div className="flex-1 w-full">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                          <AlertCircle className="h-5 w-5 text-foreground/60" />
-                          <h3 className="font-black uppercase tracking-wider text-base sm:text-lg text-foreground/80 break-all" style={{ fontWeight: '900' }}>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
+                          <AlertCircle className="h-5 w-5 text-foreground/60 shrink-0" />
+                          <h3 className="font-black uppercase tracking-wider text-lg sm:text-xl text-foreground/80 break-all" style={{ fontWeight: '900' }}>
                             {deliveryUrl}
                           </h3>
                         </div>
@@ -443,56 +456,70 @@ export default function DeliveriesPage() {
                         
                         {/* PIN Section for Expired */}
                         {delivery.pinPlaintext && (
-                          <div className="mt-3 rounded-lg border border-foreground/20 bg-foreground/5 p-3">
-                            <div className="flex items-center justify-between gap-3 mb-2">
-                              <div className="flex items-center gap-2">
+                          <div className="mt-4 rounded-xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                              <div className="flex items-center gap-2.5">
                                 <Key className="h-4 w-4 text-foreground/60" />
-                                <span className="text-xs font-bold uppercase tracking-wider text-foreground/60">PIN</span>
+                                <span className="text-xs font-black uppercase tracking-wider text-foreground/60" style={{ fontWeight: '900' }}>PIN</span>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1.5">
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => togglePinVisibility(delivery._id)}
-                                  className="h-7 px-2 text-xs"
+                                  className="h-8 w-8 p-0 hover:bg-accent/10"
                                 >
                                   {visiblePins[delivery._id] ? (
-                                    <EyeOff className="h-3 w-3" />
+                                    <EyeOff className="h-4 w-4" />
                                   ) : (
-                                    <Eye className="h-3 w-3" />
+                                    <Eye className="h-4 w-4" />
                                   )}
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => copyPin(delivery.pinPlaintext || "", delivery.title)}
-                                  className="h-7 px-2 text-xs"
+                                  className="h-8 w-8 p-0 hover:bg-accent/10"
                                 >
-                                  <Copy className="h-3 w-3" />
+                                  <Copy className="h-4 w-4" />
                                 </Button>
                               </div>
                             </div>
                             {visiblePins[delivery._id] ? (
-                              <code className="block px-3 py-2 bg-background border border-foreground/20 rounded font-mono text-base font-bold text-foreground tracking-wider">
+                              <code className="block px-4 py-3 bg-background border border-foreground/20 rounded-lg font-mono text-base font-bold text-foreground tracking-wider">
                                 {delivery.pinPlaintext}
                               </code>
                             ) : (
-                              <div className="px-3 py-2 bg-background border border-foreground/20 rounded">
+                              <div className="px-4 py-3 bg-background border border-foreground/20 rounded-lg">
                                 <span className="text-xs text-foreground/50 font-medium">Click eye icon to reveal PIN</span>
                               </div>
                             )}
                           </div>
                         )}
                       </div>
-                      <Link href={deliveryUrl} target="_blank" className="w-full sm:w-auto">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="w-full sm:w-auto font-bold uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                        </Button>
-                      </Link>
+                      <div className="flex flex-col sm:flex-row gap-2.5 w-full sm:w-auto shrink-0">
+                        <Link href={`/admin/deliveries/${delivery._id}`} className="w-full sm:w-auto">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full sm:w-auto font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
+                            style={{ fontWeight: '900' }}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </Button>
+                        </Link>
+                        <Link href={deliveryUrl} target="_blank" className="w-full sm:w-auto">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="w-full sm:w-auto font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
+                            style={{ fontWeight: '900' }}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
