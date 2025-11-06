@@ -645,6 +645,29 @@ export const getUncompressedMedia = query({
         return false;
       }
       
+      // Exclude items that came from assets (imported via importFromAsset)
+      // These are not directly uploaded files, so we shouldn't delete them
+      if (media.sourceType === "asset") {
+        return false;
+      }
+      
+      // Exclude items with invalid storage keys (seed data, test data, etc.)
+      const storageKey = media.storageKey;
+      if (!storageKey || typeof storageKey !== "string") {
+        return false;
+      }
+      
+      // Check for invalid storage keys
+      const hasBackslash = storageKey.includes("\\");
+      const hasDriveLetter = /^[a-zA-Z]:/.test(storageKey);
+      const hasInvalidColon = storageKey.includes(":") && !storageKey.startsWith("http://") && !storageKey.startsWith("https://");
+      const isSeedData = storageKey.startsWith("seed-") || storageKey.startsWith("mock-") || storageKey.includes("seed-storage");
+      const isTooShort = storageKey.length < 10;
+      
+      if (hasBackslash || hasDriveLetter || hasInvalidColon || isSeedData || isTooShort) {
+        return false;
+      }
+      
       return true;
     });
     
