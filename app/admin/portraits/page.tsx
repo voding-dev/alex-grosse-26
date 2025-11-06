@@ -15,10 +15,17 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { HeroCarouselImage } from "@/components/hero-carousel-image";
 import { PortraitsGalleryImage } from "@/components/portraits-gallery-image";
-import { X, ChevronUp, ChevronDown, Upload, Eye, ArrowLeft, Trash2 } from "lucide-react";
+import { X, ChevronUp, ChevronDown, Upload, Eye, ArrowLeft, Trash2, Image as ImageIcon, Search, Check, Loader2 } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function PortraitsEditorPage() {
   const { adminEmail } = useAdminAuth();
@@ -48,6 +55,35 @@ export default function PortraitsEditorPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  
+  // Media library state for hero carousel
+  const [heroMediaLibraryOpen, setHeroMediaLibraryOpen] = useState(false);
+  const [heroMediaTypeFilter, setHeroMediaTypeFilter] = useState<"all" | "image" | "video">("image");
+  const [heroMediaFolderFilter, setHeroMediaFolderFilter] = useState<string>("all");
+  const [heroMediaSearchQuery, setHeroMediaSearchQuery] = useState("");
+  const [selectedHeroMediaItems, setSelectedHeroMediaItems] = useState<Array<{ _id: string; storageKey: string; filename: string; type: "image" | "video" }>>([]);
+  
+  // Media library state for gallery
+  const [galleryMediaLibraryOpen, setGalleryMediaLibraryOpen] = useState(false);
+  const [galleryMediaTypeFilter, setGalleryMediaTypeFilter] = useState<"all" | "image" | "video">("image");
+  const [galleryMediaFolderFilter, setGalleryMediaFolderFilter] = useState<string>("all");
+  const [galleryMediaSearchQuery, setGalleryMediaSearchQuery] = useState("");
+  const [selectedGalleryMediaItems, setSelectedGalleryMediaItems] = useState<Array<{ _id: string; storageKey: string; filename: string; type: "image" | "video"; width?: number; height?: number }>>([]);
+  
+  // Media library queries
+  const heroMedia = useQuery(api.mediaLibrary.list, {
+    type: heroMediaTypeFilter === "all" ? undefined : heroMediaTypeFilter,
+    folder: heroMediaFolderFilter === "all" ? undefined : heroMediaFolderFilter,
+    search: heroMediaSearchQuery || undefined,
+    includeAssets: false,
+  });
+  const galleryMedia = useQuery(api.mediaLibrary.list, {
+    type: galleryMediaTypeFilter === "all" ? undefined : galleryMediaTypeFilter,
+    folder: galleryMediaFolderFilter === "all" ? undefined : galleryMediaFolderFilter,
+    search: galleryMediaSearchQuery || undefined,
+    includeAssets: false,
+  });
+  const mediaFolders = useQuery(api.mediaLibrary.getFolders);
   
   // Portraits Form Data
   const [portraitsFormData, setPortraitsFormData] = useState({
@@ -160,6 +196,77 @@ export default function PortraitsEditorPage() {
   }, [portraits, updatePortraits, adminEmail]);
   
   // Hero Carousel handlers
+  const handleSelectHeroMediaFromLibrary = (media: { _id: string; storageKey: string; filename: string; type: "image" | "video" }) => {
+    setSelectedHeroMediaItems((prev) => {
+      const isSelected = prev.some((m) => m._id === media._id);
+      if (isSelected) {
+        return prev.filter((m) => m._id !== media._id);
+      } else {
+        return [...prev, media];
+      }
+    });
+  };
+
+  const handleAddSelectedHeroMedia = async () => {
+    if (selectedHeroMediaItems.length === 0) {
+      toast({
+        title: "No items selected",
+        description: "Please select at least one image from the media library.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploading(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const media of selectedHeroMediaItems) {
+        try {
+          if (media.type !== "image") {
+            errorCount++;
+            continue;
+          }
+          
+          await addHeroImage({
+            imageStorageId: media.storageKey,
+            alt: media.filename,
+            email: adminEmail || undefined,
+          });
+
+          successCount++;
+        } catch (error) {
+          console.error(`Error adding media ${media.filename}:`, error);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "Images added",
+          description: `${successCount} image${successCount !== 1 ? 's' : ''} added successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
+        });
+        setSelectedHeroMediaItems([]);
+        setHeroMediaLibraryOpen(false);
+      } else {
+        toast({
+          title: "Failed to add images",
+          description: "All items failed to add. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add images.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleHeroImageUpload = async (file: File) => {
     try {
       setUploading(true);
@@ -237,6 +344,79 @@ export default function PortraitsEditorPage() {
   };
 
   // Gallery handlers
+  const handleSelectGalleryMediaFromLibrary = (media: { _id: string; storageKey: string; filename: string; type: "image" | "video"; width?: number; height?: number }) => {
+    setSelectedGalleryMediaItems((prev) => {
+      const isSelected = prev.some((m) => m._id === media._id);
+      if (isSelected) {
+        return prev.filter((m) => m._id !== media._id);
+      } else {
+        return [...prev, media];
+      }
+    });
+  };
+
+  const handleAddSelectedGalleryMedia = async () => {
+    if (selectedGalleryMediaItems.length === 0) {
+      toast({
+        title: "No items selected",
+        description: "Please select at least one image from the media library.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingGallery(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const media of selectedGalleryMediaItems) {
+        try {
+          if (media.type !== "image") {
+            errorCount++;
+            continue;
+          }
+          
+          await addGalleryImage({
+            imageStorageId: media.storageKey,
+            alt: media.filename,
+            width: media.width,
+            height: media.height,
+            email: adminEmail || undefined,
+          });
+
+          successCount++;
+        } catch (error) {
+          console.error(`Error adding media ${media.filename}:`, error);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "Images added",
+          description: `${successCount} image${successCount !== 1 ? 's' : ''} added successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
+        });
+        setSelectedGalleryMediaItems([]);
+        setGalleryMediaLibraryOpen(false);
+      } else {
+        toast({
+          title: "Failed to add images",
+          description: "All items failed to add. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add images.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingGallery(false);
+    }
+  };
+
   const handleGalleryImageUpload = async (file: File) => {
     try {
       setUploadingGallery(true);
@@ -618,6 +798,15 @@ export default function PortraitsEditorPage() {
                   }}
                   disabled={uploading}
                 />
+                <Button
+                  variant="outline"
+                  onClick={() => setHeroMediaLibraryOpen(true)}
+                  disabled={uploading}
+                  className="flex items-center gap-2 rounded-lg border border-foreground/20 hover:border-accent/50 px-6 py-3 font-bold uppercase tracking-wider"
+                >
+                  <ImageIcon className="h-5 w-5" />
+                  <span>Select from Library</span>
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -904,6 +1093,15 @@ export default function PortraitsEditorPage() {
                   }}
                   disabled={uploadingGallery}
                 />
+                <Button
+                  variant="outline"
+                  onClick={() => setGalleryMediaLibraryOpen(true)}
+                  disabled={uploadingGallery}
+                  className="flex items-center gap-2 rounded-lg border border-foreground/20 hover:border-accent/50 px-6 py-3 font-bold uppercase tracking-wider"
+                >
+                  <ImageIcon className="h-5 w-5" />
+                  <span>Select from Library</span>
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -1032,6 +1230,327 @@ export default function PortraitsEditorPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Hero Carousel Media Library Dialog */}
+      <Dialog open={heroMediaLibraryOpen} onOpenChange={setHeroMediaLibraryOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Select from Media Library</DialogTitle>
+            <DialogDescription>
+              Choose images from your media library to add to the hero carousel
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Filters */}
+            <div className="flex gap-2 items-center">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/40" />
+                <Input
+                  placeholder="Search media..."
+                  value={heroMediaSearchQuery}
+                  onChange={(e) => setHeroMediaSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={heroMediaTypeFilter} onValueChange={(v) => setHeroMediaTypeFilter(v as any)}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="image">Images</SelectItem>
+                  <SelectItem value="video">Videos</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={heroMediaFolderFilter} onValueChange={setHeroMediaFolderFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Folders</SelectItem>
+                  {mediaFolders?.map((folder) => (
+                    <SelectItem key={folder} value={folder}>
+                      {folder}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Media Grid */}
+            <div className="flex-1 overflow-y-auto">
+              {heroMedia && heroMedia.length > 0 ? (
+                <div className="grid grid-cols-4 gap-4">
+                  {heroMedia.filter((m) => m.type === "image").map((media) => {
+                    const isSelected = selectedHeroMediaItems.some((m) => m._id === media._id.toString());
+                    return (
+                      <PortraitsHeroMediaSelectorItem
+                        key={media._id.toString()}
+                        media={media}
+                        onSelect={handleSelectHeroMediaFromLibrary}
+                        isSelected={isSelected}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-16 text-center">
+                  <ImageIcon className="mx-auto h-16 w-16 text-foreground/40 mb-6" />
+                  <p className="mb-4 text-xl font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                    No media found
+                  </p>
+                  <p className="text-sm text-foreground/70">
+                    Upload media to your media library first.
+                  </p>
+                </div>
+              )}
+            </div>
+            {selectedHeroMediaItems.length > 0 && (
+              <div className="border-t border-foreground/10 pt-4">
+                <p className="text-sm text-foreground/60 mb-2">
+                  {selectedHeroMediaItems.length} item{selectedHeroMediaItems.length !== 1 ? 's' : ''} selected
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setHeroMediaLibraryOpen(false);
+                setSelectedHeroMediaItems([]);
+              }}
+              className="border-foreground/20 hover:bg-foreground/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddSelectedHeroMedia}
+              disabled={uploading || selectedHeroMediaItems.length === 0}
+              className="bg-accent hover:bg-accent/90 text-background"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="mr-2 h-4 w-4" />
+                  Add {selectedHeroMediaItems.length} Image{selectedHeroMediaItems.length !== 1 ? 's' : ''}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Gallery Media Library Dialog */}
+      <Dialog open={galleryMediaLibraryOpen} onOpenChange={setGalleryMediaLibraryOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Select from Media Library</DialogTitle>
+            <DialogDescription>
+              Choose images from your media library to add to the gallery
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Filters */}
+            <div className="flex gap-2 items-center">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/40" />
+                <Input
+                  placeholder="Search media..."
+                  value={galleryMediaSearchQuery}
+                  onChange={(e) => setGalleryMediaSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={galleryMediaTypeFilter} onValueChange={(v) => setGalleryMediaTypeFilter(v as any)}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="image">Images</SelectItem>
+                  <SelectItem value="video">Videos</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={galleryMediaFolderFilter} onValueChange={setGalleryMediaFolderFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Folders</SelectItem>
+                  {mediaFolders?.map((folder) => (
+                    <SelectItem key={folder} value={folder}>
+                      {folder}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Media Grid */}
+            <div className="flex-1 overflow-y-auto">
+              {galleryMedia && galleryMedia.length > 0 ? (
+                <div className="grid grid-cols-4 gap-4">
+                  {galleryMedia.filter((m) => m.type === "image").map((media) => {
+                    const isSelected = selectedGalleryMediaItems.some((m) => m._id === media._id.toString());
+                    return (
+                      <PortraitsGalleryMediaSelectorItem
+                        key={media._id.toString()}
+                        media={media}
+                        onSelect={handleSelectGalleryMediaFromLibrary}
+                        isSelected={isSelected}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-16 text-center">
+                  <ImageIcon className="mx-auto h-16 w-16 text-foreground/40 mb-6" />
+                  <p className="mb-4 text-xl font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                    No media found
+                  </p>
+                  <p className="text-sm text-foreground/70">
+                    Upload media to your media library first.
+                  </p>
+                </div>
+              )}
+            </div>
+            {selectedGalleryMediaItems.length > 0 && (
+              <div className="border-t border-foreground/10 pt-4">
+                <p className="text-sm text-foreground/60 mb-2">
+                  {selectedGalleryMediaItems.length} item{selectedGalleryMediaItems.length !== 1 ? 's' : ''} selected
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setGalleryMediaLibraryOpen(false);
+                setSelectedGalleryMediaItems([]);
+              }}
+              className="border-foreground/20 hover:bg-foreground/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddSelectedGalleryMedia}
+              disabled={uploadingGallery || selectedGalleryMediaItems.length === 0}
+              className="bg-accent hover:bg-accent/90 text-background"
+            >
+              {uploadingGallery ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="mr-2 h-4 w-4" />
+                  Add {selectedGalleryMediaItems.length} Image{selectedGalleryMediaItems.length !== 1 ? 's' : ''}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// Media Selector Item Components
+function PortraitsHeroMediaSelectorItem({ 
+  media, 
+  onSelect, 
+  isSelected 
+}: { 
+  media: { _id: string | Id<"mediaLibrary">; storageKey: string; filename: string; type: "image" | "video" }; 
+  onSelect: (media: { _id: string; storageKey: string; filename: string; type: "image" | "video" }) => void; 
+  isSelected: boolean;
+}) {
+  const imageUrl = useQuery(
+    api.storageQueries.getUrl,
+    media.storageKey ? { storageId: media.storageKey } : "skip"
+  );
+
+  const handleClick = () => {
+    onSelect({
+      _id: media._id.toString(),
+      storageKey: media.storageKey,
+      filename: media.filename,
+      type: media.type,
+    });
+  };
+
+  return (
+    <div
+      className={`relative aspect-square border rounded overflow-hidden cursor-pointer hover:border-accent transition ${
+        isSelected ? "border-accent ring-2 ring-accent" : "border-foreground/20"
+      }`}
+      onClick={handleClick}
+    >
+      {imageUrl ? (
+        <img src={imageUrl} alt={media.filename || "Media"} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full bg-foreground/5 flex items-center justify-center">
+          <ImageIcon className="h-8 w-8 text-foreground/30" />
+        </div>
+      )}
+      {isSelected && (
+        <div className="absolute top-2 right-2 bg-accent text-white rounded-full p-1">
+          <Check className="h-4 w-4" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PortraitsGalleryMediaSelectorItem({ 
+  media, 
+  onSelect, 
+  isSelected 
+}: { 
+  media: { _id: string | Id<"mediaLibrary">; storageKey: string; filename: string; type: "image" | "video"; width?: number; height?: number }; 
+  onSelect: (media: { _id: string; storageKey: string; filename: string; type: "image" | "video"; width?: number; height?: number }) => void; 
+  isSelected: boolean;
+}) {
+  const imageUrl = useQuery(
+    api.storageQueries.getUrl,
+    media.storageKey ? { storageId: media.storageKey } : "skip"
+  );
+
+  const handleClick = () => {
+    onSelect({
+      _id: media._id.toString(),
+      storageKey: media.storageKey,
+      filename: media.filename,
+      type: media.type,
+      width: media.width,
+      height: media.height,
+    });
+  };
+
+  return (
+    <div
+      className={`relative aspect-square border rounded overflow-hidden cursor-pointer hover:border-accent transition ${
+        isSelected ? "border-accent ring-2 ring-accent" : "border-foreground/20"
+      }`}
+      onClick={handleClick}
+    >
+      {imageUrl ? (
+        <img src={imageUrl} alt={media.filename || "Media"} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full bg-foreground/5 flex items-center justify-center">
+          <ImageIcon className="h-8 w-8 text-foreground/30" />
+        </div>
+      )}
+      {isSelected && (
+        <div className="absolute top-2 right-2 bg-accent text-white rounded-full p-1">
+          <Check className="h-4 w-4" />
+        </div>
+      )}
     </div>
   );
 }

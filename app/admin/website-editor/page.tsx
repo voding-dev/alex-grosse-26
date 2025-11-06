@@ -15,10 +15,17 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useMutation as useConvexMutation } from "convex/react";
 import { HeroCarouselImage } from "@/components/hero-carousel-image";
-import { X, ChevronUp, ChevronDown, Upload, Plus, Eye, Briefcase, Trash2 } from "lucide-react";
+import { X, ChevronUp, ChevronDown, Upload, Plus, Eye, Briefcase, Trash2, Image as ImageIcon, Search, Check, Loader2 } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function WebsiteEditorPage() {
   const { adminEmail } = useAdminAuth();
@@ -88,6 +95,34 @@ export default function WebsiteEditorPage() {
   const { toast } = useToast();
   
   const [uploading, setUploading] = useState(false);
+  
+  // Media library state for hero carousel
+  const [heroMediaLibraryOpen, setHeroMediaLibraryOpen] = useState(false);
+  const [heroMediaTypeFilter, setHeroMediaTypeFilter] = useState<"all" | "image" | "video">("image");
+  const [heroMediaFolderFilter, setHeroMediaFolderFilter] = useState<string>("all");
+  const [heroMediaSearchQuery, setHeroMediaSearchQuery] = useState("");
+  const [selectedHeroMediaItems, setSelectedHeroMediaItems] = useState<Array<{ _id: string; storageKey: string; filename: string; type: "image" | "video" }>>([]);
+  
+  // Media library state for about section
+  const [aboutMediaLibraryOpen, setAboutMediaLibraryOpen] = useState(false);
+  const [aboutMediaTypeFilter, setAboutMediaTypeFilter] = useState<"all" | "image" | "video">("image");
+  const [aboutMediaFolderFilter, setAboutMediaFolderFilter] = useState<string>("all");
+  const [aboutMediaSearchQuery, setAboutMediaSearchQuery] = useState("");
+  
+  // Media library queries
+  const heroMedia = useQuery(api.mediaLibrary.list, {
+    type: heroMediaTypeFilter === "all" ? undefined : heroMediaTypeFilter,
+    folder: heroMediaFolderFilter === "all" ? undefined : heroMediaFolderFilter,
+    search: heroMediaSearchQuery || undefined,
+    includeAssets: false,
+  });
+  const aboutMedia = useQuery(api.mediaLibrary.list, {
+    type: aboutMediaTypeFilter === "all" ? undefined : aboutMediaTypeFilter,
+    folder: aboutMediaFolderFilter === "all" ? undefined : aboutMediaFolderFilter,
+    search: aboutMediaSearchQuery || undefined,
+    includeAssets: false,
+  });
+  const mediaFolders = useQuery(api.mediaLibrary.getFolders);
   
   // Homepage Contact Form Data
   const [homepageFormData, setHomepageFormData] = useState({
@@ -169,6 +204,77 @@ export default function WebsiteEditorPage() {
   }, [about]);
   
   // Hero Carousel handlers
+  const handleSelectHeroMediaFromLibrary = (media: { _id: string; storageKey: string; filename: string; type: "image" | "video" }) => {
+    setSelectedHeroMediaItems((prev) => {
+      const isSelected = prev.some((m) => m._id === media._id);
+      if (isSelected) {
+        return prev.filter((m) => m._id !== media._id);
+      } else {
+        return [...prev, media];
+      }
+    });
+  };
+
+  const handleAddSelectedHeroMedia = async () => {
+    if (selectedHeroMediaItems.length === 0) {
+      toast({
+        title: "No items selected",
+        description: "Please select at least one image from the media library.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploading(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const media of selectedHeroMediaItems) {
+        try {
+          if (media.type !== "image") {
+            errorCount++;
+            continue;
+          }
+          
+          await addImage({
+            imageStorageId: media.storageKey,
+            alt: media.filename,
+            email: adminEmail || undefined,
+          });
+
+          successCount++;
+        } catch (error) {
+          console.error(`Error adding media ${media.filename}:`, error);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "Images added",
+          description: `${successCount} image${successCount !== 1 ? 's' : ''} added successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
+        });
+        setSelectedHeroMediaItems([]);
+        setHeroMediaLibraryOpen(false);
+      } else {
+        toast({
+          title: "Failed to add images",
+          description: "All items failed to add. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add images.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleHeroImageUpload = async (file: File) => {
     try {
       setUploading(true);
@@ -376,6 +482,39 @@ export default function WebsiteEditorPage() {
     }
   };
   
+  const handleSelectAboutImageFromLibrary = async (media: { _id: string; storageKey: string; filename: string; type: "image" | "video" }) => {
+    if (media.type !== "image") {
+      toast({
+        title: "Invalid selection",
+        description: "Please select an image for the about section.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setAboutFormData({ ...aboutFormData, imageStorageId: media.storageKey });
+      
+      await updateAbout({
+        imageStorageId: media.storageKey,
+        email: adminEmail || undefined,
+      });
+
+      toast({
+        title: "Image updated",
+        description: "About section image updated successfully.",
+      });
+      
+      setAboutMediaLibraryOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update image.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleAboutImageUpload = async (file: File) => {
     try {
       const uploadUrl = await generateAboutUploadUrl();
@@ -605,6 +744,15 @@ export default function WebsiteEditorPage() {
                   className="hidden"
                   disabled={uploading}
                 />
+                <Button
+                  variant="outline"
+                  onClick={() => setHeroMediaLibraryOpen(true)}
+                  disabled={uploading}
+                  className="flex items-center gap-2 rounded-lg border border-foreground/20 hover:border-accent/50 px-6 py-3 font-bold uppercase tracking-wider"
+                >
+                  <ImageIcon className="h-5 w-5" />
+                  <span>Select from Library</span>
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -1178,7 +1326,7 @@ export default function WebsiteEditorPage() {
                     />
                   </div>
                 )}
-                <div>
+                <div className="flex items-center gap-4">
                   <Label htmlFor="about-image-upload" className="cursor-pointer">
                     <div className="flex items-center gap-3 rounded-lg border-2 border-accent/30 bg-accent/10 px-8 py-4 hover:bg-accent/20 transition-all font-bold uppercase tracking-wider w-fit shadow-md hover:shadow-lg">
                       <Upload className="h-5 w-5" />
@@ -1195,6 +1343,14 @@ export default function WebsiteEditorPage() {
                     }}
                     className="hidden"
                   />
+                  <Button
+                    variant="outline"
+                    onClick={() => setAboutMediaLibraryOpen(true)}
+                    className="flex items-center gap-2 rounded-lg border-2 border-foreground/20 hover:border-accent/50 px-8 py-4 font-bold uppercase tracking-wider shadow-md hover:shadow-lg"
+                  >
+                    <ImageIcon className="h-5 w-5" />
+                    <span>Select from Library</span>
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -1497,6 +1653,295 @@ export default function WebsiteEditorPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Hero Carousel Media Library Dialog */}
+      <Dialog open={heroMediaLibraryOpen} onOpenChange={setHeroMediaLibraryOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Select from Media Library</DialogTitle>
+            <DialogDescription>
+              Choose images from your media library to add to the hero carousel
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Filters */}
+            <div className="flex gap-2 items-center">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/40" />
+                <Input
+                  placeholder="Search media..."
+                  value={heroMediaSearchQuery}
+                  onChange={(e) => setHeroMediaSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={heroMediaTypeFilter} onValueChange={(v) => setHeroMediaTypeFilter(v as any)}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="image">Images</SelectItem>
+                  <SelectItem value="video">Videos</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={heroMediaFolderFilter} onValueChange={setHeroMediaFolderFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Folders</SelectItem>
+                  {mediaFolders?.map((folder) => (
+                    <SelectItem key={folder} value={folder}>
+                      {folder}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Media Grid */}
+            <div className="flex-1 overflow-y-auto">
+              {heroMedia && heroMedia.length > 0 ? (
+                <div className="grid grid-cols-4 gap-4">
+                  {heroMedia.filter((m) => m.type === "image").map((media) => {
+                    const isSelected = selectedHeroMediaItems.some((m) => m._id === media._id.toString());
+                    return (
+                      <HeroMediaSelectorItem
+                        key={media._id.toString()}
+                        media={media}
+                        onSelect={handleSelectHeroMediaFromLibrary}
+                        isSelected={isSelected}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-16 text-center">
+                  <ImageIcon className="mx-auto h-16 w-16 text-foreground/40 mb-6" />
+                  <p className="mb-4 text-xl font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                    No media found
+                  </p>
+                  <p className="text-sm text-foreground/70">
+                    Upload media to your media library first.
+                  </p>
+                </div>
+              )}
+            </div>
+            {selectedHeroMediaItems.length > 0 && (
+              <div className="border-t border-foreground/10 pt-4">
+                <p className="text-sm text-foreground/60 mb-2">
+                  {selectedHeroMediaItems.length} item{selectedHeroMediaItems.length !== 1 ? 's' : ''} selected
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setHeroMediaLibraryOpen(false);
+                setSelectedHeroMediaItems([]);
+              }}
+              className="border-foreground/20 hover:bg-foreground/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddSelectedHeroMedia}
+              disabled={uploading || selectedHeroMediaItems.length === 0}
+              className="bg-accent hover:bg-accent/90 text-background"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="mr-2 h-4 w-4" />
+                  Add {selectedHeroMediaItems.length} Image{selectedHeroMediaItems.length !== 1 ? 's' : ''}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* About Section Media Library Dialog */}
+      <Dialog open={aboutMediaLibraryOpen} onOpenChange={setAboutMediaLibraryOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Select from Media Library</DialogTitle>
+            <DialogDescription>
+              Choose an image from your media library for the about section
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Filters */}
+            <div className="flex gap-2 items-center">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/40" />
+                <Input
+                  placeholder="Search media..."
+                  value={aboutMediaSearchQuery}
+                  onChange={(e) => setAboutMediaSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={aboutMediaTypeFilter} onValueChange={(v) => setAboutMediaTypeFilter(v as any)}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="image">Images</SelectItem>
+                  <SelectItem value="video">Videos</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={aboutMediaFolderFilter} onValueChange={setAboutMediaFolderFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Folders</SelectItem>
+                  {mediaFolders?.map((folder) => (
+                    <SelectItem key={folder} value={folder}>
+                      {folder}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Media Grid */}
+            <div className="flex-1 overflow-y-auto">
+              {aboutMedia && aboutMedia.length > 0 ? (
+                <div className="grid grid-cols-4 gap-4">
+                  {aboutMedia.filter((m) => m.type === "image").map((media) => (
+                    <AboutMediaSelectorItem
+                      key={media._id.toString()}
+                      media={media}
+                      onSelect={handleSelectAboutImageFromLibrary}
+                      isSelected={aboutFormData.imageStorageId === media.storageKey}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="py-16 text-center">
+                  <ImageIcon className="mx-auto h-16 w-16 text-foreground/40 mb-6" />
+                  <p className="mb-4 text-xl font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                    No media found
+                  </p>
+                  <p className="text-sm text-foreground/70">
+                    Upload media to your media library first.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAboutMediaLibraryOpen(false)}
+              className="border-foreground/20 hover:bg-foreground/10"
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// Media Selector Item Components
+function HeroMediaSelectorItem({ 
+  media, 
+  onSelect, 
+  isSelected 
+}: { 
+  media: { _id: string | Id<"mediaLibrary">; storageKey: string; filename: string; type: "image" | "video" }; 
+  onSelect: (media: { _id: string; storageKey: string; filename: string; type: "image" | "video" }) => void; 
+  isSelected: boolean;
+}) {
+  const imageUrl = useQuery(
+    api.storageQueries.getUrl,
+    media.storageKey ? { storageId: media.storageKey } : "skip"
+  );
+
+  const handleClick = () => {
+    onSelect({
+      _id: media._id.toString(),
+      storageKey: media.storageKey,
+      filename: media.filename,
+      type: media.type,
+    });
+  };
+
+  return (
+    <div
+      className={`relative aspect-square border rounded overflow-hidden cursor-pointer hover:border-accent transition ${
+        isSelected ? "border-accent ring-2 ring-accent" : "border-foreground/20"
+      }`}
+      onClick={handleClick}
+    >
+      {imageUrl ? (
+        <img src={imageUrl} alt={media.filename || "Media"} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full bg-foreground/5 flex items-center justify-center">
+          <ImageIcon className="h-8 w-8 text-foreground/30" />
+        </div>
+      )}
+      {isSelected && (
+        <div className="absolute top-2 right-2 bg-accent text-white rounded-full p-1">
+          <Check className="h-4 w-4" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AboutMediaSelectorItem({ 
+  media, 
+  onSelect, 
+  isSelected 
+}: { 
+  media: { _id: string | Id<"mediaLibrary">; storageKey: string; filename: string; type: "image" | "video" }; 
+  onSelect: (media: { _id: string; storageKey: string; filename: string; type: "image" | "video" }) => void; 
+  isSelected: boolean;
+}) {
+  const imageUrl = useQuery(
+    api.storageQueries.getUrl,
+    media.storageKey ? { storageId: media.storageKey } : "skip"
+  );
+
+  const handleClick = () => {
+    onSelect({
+      _id: media._id.toString(),
+      storageKey: media.storageKey,
+      filename: media.filename,
+      type: media.type,
+    });
+  };
+
+  return (
+    <div
+      className={`relative aspect-square border rounded overflow-hidden cursor-pointer hover:border-accent transition ${
+        isSelected ? "border-accent ring-2 ring-accent" : "border-foreground/20"
+      }`}
+      onClick={handleClick}
+    >
+      {imageUrl ? (
+        <img src={imageUrl} alt={media.filename || "Media"} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full bg-foreground/5 flex items-center justify-center">
+          <ImageIcon className="h-8 w-8 text-foreground/30" />
+        </div>
+      )}
+      {isSelected && (
+        <div className="absolute top-2 right-2 bg-accent text-white rounded-full p-1">
+          <Check className="h-4 w-4" />
+        </div>
+      )}
     </div>
   );
 }
