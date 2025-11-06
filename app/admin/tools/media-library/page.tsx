@@ -523,6 +523,7 @@ export default function MediaLibraryPage() {
         throw new Error("Invalid compression results - compression failed");
       }
 
+      // Build update data object with all fields
       const updateData: {
         sessionToken: string;
         id: Id<"mediaLibrary">;
@@ -542,12 +543,11 @@ export default function MediaLibraryPage() {
         compressionRatio: compressionRatio,
         width: width,
         height: height,
+        // Only include originalSize if we have a valid value
+        ...(originalSizeValue && originalSizeValue > 0 && isFinite(originalSizeValue) 
+          ? { originalSize: Math.round(originalSizeValue) } 
+          : {}),
       };
-
-      // Only include originalSize if we have a valid value
-      if (originalSizeValue && originalSizeValue > 0 && isFinite(originalSizeValue)) {
-        updateData.originalSize = Math.round(originalSizeValue);
-      }
 
       // Update media library record with compressed version
       await updateMedia(updateData);
