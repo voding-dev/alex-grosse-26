@@ -99,9 +99,16 @@ export default function MediaLibraryPage() {
   const [editingItem, setEditingItem] = useState<MediaItem | null>(null);
   const [editTags, setEditTags] = useState<string>("");
   const [editFolder, setEditFolder] = useState<string>("");
+  const [editFilename, setEditFilename] = useState<string>("");
   const [editAlt, setEditAlt] = useState<string>("");
   const [editDescription, setEditDescription] = useState<string>("");
   const [newTag, setNewTag] = useState<string>("");
+  
+  // Autocomplete states
+  const [tagInputValue, setTagInputValue] = useState<string>("");
+  const [folderInputValue, setFolderInputValue] = useState<string>("");
+  const [tagSuggestionsOpen, setTagSuggestionsOpen] = useState(false);
+  const [folderSuggestionsOpen, setFolderSuggestionsOpen] = useState(false);
 
   // Queries
   const [includeAssets, setIncludeAssets] = useState(true); // Show all site media by default
@@ -319,8 +326,13 @@ export default function MediaLibraryPage() {
     setEditingItem(item);
     setEditTags(item.tags.join(", "));
     setEditFolder(item.folder || "");
+    setEditFilename(item.filename || "");
     setEditAlt(item.alt || "");
     setEditDescription(item.description || "");
+    setTagInputValue("");
+    setFolderInputValue("");
+    setTagSuggestionsOpen(false);
+    setFolderSuggestionsOpen(false);
   };
 
   const handleSaveEdit = async () => {
@@ -335,6 +347,7 @@ export default function MediaLibraryPage() {
       await updateMedia({
         sessionToken: sessionToken || undefined,
         id: editingItem._id,
+        filename: editFilename !== editingItem.filename ? editFilename : undefined,
         tags: tagsArray,
         folder: editFolder || undefined,
         alt: editAlt || undefined,
@@ -937,20 +950,216 @@ export default function MediaLibraryPage() {
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>Tags (comma-separated)</Label>
+                <Label>Filename (for SEO)</Label>
                 <Input
-                  value={editTags}
-                  onChange={(e) => setEditTags(e.target.value)}
-                  placeholder="tag1, tag2, tag3"
+                  value={editFilename}
+                  onChange={(e) => setEditFilename(e.target.value)}
+                  placeholder="filename.jpg"
                 />
+                <p className="text-xs text-foreground/60 mt-1">
+                  Change the filename for better SEO
+                </p>
+              </div>
+              <div>
+                <Label>Tags</Label>
+                <div className="relative">
+                  <Input
+                    value={editTags}
+                    onChange={(e) => {
+                      setEditTags(e.target.value);
+                      const lastCommaIndex = e.target.value.lastIndexOf(",");
+                      const currentTag = lastCommaIndex >= 0 
+                        ? e.target.value.substring(lastCommaIndex + 1).trim()
+                        : e.target.value.trim();
+                      setTagInputValue(currentTag);
+                      // Show suggestions if there's text or if there are tags available
+                      if (currentTag.length > 0 || (tags && tags.length > 0)) {
+                        setTagSuggestionsOpen(true);
+                      }
+                    }}
+                    onFocus={() => {
+                      const lastCommaIndex = editTags.lastIndexOf(",");
+                      const currentTag = lastCommaIndex >= 0 
+                        ? editTags.substring(lastCommaIndex + 1).trim()
+                        : editTags.trim();
+                      setTagInputValue(currentTag);
+                      // Show suggestions if there's any text or if there are existing tags to choose from
+                      if (tags && tags.length > 0) {
+                        setTagSuggestionsOpen(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      // Delay closing to allow clicking on suggestions
+                      setTimeout(() => setTagSuggestionsOpen(false), 200);
+                    }}
+                    placeholder="tag1, tag2, tag3"
+                  />
+                  {tagSuggestionsOpen && tags && tags.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-background border border-foreground/10 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {(() => {
+                        const existingTags = editTags.split(",").map(t => t.trim()).filter(t => t.length > 0);
+                        const filteredTags = tags
+                          .filter((tag) => 
+                            tagInputValue.length === 0 || 
+                            tag.toLowerCase().includes(tagInputValue.toLowerCase())
+                          )
+                          .filter((tag) => !existingTags.includes(tag))
+                          .slice(0, 10);
+                        
+                        if (filteredTags.length === 0 && tagInputValue.length === 0) {
+                          return (
+                            <div className="px-3 py-2 text-sm text-foreground/60">
+                              No available tags
+                            </div>
+                          );
+                        }
+                        
+                        return (
+                          <>
+                            {filteredTags.map((tag) => (
+                              <div
+                                key={tag}
+                                className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  const lastCommaIndex = editTags.lastIndexOf(",");
+                                  if (lastCommaIndex >= 0) {
+                                    // Replace the text after the last comma
+                                    const before = editTags.substring(0, lastCommaIndex + 1);
+                                    setEditTags((before + " " + tag).trim() + ", ");
+                                  } else if (editTags.trim().length > 0) {
+                                    // Add to existing tags
+                                    setEditTags(editTags.trim() + ", " + tag + ", ");
+                                  } else {
+                                    // First tag
+                                    setEditTags(tag + ", ");
+                                  }
+                                  setTagInputValue("");
+                                  setTagSuggestionsOpen(false);
+                                }}
+                              >
+                                <Tag className="h-3 w-3 inline mr-2" />
+                                {tag}
+                              </div>
+                            ))}
+                            {tagInputValue.length > 0 && 
+                             !tags.some(t => t.toLowerCase() === tagInputValue.toLowerCase()) && (
+                              <div
+                                className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm border-t border-foreground/10"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  const lastCommaIndex = editTags.lastIndexOf(",");
+                                  if (lastCommaIndex >= 0) {
+                                    const before = editTags.substring(0, lastCommaIndex + 1);
+                                    setEditTags((before + " " + tagInputValue).trim() + ", ");
+                                  } else if (editTags.trim().length > 0) {
+                                    setEditTags(editTags.trim() + ", " + tagInputValue + ", ");
+                                  } else {
+                                    setEditTags(tagInputValue + ", ");
+                                  }
+                                  setTagInputValue("");
+                                  setTagSuggestionsOpen(false);
+                                }}
+                              >
+                                <Plus className="h-3 w-3 inline mr-2" />
+                                Create "{tagInputValue}"
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-foreground/60 mt-1">
+                  Type to search existing tags or create new ones
+                </p>
               </div>
               <div>
                 <Label>Folder</Label>
-                <Input
-                  value={editFolder}
-                  onChange={(e) => setEditFolder(e.target.value)}
-                  placeholder="Folder name"
-                />
+                <div className="relative">
+                  <Input
+                    value={editFolder}
+                    onChange={(e) => {
+                      setEditFolder(e.target.value);
+                      setFolderInputValue(e.target.value);
+                      // Show suggestions if there's text or if there are folders available
+                      if (e.target.value.length > 0 || (folders && folders.length > 0)) {
+                        setFolderSuggestionsOpen(true);
+                      }
+                    }}
+                    onFocus={() => {
+                      setFolderInputValue(editFolder);
+                      // Show suggestions if there are existing folders to choose from
+                      if (folders && folders.length > 0) {
+                        setFolderSuggestionsOpen(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      // Delay closing to allow clicking on suggestions
+                      setTimeout(() => setFolderSuggestionsOpen(false), 200);
+                    }}
+                    placeholder="Folder name"
+                  />
+                  {folderSuggestionsOpen && folders && folders.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-background border border-foreground/10 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {(() => {
+                        const filteredFolders = folders
+                          .filter((folder) => 
+                            folderInputValue.length === 0 || 
+                            folder.toLowerCase().includes(folderInputValue.toLowerCase())
+                          )
+                          .slice(0, 10);
+                        
+                        if (filteredFolders.length === 0 && folderInputValue.length === 0) {
+                          return (
+                            <div className="px-3 py-2 text-sm text-foreground/60">
+                              No available folders
+                            </div>
+                          );
+                        }
+                        
+                        return (
+                          <>
+                            {filteredFolders.map((folder) => (
+                              <div
+                                key={folder}
+                                className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setEditFolder(folder);
+                                  setFolderInputValue("");
+                                  setFolderSuggestionsOpen(false);
+                                }}
+                              >
+                                <Folder className="h-3 w-3 inline mr-2" />
+                                {folder}
+                              </div>
+                            ))}
+                            {folderInputValue.length > 0 && 
+                             !folders.some(f => f.toLowerCase() === folderInputValue.toLowerCase()) && (
+                              <div
+                                className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm border-t border-foreground/10"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setEditFolder(folderInputValue);
+                                  setFolderInputValue("");
+                                  setFolderSuggestionsOpen(false);
+                                }}
+                              >
+                                <Plus className="h-3 w-3 inline mr-2" />
+                                Create "{folderInputValue}"
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-foreground/60 mt-1">
+                  Type to search existing folders or create a new one
+                </p>
               </div>
               <div>
                 <Label>Alt Text</Label>
