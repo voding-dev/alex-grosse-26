@@ -424,13 +424,13 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
         )}
 
         {/* Delivery-Level Feedback */}
-        <Card className="mb-8">
+        <Card className="mb-8 border border-foreground/20 rounded-xl">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+              <MessageSquare className="h-5 w-5 text-accent" />
               Delivery Feedback
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-base">
               Share your overall feedback for this delivery
             </CardDescription>
           </CardHeader>
@@ -440,16 +440,21 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
               onChange={(e) => setProjectFeedback(e.target.value)}
               placeholder="Enter your feedback about this delivery..."
               rows={4}
+              className="text-base"
             />
-            <Button onClick={handleSubmitProjectFeedback}>
+            <Button 
+              onClick={handleSubmitProjectFeedback}
+              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+            >
               <Send className="mr-2 h-4 w-4" />
               Submit Feedback
             </Button>
             {feedback?.filter((f) => !f.assetId).map((f) => (
-              <div key={f._id} className="rounded-md border border-foreground/10 bg-foreground/5 p-3">
-                <p className="text-sm text-foreground/80">{f.body}</p>
-                <p className="mt-1 text-xs text-foreground/60">
-                  {new Date(f.createdAt).toLocaleDateString()}
+              <div key={f._id} className="rounded-xl border border-foreground/10 bg-foreground/5 p-4 hover:border-accent/30 transition-colors">
+                <p className="text-sm text-foreground/80 leading-relaxed mb-2">{f.body}</p>
+                <p className="text-xs text-foreground/60 font-medium">
+                  {new Date(f.createdAt).toLocaleDateString()} at {new Date(f.createdAt).toLocaleTimeString()}
                 </p>
               </div>
             ))}

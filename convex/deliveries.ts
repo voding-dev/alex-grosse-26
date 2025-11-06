@@ -196,6 +196,7 @@ export const update = mutation({
     id: v.id("deliveries"),
     title: v.optional(v.string()),
     clientName: v.optional(v.string()),
+    slug: v.optional(v.string()),
     pin: v.optional(v.string()),
     expiresAt: v.optional(v.number()),
     watermark: v.optional(v.boolean()),

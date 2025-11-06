@@ -40,11 +40,23 @@ export default function FeedbackPage() {
     
     switch (decision) {
       case "approve":
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Approved</Badge>;
+        return (
+          <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-green-500/20 text-green-600 border border-green-500/30" style={{ fontWeight: '900' }}>
+            APPROVED
+          </span>
+        );
       case "reject":
-        return <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Rejected</Badge>;
+        return (
+          <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-red-500/20 text-red-600 border border-red-500/30" style={{ fontWeight: '900' }}>
+            REJECTED
+          </span>
+        );
       case "changes":
-        return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Changes</Badge>;
+        return (
+          <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-600 border border-yellow-500/30" style={{ fontWeight: '900' }}>
+            NEEDS CHANGES
+          </span>
+        );
       default:
         return null;
     }
@@ -80,7 +92,7 @@ export default function FeedbackPage() {
             </Tooltip>
           </TooltipProvider>
           <Link href="/admin/deliveries" className="w-full sm:w-auto">
-            <Button variant="outline" className="w-full sm:w-auto font-bold uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors">
+            <Button variant="outline" className="w-full sm:w-auto font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors" style={{ fontWeight: '900' }}>
               Go to Deliveries
             </Button>
           </Link>
@@ -110,7 +122,7 @@ export default function FeedbackPage() {
               {!feedbackQuery ? "Feedback functions are being deployed. Please wait for Convex to finish syncing." : "Client feedback will appear here when they comment on deliveries"}
             </p>
             <Link href="/admin/deliveries" className="inline-block">
-              <Button variant="outline" className="font-bold uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors">
+              <Button variant="outline" className="font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors" style={{ fontWeight: '900' }}>
                 View Deliveries
               </Button>
             </Link>
@@ -125,7 +137,7 @@ export default function FeedbackPage() {
             const project = firstItem.project;
 
             return (
-              <Card key={deliveryId} className="border border-foreground/20 hover:border-accent/50 transition-colors">
+              <Card key={deliveryId} className="border border-foreground/20 hover:border-accent/50 transition-all hover:shadow-lg rounded-xl">
                 <CardHeader className="pb-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -139,7 +151,7 @@ export default function FeedbackPage() {
                           /dl/{delivery?.slug || 'Unknown'}
                         </Link>
                         <Link href={`/dl/${delivery?.slug || ''}`} target="_blank">
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent/10">
                             <ExternalLink className="h-4 w-4" />
                           </Button>
                         </Link>
@@ -149,9 +161,11 @@ export default function FeedbackPage() {
                       </CardDescription>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                      <Badge variant="outline" className="font-bold uppercase tracking-wider text-xs">{feedbackItems.length} feedback {feedbackItems.length === 1 ? 'item' : 'items'}</Badge>
+                      <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-foreground/10 border border-foreground/20 text-foreground/80" style={{ fontWeight: '900' }}>
+                        {feedbackItems.length} {feedbackItems.length === 1 ? 'ITEM' : 'ITEMS'}
+                      </span>
                       <Link href="/admin/deliveries" className="w-full sm:w-auto">
-                        <Button variant="outline" size="sm" className="w-full sm:w-auto font-bold uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors">
+                        <Button variant="outline" size="sm" className="w-full sm:w-auto font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors" style={{ fontWeight: '900' }}>
                           View Delivery
                         </Button>
                       </Link>
@@ -162,26 +176,26 @@ export default function FeedbackPage() {
                   {feedbackItems.map((fb: any) => (
                     <div 
                       key={fb._id} 
-                      className="rounded-md border border-foreground/10 bg-foreground/5 p-3 sm:p-4"
+                      className="rounded-xl border border-foreground/10 bg-foreground/5 p-4 sm:p-5 hover:border-accent/30 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <div className="mb-3 flex flex-wrap items-center gap-2.5">
                             {fb.decision && getDecisionBadge(fb.decision)}
                             {fb.assetId ? (
-                              <Badge variant="outline" className="text-xs">
-                                Per-asset feedback
-                              </Badge>
+                              <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded bg-accent/10 border border-accent/20 text-accent" style={{ fontWeight: '900' }}>
+                                PER-ASSET
+                              </span>
                             ) : (
-                              <Badge variant="outline" className="text-xs">
-                                Project feedback
-                              </Badge>
+                              <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded bg-foreground/10 border border-foreground/20 text-foreground/80" style={{ fontWeight: '900' }}>
+                                PROJECT
+                              </span>
                             )}
-                            <span className="text-xs text-foreground/60">
+                            <span className="text-xs text-foreground/60 font-medium">
                               {new Date(fb.createdAt).toLocaleDateString()} at {new Date(fb.createdAt).toLocaleTimeString()}
                             </span>
                           </div>
-                          <p className="text-sm text-foreground/80">{fb.body}</p>
+                          <p className="text-sm text-foreground/80 leading-relaxed">{fb.body}</p>
                         </div>
                       </div>
                     </div>
