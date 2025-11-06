@@ -132,7 +132,6 @@ export default function QRCodesPage() {
       } else {
         // For dynamic QR codes, use Convex HTTP action URL (always publicly accessible)
         const redirectBaseUrl = getConvexRedirectUrl();
-        console.log("[QR Code] Using redirect URL:", redirectBaseUrl);
         qrContent = `${redirectBaseUrl}?id=${qrCodeId}`;
       }
 

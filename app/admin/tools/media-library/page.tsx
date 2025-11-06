@@ -393,8 +393,29 @@ export default function MediaLibraryPage() {
   };
 
   const handleCompressImage = async (item: MediaItem) => {
+    // Only compress images that are actually in the media library (not assets)
     if (item.type !== "image" || item._id.toString().startsWith("asset_")) {
       return; // Only compress images that are in the media library
+    }
+
+    // Validate session token
+    if (!sessionToken) {
+      toast({
+        title: "Authentication required",
+        description: "Please refresh the page and try again",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate that this is a real media library ID (not an asset ID)
+    if (typeof item._id !== "string" || item._id.toString().startsWith("asset_")) {
+      toast({
+        title: "Invalid media item",
+        description: "This item cannot be compressed",
+        variant: "destructive",
+      });
+      return;
     }
 
     // Check if already compressed
@@ -449,18 +470,37 @@ export default function MediaLibraryPage() {
 
       const { storageId } = await uploadResult.json();
 
-      // Update media library record with compressed version
-      await updateMedia({
-        sessionToken: sessionToken || undefined,
-        id: item._id,
+      // Validate compression results
+      if (!compressionResult.width || !compressionResult.height || 
+          isNaN(compressionResult.compressedSize) || isNaN(compressionResult.compressionRatio)) {
+        throw new Error("Invalid compression results");
+      }
+
+      // Ensure we have a valid session token
+      if (!sessionToken) {
+        throw new Error("Authentication required - please refresh the page");
+      }
+
+      // Prepare update data - only include defined values
+      const updateData = {
+        sessionToken: sessionToken,
+        id: item._id as Id<"mediaLibrary">,
         storageKey: storageId,
         size: compressionResult.compressedSize,
-        originalSize: item.originalSize || item.size,
         compressedSize: compressionResult.compressedSize,
         compressionRatio: compressionResult.compressionRatio,
         width: compressionResult.width,
         height: compressionResult.height,
-      });
+      };
+
+      // Only include originalSize if we have a valid value
+      const originalSizeValue = item.originalSize || item.size;
+      if (originalSizeValue && originalSizeValue > 0) {
+        updateData.originalSize = originalSizeValue;
+      }
+
+      // Update media library record with compressed version
+      await updateMedia(updateData);
 
       toast({
         title: "Compressed successfully",
@@ -780,12 +820,15 @@ export default function MediaLibraryPage() {
                         <Edit className="h-3 w-3" />
                       </Button>
                       {/* Compress button for uncompressed images */}
-                      {item.type === "image" && !item._id.toString().startsWith("asset_") && !(item.compressedSize && item.originalSize && item.compressionRatio) && (
+                      {item.type === "image" && 
+                       !item._id.toString().startsWith("asset_") && 
+                       typeof item._id === "string" &&
+                       !(item.compressedSize && item.originalSize && item.compressionRatio) && (
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => handleCompressImage(item)}
-                          disabled={compressingItemId === item._id}
+                          disabled={compressingItemId === item._id || !sessionToken}
                           className="h-7 w-7 p-0"
                           title="Compress image"
                         >

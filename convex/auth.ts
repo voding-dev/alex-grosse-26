@@ -72,12 +72,8 @@ async function ensureAdminAuth(ctx: any) {
       updatedAt: Date.now(),
     });
     
-    // Log the initial password in development only (for setup purposes)
     // In production, this should be handled via secure password reset flow
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("Initial admin password generated. Please reset via password reset flow.");
-      console.warn("Initial password (DEV ONLY):", initialPassword);
-    }
+    // Password is generated but not logged for security
     
     return passwordHash;
   }
@@ -89,10 +85,7 @@ async function ensureAdminAuth(ctx: any) {
 export const getCurrentUser = query({
   args: { sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    console.log("[auth:getCurrentUser] Called with sessionToken:", args.sessionToken ? "present" : "missing");
-    
     if (!args.sessionToken) {
-      console.log("[auth:getCurrentUser] No session token provided");
       return null;
     }
 
@@ -102,25 +95,19 @@ export const getCurrentUser = query({
       .withIndex("by_token", (q: any) => q.eq("token", args.sessionToken!))
       .first();
 
-    console.log("[auth:getCurrentUser] Session found:", !!session);
-    
     if (!session) {
-      console.log("[auth:getCurrentUser] Session not found");
       return null;
     }
 
     // Check if session is expired (don't delete in query, just return null)
     if (session.expiresAt < Date.now()) {
-      console.log("[auth:getCurrentUser] Session expired");
       return null;
     }
 
     // Verify email is allowed
     const isAllowed = await isAllowedAdminEmail(ctx, session.email);
-    console.log("[auth:getCurrentUser] Email allowed:", isAllowed, "email:", session.email);
     
     if (!isAllowed) {
-      console.log("[auth:getCurrentUser] Email not allowed");
       return null;
     }
 
@@ -130,15 +117,11 @@ export const getCurrentUser = query({
       .withIndex("by_email", (q: any) => q.eq("email", session.email))
       .first();
 
-    console.log("[auth:getCurrentUser] User found:", !!user, "role:", user?.role);
-
     // Return user only if it exists and is admin
     if (user && user.role === "admin") {
-      console.log("[auth:getCurrentUser] Returning user");
       return user;
     }
 
-    console.log("[auth:getCurrentUser] User not found or not admin");
     return null;
   },
 });
@@ -150,17 +133,12 @@ export const login = mutation({
     password: v.string(),
   },
   handler: async (ctx, args) => {
-    // Log the start of the mutation for debugging
-    console.log("[auth:login] Mutation called with email:", args.email);
-    
     try {
       // Validate inputs
       if (!args.email || typeof args.email !== "string") {
-        console.error("[auth:login] Email validation failed");
         throw new Error("Email is required");
       }
       if (!args.password || typeof args.password !== "string") {
-        console.error("[auth:login] Password validation failed");
         throw new Error("Password is required");
       }
 
@@ -172,7 +150,6 @@ export const login = mutation({
       try {
         isAllowed = await isAllowedAdminEmail(ctx, email);
       } catch (emailCheckError: any) {
-        console.error("Error checking email authorization:", emailCheckError);
         throw new Error(`Email authorization check failed: ${emailCheckError.message}`);
       }
       
@@ -186,25 +163,11 @@ export const login = mutation({
         adminAuth = await ctx.db
           .query("adminAuth")
           .first();
-        
-        console.log("[auth:login] adminAuth query result:", {
-          found: !!adminAuth,
-          hasPasswordHash: !!(adminAuth && adminAuth.passwordHash),
-          passwordHashType: adminAuth?.passwordHash ? typeof adminAuth.passwordHash : "none",
-          passwordHashLength: adminAuth?.passwordHash?.length || 0,
-          passwordHashEmpty: adminAuth?.passwordHash === "",
-        });
       } catch (dbError: any) {
-        console.error("[auth:login] Error querying adminAuth:", dbError);
         throw new Error(`Database error: ${dbError.message}`);
       }
       
       if (!adminAuth || !adminAuth.passwordHash || adminAuth.passwordHash === "") {
-        console.error("[auth:login] adminAuth check failed:", {
-          noAdminAuth: !adminAuth,
-          noPasswordHash: !adminAuth?.passwordHash,
-          emptyPasswordHash: adminAuth?.passwordHash === "",
-        });
         throw new Error("Invalid email or password. Please run 'setInitialPassword' mutation first.");
       }
 
@@ -218,7 +181,6 @@ export const login = mutation({
       try {
         passwordMatch = bcrypt.compareSync(args.password, adminAuth.passwordHash);
       } catch (bcryptError: any) {
-        console.error("bcrypt.compareSync error:", bcryptError);
         throw new Error(`Password verification failed: ${bcryptError.message || "Invalid password format"}`);
       }
       
@@ -247,7 +209,6 @@ export const login = mutation({
           await ctx.db.patch(user._id, { role: "admin" });
         }
       } catch (userError: any) {
-        console.error("Error creating/updating user:", userError);
         throw new Error(`Failed to create user record: ${userError.message}`);
       }
 
@@ -263,7 +224,6 @@ export const login = mutation({
           createdAt: Date.now(),
         });
       } catch (sessionError: any) {
-        console.error("Error creating session:", sessionError);
         throw new Error(`Failed to create session: ${sessionError.message}`);
       }
 
@@ -280,33 +240,18 @@ export const login = mutation({
           }
         }
       } catch (cleanupError: any) {
-        // Don't fail login if cleanup fails, just log it
-        console.error("Error cleaning up old sessions:", cleanupError);
+        // Don't fail login if cleanup fails, silently continue
       }
 
-      console.log("[auth:login] Login successful for:", email);
       return {
         success: true,
         sessionToken,
         email,
       };
     } catch (error: any) {
-      // Log the actual error for debugging
-      const errorMessage = error?.message || error?.toString() || "Unknown error";
-      console.error("[auth:login] Login error:", {
-        message: errorMessage,
-        error: error,
-        stack: error?.stack,
-        type: typeof error,
-        name: error?.name,
-        email: args.email,
-      });
-      // Ensure we throw a proper Error with a message
-      const finalMessage = errorMessage || "Login failed. Please check your email and password.";
-      // Re-throw with a clear error message
-      const loginError = new Error(finalMessage);
-      console.error("[auth:login] Throwing error:", finalMessage);
-      throw loginError;
+      // Return generic error message without exposing sensitive details
+      const errorMessage = error?.message || "Login failed. Please check your email and password.";
+      throw new Error(errorMessage);
     }
   },
 });

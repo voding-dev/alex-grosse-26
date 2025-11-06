@@ -21,13 +21,6 @@ export default function AdminLogin() {
 
   const login = useMutation(api.auth.login);
 
-  // Debug: Log Convex URL on mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      console.log("[Login Page] Convex URL:", process.env.NEXT_PUBLIC_CONVEX_URL);
-    }
-  }, []);
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
@@ -49,21 +42,14 @@ export default function AdminLogin() {
 
     setIsLoading(true);
     try {
-      console.log("[Login] Attempting login with email:", email.trim().toLowerCase());
-      console.log("[Login] Mutation function:", login);
-      
       const result = await login({ 
         email: email.trim().toLowerCase(), 
         password 
       });
       
-      console.log("[Login] Login successful, result:", result);
-      
       // Store session token in localStorage
       localStorage.setItem("admin_session_token", result.sessionToken);
       localStorage.setItem("admin_email", result.email);
-      
-      console.log("[Login] Token stored in localStorage:", result.sessionToken);
       
       toast({
         title: "Access granted",
@@ -74,18 +60,7 @@ export default function AdminLogin() {
       // This ensures the session is validated before rendering the admin dashboard
       window.location.href = "/admin";
     } catch (error: any) {
-      // Log full error details for debugging
-      console.error("Login error details:", {
-        error,
-        message: error?.message,
-        data: error?.data,
-        code: error?.code,
-        name: error?.name,
-        stack: error?.stack,
-        toString: error?.toString(),
-      });
-      
-      // Try to extract a more specific error message
+      // Extract error message without exposing sensitive details
       let errorMessage = "Invalid email or password.";
       if (error?.message) {
         errorMessage = error.message;

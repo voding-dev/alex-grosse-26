@@ -61,7 +61,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     // Only redirect if we're done checking and not authenticated
     // Give a small delay to allow queries to resolve
     if (!isChecking && !isAuthenticated && pathname !== "/admin/login") {
-      console.log("[AdminLayout] Not authenticated, redirecting to login");
       router.push("/admin/login");
       return;
     }

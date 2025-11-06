@@ -327,16 +327,47 @@ export const update = mutation({
   handler: async (ctx, args) => {
     await requireAdminWithSession(ctx, args.sessionToken);
 
-    const { id, ...updates } = args;
+    const { id, sessionToken: _, ...updates } = args;
     const existing = await ctx.db.get(id);
     if (!existing) {
       throw new Error("Media not found");
     }
 
-    return await ctx.db.patch(id, {
-      ...updates,
+    // If updating storageKey, check for duplicates (unless it's the same entry)
+    if (updates.storageKey && updates.storageKey !== existing.storageKey) {
+      const duplicate = await ctx.db
+        .query("mediaLibrary")
+        .filter((q) => q.eq(q.field("storageKey"), updates.storageKey))
+        .filter((q) => q.neq(q.field("_id"), id))
+        .first();
+      
+      if (duplicate) {
+        throw new Error("A media library entry with this storage key already exists");
+      }
+    }
+
+    // Build update object, only including defined values
+    const updateObj: any = {
       updatedAt: Date.now(),
-    });
+    };
+
+    // Only include fields that are actually provided
+    if (updates.filename !== undefined) updateObj.filename = updates.filename;
+    if (updates.canonicalUrl !== undefined) updateObj.canonicalUrl = updates.canonicalUrl;
+    if (updates.tags !== undefined) updateObj.tags = updates.tags;
+    if (updates.folder !== undefined) updateObj.folder = updates.folder;
+    if (updates.alt !== undefined) updateObj.alt = updates.alt;
+    if (updates.description !== undefined) updateObj.description = updates.description;
+    if (updates.storageKey !== undefined) updateObj.storageKey = updates.storageKey;
+    if (updates.width !== undefined) updateObj.width = updates.width;
+    if (updates.height !== undefined) updateObj.height = updates.height;
+    if (updates.size !== undefined) updateObj.size = updates.size;
+    if (updates.originalSize !== undefined) updateObj.originalSize = updates.originalSize;
+    if (updates.compressedSize !== undefined) updateObj.compressedSize = updates.compressedSize;
+    if (updates.compressionRatio !== undefined) updateObj.compressionRatio = updates.compressionRatio;
+    if (updates.displayLocations !== undefined) updateObj.displayLocations = updates.displayLocations;
+
+    return await ctx.db.patch(id, updateObj);
   },
 });
 
