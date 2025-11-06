@@ -688,83 +688,92 @@ export const deleteByFilenames = mutation({
     const deletedAssets = [];
     const notFound = [];
 
-    // Delete from mediaLibrary
-    for (const filename of args.filenames) {
-      let found = false;
+    // Helper function to check if a filename matches
+    const filenameMatches = (dbFilename: string, targetFilename: string): boolean => {
+      // Exact match
+      if (dbFilename === targetFilename) return true;
+      // Starts with (for truncated display names)
+      if (dbFilename.startsWith(targetFilename)) return true;
+      // Match with common extensions
+      if (dbFilename === targetFilename + ".jpg" || dbFilename === targetFilename + ".png") return true;
+      // Match target without extension against db filename
+      const targetWithoutExt = targetFilename.replace(/\.(jpg|jpeg|png|gif|webp)$/i, "");
+      const dbWithoutExt = dbFilename.replace(/\.(jpg|jpeg|png|gif|webp)$/i, "");
+      if (targetWithoutExt === dbWithoutExt) return true;
+      return false;
+    };
 
-      // First, try to find in mediaLibrary
-      const allMediaLibrary = await ctx.db.query("mediaLibrary").collect();
-      for (const media of allMediaLibrary) {
-        // Check if filename matches (exact or starts with, accounting for truncation)
-        const matches = media.filename === filename || 
-                       media.filename.startsWith(filename) ||
-                       media.filename === filename + ".jpg" ||
-                       media.filename === filename + ".png";
-        
-        if (matches) {
-          found = true;
-          // Validate storage key before attempting deletion
-          const storageKey = media.storageKey;
-          if (storageKey && typeof storageKey === "string") {
-            // Check for invalid storage keys (Windows paths, seed data, etc.)
-            const hasBackslash = storageKey.includes("\\");
-            const hasDriveLetter = /^[a-zA-Z]:/.test(storageKey);
-            const hasInvalidColon = storageKey.includes(":") && !storageKey.startsWith("http://") && !storageKey.startsWith("https://");
-            const isSeedData = storageKey.startsWith("seed-") || storageKey.startsWith("mock-") || storageKey.includes("seed-storage");
-            const isTooShort = storageKey.length < 10;
-
-            if (!hasBackslash && !hasDriveLetter && !hasInvalidColon && !isSeedData && !isTooShort) {
-              // Valid storage key - try to delete from storage
-              try {
-                await ctx.storage.delete(storageKey);
-              } catch (error) {
-                console.warn(`Failed to delete storage key ${storageKey}:`, error);
-              }
-            } else {
-              console.warn(`Skipping storage deletion for invalid storage key: ${storageKey}`);
-            }
-          }
-          // Always delete the database record
-          await ctx.db.delete(media._id);
-          deletedMediaLibrary.push(media.filename);
-        }
+    // Helper function to validate and delete storage key
+    const deleteStorageKeyIfValid = async (storageKey: string | undefined): Promise<void> => {
+      if (!storageKey || typeof storageKey !== "string") {
+        return;
       }
 
-      // If not found in mediaLibrary, try assets table
-      if (!found) {
-        const allAssets = await ctx.db.query("assets").collect();
-        for (const asset of allAssets) {
-          const matches = asset.filename === filename || 
-                         asset.filename.startsWith(filename) ||
-                         asset.filename === filename + ".jpg" ||
-                         asset.filename === filename + ".png";
-          
-          if (matches) {
-            found = true;
-            // Delete storage key if valid
-            const storageKey = asset.storageKey;
-            if (storageKey && typeof storageKey === "string") {
-              const hasBackslash = storageKey.includes("\\");
-              const hasDriveLetter = /^[a-zA-Z]:/.test(storageKey);
-              const hasInvalidColon = storageKey.includes(":") && !storageKey.startsWith("http://") && !storageKey.startsWith("https://");
-              const isSeedData = storageKey.startsWith("seed-") || storageKey.startsWith("mock-") || storageKey.includes("seed-storage");
-              const isTooShort = storageKey.length < 10;
+      // Check for invalid storage keys
+      const hasBackslash = storageKey.includes("\\");
+      const hasDriveLetter = /^[a-zA-Z]:/.test(storageKey);
+      const hasInvalidColon = storageKey.includes(":") && !storageKey.startsWith("http://") && !storageKey.startsWith("https://");
+      const isSeedData = storageKey.startsWith("seed-") || storageKey.startsWith("mock-") || storageKey.includes("seed-storage");
+      const isTooShort = storageKey.length < 10;
 
-              if (!hasBackslash && !hasDriveLetter && !hasInvalidColon && !isSeedData && !isTooShort) {
-                try {
-                  await ctx.storage.delete(storageKey);
-                } catch (error) {
-                  console.warn(`Failed to delete storage key ${storageKey}:`, error);
-                }
-              }
-            }
+      if (!hasBackslash && !hasDriveLetter && !hasInvalidColon && !isSeedData && !isTooShort) {
+        try {
+          await ctx.storage.delete(storageKey);
+        } catch (error) {
+          // If storage deletion fails, log but continue - we'll still delete the DB record
+          console.warn(`Failed to delete storage key ${storageKey}:`, error);
+        }
+      } else {
+        console.warn(`Skipping storage deletion for invalid storage key: ${storageKey}`);
+      }
+    };
+
+    // Collect all mediaLibrary and assets once (more efficient)
+    const allMediaLibrary = await ctx.db.query("mediaLibrary").collect();
+    const allAssets = await ctx.db.query("assets").collect();
+
+    // Track which filenames we've found
+    const foundFilenames = new Set<string>();
+
+    // Process mediaLibrary items
+    for (const media of allMediaLibrary) {
+      for (const targetFilename of args.filenames) {
+        if (filenameMatches(media.filename, targetFilename)) {
+          foundFilenames.add(targetFilename);
+          try {
+            await deleteStorageKeyIfValid(media.storageKey);
+            await ctx.db.delete(media._id);
+            deletedMediaLibrary.push(media.filename);
+          } catch (error) {
+            console.error(`Error deleting mediaLibrary item ${media._id}:`, error);
+            // Continue with other items even if one fails
+          }
+          break; // Found a match, move to next filename
+        }
+      }
+    }
+
+    // Process assets (only if not already found in mediaLibrary)
+    for (const asset of allAssets) {
+      for (const targetFilename of args.filenames) {
+        if (!foundFilenames.has(targetFilename) && filenameMatches(asset.filename, targetFilename)) {
+          foundFilenames.add(targetFilename);
+          try {
+            await deleteStorageKeyIfValid(asset.storageKey);
             await ctx.db.delete(asset._id);
             deletedAssets.push(asset.filename);
+          } catch (error) {
+            console.error(`Error deleting asset ${asset._id}:`, error);
+            // Continue with other items even if one fails
           }
+          break; // Found a match, move to next filename
         }
       }
+    }
 
-      if (!found) {
+    // Track which files were not found
+    for (const filename of args.filenames) {
+      if (!foundFilenames.has(filename)) {
         notFound.push(filename);
       }
     }
