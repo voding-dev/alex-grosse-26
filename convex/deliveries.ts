@@ -287,3 +287,32 @@ export const expire = mutation({
   },
 });
 
+export const remove = mutation({
+  args: { 
+    id: v.id("deliveries"),
+    email: v.optional(v.string()), // Dev mode: email for admin check
+  },
+  handler: async (ctx, args) => {
+    const { email, id } = args;
+    
+    // Development mode: check admin by email
+    if (email) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", email))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized - admin access required");
+      }
+    } else {
+      // Production mode: use requireAdmin
+      await requireAdmin(ctx);
+    }
+
+    // Delete the delivery
+    await ctx.db.delete(id);
+    return id;
+  },
+});
+

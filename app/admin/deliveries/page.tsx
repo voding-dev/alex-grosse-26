@@ -5,20 +5,42 @@ import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Package, Calendar, AlertCircle, Copy, ExternalLink, MessageSquare, Eye, EyeOff, Key, RefreshCw, Edit, Image as ImageIcon, FileText, Video } from "lucide-react";
+import { Plus, Package, Calendar, AlertCircle, Copy, ExternalLink, MessageSquare, Eye, EyeOff, Key, RefreshCw, Edit, Image as ImageIcon, FileText, Video, Trash2, MoreVertical } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useState } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import { StorageImage } from "@/components/storage-image";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function DeliveriesPage() {
   const { adminEmail } = useAdminAuth();
   const { toast } = useToast();
   const [visiblePins, setVisiblePins] = useState<Record<string, boolean>>({});
   const [resettingPin, setResettingPin] = useState<Record<string, boolean>>({});
+  const [deletingDelivery, setDeletingDelivery] = useState<Id<"deliveries"> | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [resettingPinDelivery, setResettingPinDelivery] = useState<{ id: Id<"deliveries">; title: string } | null>(null);
+  const [resetPinDialogOpen, setResetPinDialogOpen] = useState(false);
   const resetPin = useMutation(api.deliveries.resetPin);
   const updateDelivery = useMutation(api.deliveries.update);
+  const deleteDelivery = useMutation(api.deliveries.remove);
 
   const allDeliveries = useQuery(
     api.deliveries.listAll,
@@ -88,12 +110,17 @@ export default function DeliveriesPage() {
     }));
   };
 
-  const handleResetPin = async (deliveryId: Id<"deliveries">, deliveryTitle: string) => {
-    if (!confirm(`Are you sure you want to reset the PIN for "${deliveryTitle}"? The current PIN will no longer work.`)) {
-      return;
-    }
+  const handleResetPinClick = (deliveryId: Id<"deliveries">, deliveryTitle: string) => {
+    setResettingPinDelivery({ id: deliveryId, title: deliveryTitle });
+    setResetPinDialogOpen(true);
+  };
 
+  const handleResetPinConfirm = async () => {
+    if (!resettingPinDelivery) return;
+
+    const { id: deliveryId, title: deliveryTitle } = resettingPinDelivery;
     setResettingPin(prev => ({ ...prev, [deliveryId]: true }));
+    
     try {
       const result = await resetPin({
         id: deliveryId,
@@ -110,6 +137,9 @@ export default function DeliveriesPage() {
 
       // Copy new PIN to clipboard
       navigator.clipboard.writeText(result.pin);
+
+      setResetPinDialogOpen(false);
+      setResettingPinDelivery(null);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -149,6 +179,36 @@ export default function DeliveriesPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to update PIN.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteClick = (deliveryId: Id<"deliveries">) => {
+    setDeletingDelivery(deliveryId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingDelivery) return;
+
+    try {
+      await deleteDelivery({
+        id: deletingDelivery,
+        email: adminEmail || undefined,
+      });
+
+      toast({
+        title: "Portal deleted",
+        description: "The delivery portal has been permanently deleted.",
+      });
+
+      setDeleteDialogOpen(false);
+      setDeletingDelivery(null);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete portal.",
         variant: "destructive",
       });
     }
@@ -236,7 +296,7 @@ export default function DeliveriesPage() {
           <h2 className="mb-6 sm:mb-8 text-xl sm:text-2xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
             Active Delivery Portals
           </h2>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {activeDeliveries.map((delivery) => {
               const now = Date.now();
               const isExpired = delivery.expiresAt && delivery.expiresAt < now;
@@ -263,165 +323,172 @@ export default function DeliveriesPage() {
                       : "border-foreground/20 bg-background hover:border-accent/50"
                   }`}
                 >
-                  <CardContent className="p-6 sm:p-8">
-                    <div className="flex flex-col lg:flex-row gap-6">
+                  <CardContent className="p-5 sm:p-6">
+                    <div className="flex flex-col lg:flex-row gap-5">
                       {/* Asset Thumbnails Section */}
-                      <DeliveryAssetThumbnails deliveryId={delivery._id} allowedAssetIds={delivery.allowedAssetIds || []} />
+                      <div className="w-full lg:w-32 h-32 shrink-0">
+                        <DeliveryAssetThumbnails deliveryId={delivery._id} allowedAssetIds={delivery.allowedAssetIds || []} />
+                      </div>
                       
-                      <div className="flex flex-col sm:flex-row items-start sm:items-start sm:justify-between gap-6 flex-1">
-                        <div className="flex-1 space-y-5 w-full">
-                          <div>
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
-                              <h3 className="font-black uppercase tracking-wider text-lg sm:text-xl break-all text-foreground" style={{ fontWeight: '900' }}>
-                                {fullUrl}
-                              </h3>
-                              {feedbackCount > 0 && (
-                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-xs font-black text-background shrink-0" style={{ fontWeight: '900' }}>
-                                  {feedbackCount}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-foreground/70 font-medium">
-                              {(delivery.allowedAssetIds || []).length} assets • Created {new Date(delivery.originalDeliveryDate || delivery.createdAt).toLocaleDateString()}
-                            </p>
-                          </div>
-
-                          {/* PIN Section */}
-                        <div className="rounded-xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
-                          <div className="flex items-center justify-between gap-3 mb-3">
-                            <div className="flex items-center gap-2.5">
-                              <Key className="h-4 w-4 text-accent" />
-                              <span className="text-xs font-black uppercase tracking-wider text-foreground/90" style={{ fontWeight: '900' }}>PIN</span>
-                              {!delivery.pinPlaintext && (
-                                <span className="text-xs text-yellow-500/80 font-medium">(Needs reset)</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              {delivery.pinPlaintext ? (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => togglePinVisibility(delivery._id)}
-                                    className="h-8 w-8 p-0 hover:bg-accent/10"
-                                  >
-                                    {visiblePins[delivery._id] ? (
-                                      <EyeOff className="h-4 w-4" />
-                                    ) : (
-                                      <Eye className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => copyPin(delivery.pinPlaintext || "", delivery.title)}
-                                    className="h-8 w-8 p-0 hover:bg-accent/10"
-                                  >
-                                    <Copy className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              ) : null}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleResetPin(delivery._id, delivery.title)}
-                                disabled={resettingPin[delivery._id]}
-                                className="h-8 w-8 p-0 hover:bg-accent/10"
-                                title={delivery.pinPlaintext ? "Reset PIN" : "Set PIN (no PIN stored)"}
-                              >
-                                {resettingPin[delivery._id] ? (
-                                  <RefreshCw className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <RefreshCw className="h-4 w-4" />
+                      <div className="flex-1 min-w-0 space-y-3">
+                        {/* Header Row: URL, Feedback Badge, Actions */}
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0 space-y-3">
+                            {/* URL with Feedback Badge and Actions */}
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                <h3 className="font-black uppercase tracking-wider text-base sm:text-lg break-words text-foreground leading-tight flex-1 min-w-0" style={{ fontWeight: '900' }}>
+                                  {fullUrl}
+                                </h3>
+                                {feedbackCount > 0 && (
+                                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-xs font-black text-background shrink-0" style={{ fontWeight: '900' }}>
+                                    {feedbackCount}
+                                  </span>
                                 )}
-                              </Button>
+                              </div>
+                              
+                              {/* Action Menu */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 hover:bg-accent/10 shrink-0"
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem
+                                    onClick={() => copyDeliveryLink(delivery.slug)}
+                                  >
+                                    <Copy className="mr-2 h-4 w-4" />
+                                    Copy Link
+                                  </DropdownMenuItem>
+                                  <Link href={deliveryUrl} target="_blank">
+                                    <DropdownMenuItem>
+                                      <ExternalLink className="mr-2 h-4 w-4" />
+                                      Visit Page
+                                    </DropdownMenuItem>
+                                  </Link>
+                                  <DropdownMenuSeparator />
+                                  <Link href={`/admin/deliveries/${delivery._id}`}>
+                                    <DropdownMenuItem>
+                                      <Edit className="mr-2 h-4 w-4" />
+                                      Edit Portal
+                                    </DropdownMenuItem>
+                                  </Link>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => handleDeleteClick(delivery._id)}
+                                    className="text-red-500 focus:text-red-500"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete Portal
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            
+                            {/* Metadata: Assets and Date */}
+                            <div className="flex items-center gap-2 text-xs text-foreground/60 font-medium">
+                              <span>{(delivery.allowedAssetIds || []).length} assets</span>
+                              <span className="text-foreground/30">•</span>
+                              <span>Created {new Date(delivery.originalDeliveryDate || delivery.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            
+                            {/* Status Badges */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {isPaidStorage && paidExpiresAtDate && (
+                                <div className="flex items-center gap-1.5 rounded-full bg-foreground/10 border border-foreground/20 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-foreground/80" style={{ fontWeight: '900' }}>
+                                  <Calendar className="h-3.5 w-3.5" />
+                                  Paid until {paidExpiresAtDate.toLocaleDateString()}
+                                </div>
+                              )}
+                              {!isPaidStorage && expiresAtDate && (
+                                <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black uppercase tracking-wider ${
+                                  daysUntilExpiry !== null && daysUntilExpiry <= 7
+                                    ? "bg-accent/20 border border-accent/30 text-accent"
+                                    : "bg-foreground/10 border border-foreground/20 text-foreground/70"
+                                }`} style={{ fontWeight: '900' }}>
+                                  <Calendar className="h-3.5 w-3.5" />
+                                  {daysUntilExpiry !== null && daysUntilExpiry <= 7
+                                    ? `Expires in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''}`
+                                    : `Expires ${expiresAtDate.toLocaleDateString()}`
+                                  }
+                                </div>
+                              )}
+                              {feedbackCount > 0 && (
+                                <div className="flex items-center gap-1.5 rounded-full bg-accent/20 border border-accent/30 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-accent" style={{ fontWeight: '900' }}>
+                                  <MessageSquare className="h-3.5 w-3.5" />
+                                  {feedbackCount} feedback
+                                </div>
+                              )}
                             </div>
                           </div>
-                          {!delivery.pinPlaintext ? (
-                            <div className="px-4 py-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                              <span className="text-xs text-yellow-500/90 font-medium">
-                                PIN not stored. Click reset to generate a new PIN and view it here.
-                              </span>
-                            </div>
-                          ) : visiblePins[delivery._id] ? (
-                            <div className="flex items-center gap-2">
-                              <code className="flex-1 px-4 py-3 bg-background border border-foreground/20 rounded-lg font-mono text-base font-bold text-foreground tracking-wider">
-                                {delivery.pinPlaintext}
-                              </code>
-                            </div>
-                          ) : (
-                            <div className="px-4 py-3 bg-background border border-foreground/20 rounded-lg">
-                              <span className="text-xs text-foreground/50 font-medium">Click eye icon to reveal PIN</span>
-                            </div>
-                          )}
                         </div>
 
-                        {/* Storage Status */}
-                        <div className="flex flex-wrap gap-2.5 text-xs sm:text-sm">
-                          {isPaidStorage && paidExpiresAtDate && (
-                            <div className="flex items-center gap-2 rounded-full bg-accent/20 border border-accent/30 px-4 py-2 text-xs font-black uppercase tracking-wider text-accent" style={{ fontWeight: '900' }}>
-                              <Calendar className="h-3.5 w-3.5" />
-                              Paid until {paidExpiresAtDate.toLocaleDateString()}
-                            </div>
-                          )}
-                          {!isPaidStorage && expiresAtDate && (
-                            <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black uppercase tracking-wider ${
-                              daysUntilExpiry !== null && daysUntilExpiry <= 7
-                                ? "bg-accent/20 border border-accent/30 text-accent"
-                                : "bg-foreground/10 border border-foreground/20 text-foreground/80"
-                            }`} style={{ fontWeight: '900' }}>
-                              <Calendar className="h-3.5 w-3.5" />
-                              {daysUntilExpiry !== null && daysUntilExpiry <= 7
-                                ? `Expires in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''}`
-                                : `Expires ${expiresAtDate.toLocaleDateString()}`
-                              }
-                            </div>
-                          )}
-                          {feedbackCount > 0 && (
-                            <div className="flex items-center gap-2 rounded-full bg-accent/20 border border-accent/30 px-4 py-2 text-xs font-black uppercase tracking-wider text-accent" style={{ fontWeight: '900' }}>
-                              <MessageSquare className="h-3.5 w-3.5" />
-                              {feedbackCount} feedback
-                            </div>
-                          )}
+                        {/* PIN Section - Grouped Actions */}
+                        <div className="flex items-center justify-between gap-3 pt-3 border-t border-foreground/10">
+                          <div className="flex items-center gap-2.5">
+                            <Key className="h-4 w-4 text-accent" />
+                            <span className="text-xs font-black uppercase tracking-wider text-foreground/90" style={{ fontWeight: '900' }}>PIN</span>
+                            {delivery.pinPlaintext ? (
+                              visiblePins[delivery._id] ? (
+                                <code className="px-3 py-1.5 bg-background border border-foreground/20 rounded-md font-mono text-sm font-bold text-foreground tracking-wider">
+                                  {delivery.pinPlaintext}
+                                </code>
+                              ) : (
+                                <span className="text-xs text-foreground/50 font-medium">Click to reveal</span>
+                              )
+                            ) : (
+                              <span className="text-xs text-yellow-500/80 font-medium">Not set</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {delivery.pinPlaintext && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => togglePinVisibility(delivery._id)}
+                                  className="h-8 w-8 p-0 hover:bg-accent/10"
+                                  title={visiblePins[delivery._id] ? "Hide PIN" : "Show PIN"}
+                                >
+                                  {visiblePins[delivery._id] ? (
+                                    <EyeOff className="h-4 w-4" />
+                                  ) : (
+                                    <Eye className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyPin(delivery.pinPlaintext || "", delivery.title)}
+                                  className="h-8 w-8 p-0 hover:bg-accent/10"
+                                  title="Copy PIN"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleResetPinClick(delivery._id, delivery.title)}
+                              disabled={resettingPin[delivery._id]}
+                              className="h-8 w-8 p-0 hover:bg-accent/10"
+                              title={delivery.pinPlaintext ? "Reset PIN" : "Set PIN"}
+                            >
+                              {resettingPin[delivery._id] ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="flex flex-col sm:flex-row gap-2.5 w-full sm:w-auto shrink-0">
-                        <Link href={`/admin/deliveries/${delivery._id}`} className="w-full sm:w-auto">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full sm:w-auto font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
-                            style={{ fontWeight: '900' }}
-                          >
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </Button>
-                        </Link>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            copyDeliveryLink(delivery.slug);
-                          }}
-                          className="w-full sm:w-auto font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
-                          style={{ fontWeight: '900' }}
-                        >
-                          <Copy className="mr-2 h-4 w-4" />
-                          Copy Link
-                        </Button>
-                        <Link href={deliveryUrl} target="_blank" className="w-full sm:w-auto">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="w-full sm:w-auto font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
-                            style={{ fontWeight: '900' }}
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -585,6 +652,72 @@ export default function DeliveriesPage() {
         </div>
       )}
 
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="rounded-xl border border-foreground/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+              Delete Portal?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base text-foreground/80">
+              This will permanently delete the delivery portal and all associated data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-red-500 hover:bg-red-600 text-white font-black uppercase tracking-wider"
+              style={{ fontWeight: '900' }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset PIN Confirmation Dialog */}
+      <AlertDialog open={resetPinDialogOpen} onOpenChange={setResetPinDialogOpen}>
+        <AlertDialogContent className="rounded-xl border border-foreground/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+              Reset PIN?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base text-foreground/80">
+              {resettingPinDelivery && (
+                <>
+                  This will generate a new PIN for <strong>"{resettingPinDelivery.title}"</strong>. 
+                  The current PIN will no longer work. The new PIN will be displayed and copied to your clipboard.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              className="font-black uppercase tracking-wider" 
+              style={{ fontWeight: '900' }}
+              onClick={() => {
+                setResetPinDialogOpen(false);
+                setResettingPinDelivery(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetPinConfirm}
+              className="bg-accent hover:bg-accent/90 text-white font-black uppercase tracking-wider"
+              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Reset PIN
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {allDeliveries.length === 0 && (
         <Card className="border border-foreground/20">
           <CardContent className="py-16 text-center">
@@ -616,14 +749,14 @@ function DeliveryAssetThumbnails({ deliveryId, allowedAssetIds }: { deliveryId: 
   
   if (imageAssets.length === 0) {
     return (
-      <div className="w-full lg:w-48 h-48 rounded-xl border border-foreground/20 bg-foreground/5 flex items-center justify-center shrink-0">
-        <Package className="h-8 w-8 text-foreground/40" />
+      <div className="w-full h-full rounded-lg border border-foreground/20 bg-foreground/5 flex items-center justify-center">
+        <Package className="h-6 w-6 text-foreground/40" />
       </div>
     );
   }
 
   return (
-    <div className="w-full lg:w-48 h-48 rounded-xl border border-foreground/20 bg-foreground/5 overflow-hidden shrink-0">
+    <div className="w-full h-full rounded-lg border border-foreground/20 bg-foreground/5 overflow-hidden">
       {imageAssets.length === 1 ? (
         <div className="w-full h-full">
           <StorageImage
