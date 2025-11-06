@@ -1,13 +1,28 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, X, Image as ImageIcon, Video, FileText, Loader2, Link2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Upload, X, Image as ImageIcon, Video, FileText, Loader2, Link2, Search, Check } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Id } from "@/convex/_generated/dataModel";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -21,6 +36,14 @@ interface AssetUploaderProps {
   onUploadComplete?: () => void;
 }
 
+type MediaItem = {
+  _id: Id<"mediaLibrary"> | string;
+  storageKey: string;
+  type: "image" | "video";
+  filename: string;
+  size?: number;
+};
+
 export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, onUploadComplete }: AssetUploaderProps) {
   const { toast } = useToast();
   const { adminEmail } = useAdminAuth();
@@ -32,8 +55,24 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   
+  // Media library state
+  const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false);
+  const [mediaTypeFilter, setMediaTypeFilter] = useState<"all" | "image" | "video">("all");
+  const [mediaFolderFilter, setMediaFolderFilter] = useState<string>("all");
+  const [mediaSearchQuery, setMediaSearchQuery] = useState("");
+  const [selectedMediaItems, setSelectedMediaItems] = useState<MediaItem[]>([]);
+  
   const generateUploadUrl = useMutation(api.storageMutations.generateUploadUrl);
   const createAsset = useMutation(api.assets.create);
+  
+  // Media library queries
+  const allMedia = useQuery(api.mediaLibrary.list, {
+    type: mediaTypeFilter === "all" ? undefined : mediaTypeFilter,
+    folder: mediaFolderFilter === "all" ? undefined : mediaFolderFilter,
+    search: mediaSearchQuery || undefined,
+    includeAssets: true,
+  });
+  const mediaFolders = useQuery(api.mediaLibrary.getFolders);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -284,6 +323,80 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
     return <FileText className="h-5 w-5" />;
   };
 
+  // Media library handlers
+  const handleSelectMediaFromLibrary = (media: MediaItem) => {
+    setSelectedMediaItems((prev) => {
+      const isSelected = prev.some((m) => m._id === media._id);
+      if (isSelected) {
+        return prev.filter((m) => m._id !== media._id);
+      } else {
+        return [...prev, media];
+      }
+    });
+  };
+
+  const handleAddSelectedMedia = async () => {
+    if (selectedMediaItems.length === 0) {
+      toast({
+        title: "No items selected",
+        description: "Please select at least one item from the media library.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const media of selectedMediaItems) {
+        try {
+          await createAsset({
+            projectId: projectId,
+            portfolioId: portfolioId,
+            deliveryId: deliveryId,
+            uploadType: uploadType,
+            filename: media.filename,
+            storageKey: media.storageKey,
+            type: media.type,
+            size: media.size || 0,
+            email: adminEmail || undefined,
+          });
+
+          successCount++;
+        } catch (error) {
+          console.error(`Error adding media ${media.filename}:`, error);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "Media added successfully",
+          description: `${successCount} item${successCount > 1 ? 's' : ''} added successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
+        });
+        setSelectedMediaItems([]);
+        setMediaLibraryOpen(false);
+        if (onUploadComplete) onUploadComplete();
+      } else {
+        toast({
+          title: "Failed to add media",
+          description: "All items failed to add. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add media.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <Card>
       <CardContent className="p-6">
@@ -335,17 +448,29 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
             </div>
           </div>
 
-          {/* Alternative: Button for file selection (still works for mobile) */}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="w-full"
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Or Select Files
-          </Button>
+          {/* Alternative: Buttons for file selection and media library */}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="flex-1"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Select Files
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setMediaLibraryOpen(true)}
+              disabled={isUploading}
+              className="flex-1"
+            >
+              <ImageIcon className="mr-2 h-4 w-4" />
+              Select from Library
+            </Button>
+          </div>
 
           {selectedFiles.length > 0 && (
             <div className="space-y-2">
@@ -491,7 +616,159 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
           </div>
         </div>
       </CardContent>
+
+      {/* Media Library Dialog */}
+      <Dialog open={mediaLibraryOpen} onOpenChange={setMediaLibraryOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Select from Media Library</DialogTitle>
+            <DialogDescription>
+              Choose images or videos from your media library to add to this {uploadType || 'item'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Filters */}
+            <div className="flex gap-2 items-center">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/40" />
+                <Input
+                  placeholder="Search media..."
+                  value={mediaSearchQuery}
+                  onChange={(e) => setMediaSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={mediaTypeFilter} onValueChange={(v) => setMediaTypeFilter(v as any)}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="image">Images</SelectItem>
+                  <SelectItem value="video">Videos</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={mediaFolderFilter} onValueChange={setMediaFolderFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Folders</SelectItem>
+                  {mediaFolders?.map((folder) => (
+                    <SelectItem key={folder} value={folder}>
+                      {folder}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Media Grid */}
+            <div className="flex-1 overflow-y-auto">
+              {allMedia && allMedia.length > 0 ? (
+                <div className="grid grid-cols-4 gap-4">
+                  {allMedia.map((media) => (
+                    <MediaSelectorItem
+                      key={media._id.toString()}
+                      media={media}
+                      onSelect={handleSelectMediaFromLibrary}
+                      isSelected={selectedMediaItems.some((m) => m._id === media._id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="py-16 text-center">
+                  <ImageIcon className="mx-auto h-16 w-16 text-foreground/40 mb-6" />
+                  <p className="mb-4 text-xl font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                    No media found
+                  </p>
+                  <p className="text-sm text-foreground/70">
+                    Upload media to your media library first.
+                  </p>
+                </div>
+              )}
+            </div>
+            {selectedMediaItems.length > 0 && (
+              <div className="border-t border-foreground/10 pt-4">
+                <p className="text-sm text-foreground/60 mb-2">
+                  {selectedMediaItems.length} item{selectedMediaItems.length > 1 ? 's' : ''} selected
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setMediaLibraryOpen(false);
+                setSelectedMediaItems([]);
+              }}
+              className="border-foreground/20 hover:bg-foreground/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddSelectedMedia}
+              disabled={isUploading || selectedMediaItems.length === 0}
+              className="bg-accent hover:bg-accent/90 text-background"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="mr-2 h-4 w-4" />
+                  Add {selectedMediaItems.length} Item{selectedMediaItems.length > 1 ? 's' : ''}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
+  );
+}
+
+// Media Selector Item Component
+function MediaSelectorItem({ 
+  media, 
+  onSelect, 
+  isSelected 
+}: { 
+  media: MediaItem; 
+  onSelect: (media: MediaItem) => void; 
+  isSelected: boolean;
+}) {
+  const imageUrl = useQuery(
+    api.storageQueries.getUrl,
+    media.storageKey ? { storageId: media.storageKey } : "skip"
+  );
+
+  const handleClick = () => {
+    onSelect(media);
+  };
+
+  return (
+    <div
+      className={`relative aspect-square border rounded overflow-hidden cursor-pointer hover:border-accent transition ${
+        isSelected ? "border-accent ring-2 ring-accent" : "border-foreground/20"
+      }`}
+      onClick={handleClick}
+    >
+      {imageUrl ? (
+        <img src={imageUrl} alt={media.filename || "Media"} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full bg-foreground/5 flex items-center justify-center">
+          <ImageIcon className="h-8 w-8 text-foreground/30" />
+        </div>
+      )}
+      {isSelected && (
+        <div className="absolute top-2 right-2 bg-accent text-white rounded-full p-1">
+          <Check className="h-4 w-4" />
+        </div>
+      )}
+    </div>
   );
 }
 
