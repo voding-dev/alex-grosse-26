@@ -5,11 +5,12 @@ import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, Package, Calendar, AlertCircle, Copy, ExternalLink, MessageSquare, Eye, EyeOff, Key, RefreshCw, Edit } from "lucide-react";
+import { Plus, Package, Calendar, AlertCircle, Copy, ExternalLink, MessageSquare, Eye, EyeOff, Key, RefreshCw, Edit, Image as ImageIcon, FileText, Video } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useState } from "react";
 import { Id } from "@/convex/_generated/dataModel";
+import { StorageImage } from "@/components/storage-image";
 
 export default function DeliveriesPage() {
   const { adminEmail } = useAdminAuth();
@@ -263,25 +264,29 @@ export default function DeliveriesPage() {
                   }`}
                 >
                   <CardContent className="p-6 sm:p-8">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-start sm:justify-between gap-6">
-                      <div className="flex-1 space-y-5 w-full">
-                        <div>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
-                            <h3 className="font-black uppercase tracking-wider text-lg sm:text-xl break-all text-foreground" style={{ fontWeight: '900' }}>
-                              {fullUrl}
-                            </h3>
-                            {feedbackCount > 0 && (
-                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-xs font-black text-background shrink-0" style={{ fontWeight: '900' }}>
-                                {feedbackCount}
-                              </span>
-                            )}
+                    <div className="flex flex-col lg:flex-row gap-6">
+                      {/* Asset Thumbnails Section */}
+                      <DeliveryAssetThumbnails deliveryId={delivery._id} allowedAssetIds={delivery.allowedAssetIds || []} />
+                      
+                      <div className="flex flex-col sm:flex-row items-start sm:items-start sm:justify-between gap-6 flex-1">
+                        <div className="flex-1 space-y-5 w-full">
+                          <div>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
+                              <h3 className="font-black uppercase tracking-wider text-lg sm:text-xl break-all text-foreground" style={{ fontWeight: '900' }}>
+                                {fullUrl}
+                              </h3>
+                              {feedbackCount > 0 && (
+                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-xs font-black text-background shrink-0" style={{ fontWeight: '900' }}>
+                                  {feedbackCount}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-foreground/70 font-medium">
+                              {(delivery.allowedAssetIds || []).length} assets • Created {new Date(delivery.originalDeliveryDate || delivery.createdAt).toLocaleDateString()}
+                            </p>
                           </div>
-                          <p className="text-sm text-foreground/70 font-medium">
-                            {(delivery.allowedAssetIds || []).length} assets • Created {new Date(delivery.originalDeliveryDate || delivery.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
 
-                        {/* PIN Section */}
+                          {/* PIN Section */}
                         <div className="rounded-xl border border-foreground/20 bg-foreground/5 p-4 sm:p-5">
                           <div className="flex items-center justify-between gap-3 mb-3">
                             <div className="flex items-center gap-2.5">
@@ -417,6 +422,7 @@ export default function DeliveriesPage() {
                         </Link>
                       </div>
                     </div>
+                    </div>
                   </CardContent>
                 </Card>
               );
@@ -547,6 +553,10 @@ export default function DeliveriesPage() {
               <Card key={fb._id} className="border border-foreground/20 hover:border-accent/50 transition-all hover:shadow-lg">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-start gap-4">
+                    {/* Asset Thumbnail */}
+                    {fb.assetId && (
+                      <FeedbackAssetThumbnail assetId={fb.assetId} />
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="mb-3 flex flex-wrap items-center gap-2 sm:gap-3">
                         {fb.decision && (
@@ -594,6 +604,131 @@ export default function DeliveriesPage() {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+// Component to display delivery asset thumbnails
+function DeliveryAssetThumbnails({ deliveryId, allowedAssetIds }: { deliveryId: Id<"deliveries">; allowedAssetIds: Id<"assets">[] }) {
+  const allAssets = useQuery(api.assets.list, {});
+  const deliveryAssets = allAssets?.filter((asset) => allowedAssetIds.includes(asset._id)) || [];
+  const imageAssets = deliveryAssets.filter((asset) => asset.type === "image").slice(0, 4);
+  
+  if (imageAssets.length === 0) {
+    return (
+      <div className="w-full lg:w-48 h-48 rounded-xl border border-foreground/20 bg-foreground/5 flex items-center justify-center shrink-0">
+        <Package className="h-8 w-8 text-foreground/40" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full lg:w-48 h-48 rounded-xl border border-foreground/20 bg-foreground/5 overflow-hidden shrink-0">
+      {imageAssets.length === 1 ? (
+        <div className="w-full h-full">
+          <StorageImage
+            storageId={imageAssets[0].previewKey || imageAssets[0].storageKey}
+            alt={imageAssets[0].filename}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      ) : imageAssets.length === 2 ? (
+        <div className="grid grid-cols-2 h-full gap-0.5">
+          {imageAssets.map((asset) => (
+            <div key={asset._id} className="w-full h-full">
+              <StorageImage
+                storageId={asset.previewKey || asset.storageKey}
+                alt={asset.filename}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
+      ) : imageAssets.length === 3 ? (
+        <div className="grid grid-cols-2 h-full gap-0.5">
+          <div className="row-span-2">
+            <StorageImage
+              storageId={imageAssets[0].previewKey || imageAssets[0].storageKey}
+              alt={imageAssets[0].filename}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div>
+            <StorageImage
+              storageId={imageAssets[1].previewKey || imageAssets[1].storageKey}
+              alt={imageAssets[1].filename}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div>
+            <StorageImage
+              storageId={imageAssets[2].previewKey || imageAssets[2].storageKey}
+              alt={imageAssets[2].filename}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 h-full gap-0.5">
+          {imageAssets.slice(0, 4).map((asset) => (
+            <div key={asset._id} className="w-full h-full relative">
+              <StorageImage
+                storageId={asset.previewKey || asset.storageKey}
+                alt={asset.filename}
+                className="w-full h-full object-cover"
+              />
+              {asset === imageAssets[3] && deliveryAssets.length > 4 && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <span className="text-white font-black text-sm" style={{ fontWeight: '900' }}>
+                    +{deliveryAssets.length - 4}
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Component to display asset thumbnail for feedback
+function FeedbackAssetThumbnail({ assetId }: { assetId: Id<"assets"> }) {
+  const asset = useQuery(api.assets.get, assetId ? { id: assetId } : ("skip" as const));
+  
+  if (!asset) {
+    return (
+      <div className="w-24 h-24 rounded-lg border border-foreground/20 bg-foreground/5 flex items-center justify-center shrink-0">
+        <ImageIcon className="h-6 w-6 text-foreground/40" />
+      </div>
+    );
+  }
+
+  const storageId = asset.previewKey || asset.storageKey;
+  
+  if (asset.type === "image" && storageId) {
+    return (
+      <div className="w-24 h-24 rounded-lg border border-foreground/20 bg-foreground/5 overflow-hidden shrink-0">
+        <StorageImage
+          storageId={storageId}
+          alt={asset.filename}
+          className="w-full h-full object-cover"
+        />
+      </div>
+    );
+  }
+
+  if (asset.type === "video") {
+    return (
+      <div className="w-24 h-24 rounded-lg border border-foreground/20 bg-foreground/5 flex items-center justify-center shrink-0">
+        <Video className="h-8 w-8 text-foreground/40" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-24 h-24 rounded-lg border border-foreground/20 bg-foreground/5 flex items-center justify-center shrink-0">
+      <FileText className="h-8 w-8 text-foreground/40" />
     </div>
   );
 }

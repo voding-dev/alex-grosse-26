@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { useSearchParams } from "next/navigation";
-import { Download, Calendar, AlertCircle, CreditCard, MessageSquare, Send, CheckCircle, MousePointerClick, MousePointer2, X, Sparkles } from "lucide-react";
+import { Download, Calendar, AlertCircle, CreditCard, MessageSquare, Send, CheckCircle, MousePointerClick, MousePointer2, X, Sparkles, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import Image from "next/image";
 import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,6 +38,7 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [showQuickTip, setShowQuickTip] = useState(true);
+  const [pinErrorOpen, setPinErrorOpen] = useState(false);
 
   const delivery = useQuery(api.deliveries.getBySlug, { slug });
   const verifyPin = useMutation(api.deliveries.verifyPin);
@@ -78,14 +80,10 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
         });
       }
     } catch (error: any) {
-      // Only show error toast if PIN is complete (4+ characters)
+      // Only show error popup if PIN is complete (4+ characters)
       // This prevents showing errors for incomplete PINs while typing
       if (pin && pin.length >= 4) {
-        toast({
-          title: "Access denied",
-          description: error.message || "Invalid PIN",
-          variant: "destructive",
-        });
+        setPinErrorOpen(true);
       }
     }
   };
@@ -164,6 +162,37 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
           )}
         </Card>
         </div>
+
+        {/* Wrong PIN Error Dialog */}
+        <Dialog open={pinErrorOpen} onOpenChange={setPinErrorOpen}>
+          <DialogContent className="sm:max-w-md rounded-xl border border-foreground/20">
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-full bg-red-500/20 border border-red-500/30">
+                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                </div>
+                <DialogTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                  Wrong PIN
+                </DialogTitle>
+              </div>
+              <DialogDescription className="text-base text-foreground/80">
+                The PIN you entered is incorrect. Please try again.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4">
+              <Button
+                onClick={() => {
+                  setPinErrorOpen(false);
+                  setPin("");
+                }}
+                className="w-full font-black uppercase tracking-wider hover:bg-accent/90 transition-all hover:scale-105 shadow-lg"
+                style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              >
+                Try Again
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Subtle Branding Footer */}
         <footer className="border-t border-foreground/10 py-8">

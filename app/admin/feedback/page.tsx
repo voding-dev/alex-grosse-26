@@ -3,12 +3,14 @@
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, ExternalLink, Info } from "lucide-react";
+import { MessageSquare, ExternalLink, Info, Image as ImageIcon, FileText, Video } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { StorageImage } from "@/components/storage-image";
+import { Id } from "@/convex/_generated/dataModel";
 
 export default function FeedbackPage() {
   const { adminEmail } = useAdminAuth();
@@ -178,7 +180,11 @@ export default function FeedbackPage() {
                       key={fb._id} 
                       className="rounded-xl border border-foreground/10 bg-foreground/5 p-4 sm:p-5 hover:border-accent/30 transition-colors"
                     >
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-4">
+                        {/* Asset Thumbnail */}
+                        {fb.assetId && (
+                          <FeedbackAssetThumbnail assetId={fb.assetId} />
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="mb-3 flex flex-wrap items-center gap-2.5">
                             {fb.decision && getDecisionBadge(fb.decision)}
@@ -206,6 +212,47 @@ export default function FeedbackPage() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// Component to display asset thumbnail for feedback
+function FeedbackAssetThumbnail({ assetId }: { assetId: Id<"assets"> }) {
+  const asset = useQuery(api.assets.get, assetId ? { id: assetId } : ("skip" as const));
+  
+  if (!asset) {
+    return (
+      <div className="w-24 h-24 rounded-lg border border-foreground/20 bg-foreground/5 flex items-center justify-center shrink-0">
+        <ImageIcon className="h-6 w-6 text-foreground/40" />
+      </div>
+    );
+  }
+
+  const storageId = asset.previewKey || asset.storageKey;
+  
+  if (asset.type === "image" && storageId) {
+    return (
+      <div className="w-24 h-24 rounded-lg border border-foreground/20 bg-foreground/5 overflow-hidden shrink-0">
+        <StorageImage
+          storageId={storageId}
+          alt={asset.filename}
+          className="w-full h-full object-cover"
+        />
+      </div>
+    );
+  }
+
+  if (asset.type === "video") {
+    return (
+      <div className="w-24 h-24 rounded-lg border border-foreground/20 bg-foreground/5 flex items-center justify-center shrink-0">
+        <Video className="h-8 w-8 text-foreground/40" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-24 h-24 rounded-lg border border-foreground/20 bg-foreground/5 flex items-center justify-center shrink-0">
+      <FileText className="h-8 w-8 text-foreground/40" />
     </div>
   );
 }
