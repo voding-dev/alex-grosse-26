@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { useSearchParams } from "next/navigation";
-import { Download, Calendar, AlertCircle, CreditCard, MessageSquare, Send, CheckCircle } from "lucide-react";
+import { Download, Calendar, AlertCircle, CreditCard, MessageSquare, Send, CheckCircle, MousePointerClick, MousePointer2, X, Sparkles } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { MasonryGrid } from "@/components/masonry-grid";
 import { DeliveryGrid } from "@/components/delivery-grid";
 import { Lightbox } from "@/components/lightbox";
@@ -33,6 +34,7 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
   const [viewMode, setViewMode] = useState<"masonry" | "grid">("grid");
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [showQuickTip, setShowQuickTip] = useState(true);
 
   const delivery = useQuery(api.deliveries.getBySlug, { slug });
   const verifyPin = useMutation(api.deliveries.verifyPin);
@@ -146,6 +148,20 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
     }
     setSelectedAssets(newSet);
   };
+
+  const handleSelectAll = () => {
+    if (selectedAssets.size === filteredAssets.length) {
+      // Deselect all
+      setSelectedAssets(new Set());
+    } else {
+      // Select all
+      const allIds = new Set(filteredAssets.map((asset) => asset._id));
+      setSelectedAssets(allIds);
+    }
+  };
+
+  const isAllSelected = filteredAssets.length > 0 && selectedAssets.size === filteredAssets.length;
+  const isSomeSelected = selectedAssets.size > 0 && selectedAssets.size < filteredAssets.length;
 
   const handleDownload = async (assetId: string) => {
     try {
@@ -324,6 +340,14 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
 
     try {
       const url = await downloadAsset({ storageKey: asset.storageKey });
+      if (!url) {
+        toast({
+          title: "Error",
+          description: "Failed to get download URL.",
+          variant: "destructive",
+        });
+        return;
+      }
       const link = document.createElement("a");
       link.href = url;
       link.download = asset.filename || "download";
@@ -386,29 +410,144 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
         )}
 
         {/* Delivery Header */}
-        <div className="mb-12">
-          <h1 className="mb-2 text-4xl font-light">{delivery.title}</h1>
-          <p className="text-lg text-foreground/60">{delivery.clientName}</p>
+        <div className="mb-6">
+          <h1 className="mb-2 text-4xl sm:text-5xl font-light text-foreground">{delivery.title}</h1>
+          <p className="text-lg text-foreground/60 mb-4">{delivery.clientName}</p>
           {delivery.notesPublic && (
-            <p className="mt-4 text-foreground/80 whitespace-pre-line">{delivery.notesPublic}</p>
+            <div className="mb-4 p-4 rounded-xl border border-foreground/20 bg-foreground/5 backdrop-blur-sm">
+              <p className="text-sm text-foreground/70 leading-relaxed whitespace-pre-line">{delivery.notesPublic}</p>
+            </div>
           )}
         </div>
 
-        {/* Actions + Help */}
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+        {/* Quick Tip Banner */}
+        {showQuickTip && (
+          <div className="mb-6 p-4 rounded-xl border-2 border-accent/40 bg-accent/10 backdrop-blur-sm relative">
+            <button
+              onClick={() => setShowQuickTip(false)}
+              className="absolute top-3 right-3 p-1 rounded-full hover:bg-accent/20 transition-colors"
+              aria-label="Dismiss tip"
+            >
+              <X className="h-4 w-4 text-foreground/60" />
+            </button>
+            <div className="flex items-start gap-3 pr-8">
+              <Sparkles className="h-5 w-5 text-accent mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-black uppercase tracking-wider text-foreground mb-1" style={{ fontWeight: '900' }}>
+                  Quick Tip
+                </p>
+                <p className="text-xs text-foreground/70 leading-relaxed">
+                  Hover over any file to approve, download, or leave feedback. Click any file to view it full screen.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Primary Actions Bar */}
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <div className={`flex items-center gap-3 px-5 py-3 rounded-xl border-2 transition-all ${
+            isAllSelected 
+              ? "border-accent bg-accent/10 shadow-lg shadow-accent/20" 
+              : "border-foreground/20 bg-foreground/5 backdrop-blur-sm hover:border-foreground/40"
+          }`}>
+            <Checkbox
+              checked={isAllSelected}
+              onCheckedChange={handleSelectAll}
+              className="h-5 w-5 border-2 border-foreground/40 data-[state=checked]:bg-accent data-[state=checked]:border-accent shadow-lg"
+            />
+            <div className="flex items-center gap-2">
+              <CheckCircle className={`h-4 w-4 ${isAllSelected ? "text-accent" : "text-foreground/40"}`} />
+              <span className="text-sm font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                Select All Files
+              </span>
+            </div>
+            {selectedAssets.size > 0 && (
+              <span className="text-xs font-medium text-accent bg-accent/20 px-2 py-1 rounded-full">
+                {selectedAssets.size} selected
+              </span>
+            )}
+          </div>
+          
+          {selectedAssets.size > 0 && (
+            <>
+              <Button 
+                onClick={handleBulkApprove} 
+                className="font-black uppercase tracking-wider bg-green-600 hover:bg-green-700 text-white border-2 border-green-600 hover:border-green-700 shadow-lg transition-all hover:scale-105"
+                style={{ fontWeight: '900' }}
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Approve Selected ({selectedAssets.size})
+              </Button>
+              {delivery.allowZip && (
+                <Button 
+                  onClick={handleDownloadSelected} 
+                  className="font-black uppercase tracking-wider bg-background text-foreground border-2 border-foreground/30 hover:bg-foreground hover:text-background shadow-lg transition-all hover:scale-105"
+                  style={{ fontWeight: '900' }}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Selected ({selectedAssets.size})
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Interaction Hints */}
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-accent/30 bg-accent/5 backdrop-blur-sm cursor-help">
+                  <MousePointer2 className="h-4 w-4 text-accent" />
+                  <span className="text-xs font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                    Hover for actions
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-xs leading-relaxed">
+                  Move your cursor over any file to see feedback and download options appear.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-accent/30 bg-accent/5 backdrop-blur-sm cursor-help">
+                  <MousePointerClick className="h-4 w-4 text-accent" />
+                  <span className="text-xs font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                    Click to enlarge
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-xs leading-relaxed">
+                  Click any file to open it in full screen for detailed review.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+
+        {/* Files Section Header */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <h2 className="text-2xl font-light">Your Files</h2>
-            <div className="flex items-center gap-1 border border-foreground/20 rounded-lg p-1 bg-foreground/5">
+            <div className="flex items-center gap-1 border-2 border-foreground/20 rounded-xl p-1 bg-background/50 backdrop-blur-sm">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => setViewMode("grid")}
-                      className={`p-2 rounded transition-colors ${
+                      className={`p-2.5 rounded-lg transition-all ${
                         viewMode === "grid"
-                          ? "bg-accent text-background"
-                          : "hover:bg-foreground/10"
+                          ? "bg-accent text-background shadow-lg scale-105"
+                          : "hover:bg-foreground/10 text-foreground/70 hover:text-foreground"
                       }`}
+                      style={viewMode === "grid" ? { backgroundColor: '#FFA617' } : {}}
                     >
                       <Grid3x3 className="h-4 w-4" />
                     </button>
@@ -423,11 +562,12 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => setViewMode("masonry")}
-                      className={`p-2 rounded transition-colors ${
+                      className={`p-2.5 rounded-lg transition-all ${
                         viewMode === "masonry"
-                          ? "bg-accent text-background"
-                          : "hover:bg-foreground/10"
+                          ? "bg-accent text-background shadow-lg scale-105"
+                          : "hover:bg-foreground/10 text-foreground/70 hover:text-foreground"
                       }`}
+                      style={viewMode === "masonry" ? { backgroundColor: '#FFA617' } : {}}
                     >
                       <LayoutGrid className="h-4 w-4" />
                     </button>
@@ -440,26 +580,12 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {selectedAssets.size > 0 && (
-              <>
-                <Button 
-                  onClick={handleBulkApprove} 
-                  variant="outline"
-                  className="font-bold uppercase tracking-wider hover:bg-green-50 hover:border-green-300 hover:text-green-700"
-                >
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Approve Selected ({selectedAssets.size})
-                </Button>
-                {delivery.allowZip && (
-                  <Button onClick={handleDownloadSelected} variant="outline">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Selected ({selectedAssets.size})
-                  </Button>
-                )}
-              </>
-            )}
             {delivery.allowZip && (
-              <Button onClick={handleDownloadAll} variant="outline">
+              <Button 
+                onClick={handleDownloadAll} 
+                className="font-black uppercase tracking-wider bg-background text-foreground border-2 border-foreground/30 hover:bg-foreground hover:text-background shadow-lg transition-all hover:scale-105"
+                style={{ fontWeight: '900' }}
+              >
                 <Download className="mr-2 h-4 w-4" />
                 Download All
               </Button>
@@ -468,17 +594,20 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-foreground/20 text-foreground/70 hover:text-accent hover:border-accent"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-foreground/20 text-foreground/70 hover:text-accent hover:border-accent transition-colors"
                     aria-label="How to provide feedback"
                   >
                     <Info className="h-4 w-4" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-[320px] text-xs leading-relaxed">
-                  - Click any card to view it large in a lightbox.
-                  <br />- Use the bubble icon on a card (or in the lightbox footer) to leave feedback on that specific file. You can also approve without commenting.
-                  <br />- Use Approve Selected to approve multiple files at once; Download Selected/All to retrieve files.
-                  <br />- Use the Delivery Feedback box below for comments about the whole project.
+                  <p className="font-black uppercase tracking-wider mb-2" style={{ fontWeight: '900' }}>Quick Guide</p>
+                  <ul className="space-y-1">
+                    <li>• Hover files for actions</li>
+                    <li>• Click to view full screen</li>
+                    <li>• Select multiple for bulk actions</li>
+                    <li>• Use feedback section below for project comments</li>
+                  </ul>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -505,6 +634,7 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
                 selectedIds={selectedAssets}
                 onToggleSelect={toggleAsset}
                 onFeedbackClick={handleOpenFeedbackModal}
+                onDownloadClick={handleDownloadClick}
               />
             )}
           </div>
@@ -554,7 +684,7 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
             />
             <Button 
               onClick={handleSubmitProjectFeedback}
-              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-all hover:scale-105 shadow-lg"
               style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
             >
               <Send className="mr-2 h-4 w-4" />

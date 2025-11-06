@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
 import { Lightbox } from "./lightbox";
-import { Eye, MessageSquare } from "lucide-react";
+import { Eye, MessageSquare, Download } from "lucide-react";
 import { MasonryImage } from "./masonry-image";
 import { getVideoThumbnailUrl } from "@/lib/video-utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -22,13 +22,15 @@ interface MasonryGridProps {
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
   onFeedbackClick?: (assetId: string) => void;
+  onDownloadClick?: (assetId: string) => void;
 }
 
-export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onToggleSelect, onFeedbackClick }: MasonryGridProps) {
+export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onToggleSelect, onFeedbackClick, onDownloadClick }: MasonryGridProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [columnCount, setColumnCount] = useState(3);
   const [itemHeights, setItemHeights] = useState<Map<number, number>>(new Map());
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -59,13 +61,19 @@ export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onTog
       const containerWidth = gridRef.current.offsetWidth;
       const padding = 64; // px-8 = 2rem = 32px on each side
       const availableWidth = containerWidth - padding;
-      const columnWidth = 600;
       const gap = 32; // gap-8 = 2rem = 32px
       
-      // Calculate how many columns fit - limit to 2 for gallery focus
-      let cols = Math.floor((availableWidth + gap) / (columnWidth + gap));
-      cols = Math.max(1, Math.min(cols, 2)); // Between 1 and 2 columns for gallery view
-      setColumnCount(cols);
+      // For gallery view, we want exactly 2 columns
+      // Calculate minimum column width needed for 2 columns
+      const minColumnWidth = (availableWidth - gap) / 2; // (availableWidth - gap) / 2 columns
+      
+      // If we have enough space for 2 columns with reasonable width, use 2
+      // Otherwise, use 1 column
+      if (minColumnWidth >= 200) { // Minimum 200px per column
+        setColumnCount(2);
+      } else {
+        setColumnCount(1);
+      }
     };
 
     updateColumnCount();
@@ -161,44 +169,62 @@ export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onTog
                     if (el) itemRefs.current.set(item.id, el);
                   }}
                   onClick={(e) => handleItemClick(index, e)}
-                  className={`group relative cursor-pointer overflow-hidden bg-foreground/5 transition-all masonry-item rounded-lg border border-foreground/10 hover:border-accent/40 shadow-sm ${
-                    isSelected ? "ring-2 ring-blue-500" : ""
+                  onMouseEnter={() => setHoveredId(item.id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  className={`group relative cursor-pointer overflow-hidden bg-foreground/5 transition-all masonry-item rounded-xl border-2 border-foreground/20 hover:border-accent/40 shadow-lg hover:shadow-xl ${
+                    isSelected ? "ring-2 ring-accent border-accent shadow-accent/20" : ""
                   }`}
                   style={{
                     width: '100%',
                   }}
                 >
-              {/* Floating actions */}
-              <div className="absolute right-2 top-2 z-10 flex items-center gap-2">
-                {selectable && (
+              {/* Selection checkbox */}
+              {selectable && (
+                <div
+                  className="absolute left-2 top-2 z-10"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <input
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => onToggleSelect?.(item.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="h-5 w-5 cursor-pointer rounded border-foreground/20 bg-background/80 backdrop-blur"
+                    className="h-5 w-5 cursor-pointer rounded border-2 border-foreground/40 bg-background/95 backdrop-blur shadow-lg checked:bg-accent checked:border-accent"
                   />
-                )}
-                {onFeedbackClick && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onFeedbackClick(item.id);
-                          }}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-background/80 border border-foreground/10 text-foreground shadow-sm hover:bg-accent hover:text-background hover:border-accent transition-colors"
-                          aria-label="Give feedback"
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>Open feedback for this file</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </div>
+                </div>
+              )}
+
+
+              {/* Action buttons on hover */}
+              {(hoveredId === item.id && (onFeedbackClick || onDownloadClick)) && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 transition-opacity">
+                  {onFeedbackClick && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onFeedbackClick(item.id);
+                      }}
+                      className="px-4 py-2 rounded-full bg-accent text-background hover:bg-accent/90 font-black uppercase tracking-wider text-xs shadow-lg transition-all hover:scale-105"
+                      style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+                    >
+                      <MessageSquare className="h-4 w-4 inline mr-2" />
+                      Feedback
+                    </button>
+                  )}
+                  {onDownloadClick && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDownloadClick(item.id);
+                      }}
+                      className="px-4 py-2 rounded-full bg-background text-foreground border-2 border-foreground/30 hover:bg-foreground hover:text-background font-black uppercase tracking-wider text-xs shadow-lg transition-all hover:scale-105"
+                      style={{ fontWeight: '900' }}
+                    >
+                      <Download className="h-4 w-4 inline mr-2" />
+                      Download
+                    </button>
+                  )}
+                </div>
+              )}
               
               
               {item.type === "image" && (item.src || item.storageId) && (

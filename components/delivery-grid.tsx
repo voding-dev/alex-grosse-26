@@ -61,8 +61,8 @@ export function DeliveryGrid({
         return (
           <Card
             key={item.id}
-            className={`group relative overflow-hidden cursor-pointer rounded-xl border bg-background shadow-sm hover:shadow-md transition-all ${
-              isSelected ? "ring-2 ring-blue-500 border-blue-500" : "border-foreground/20"
+            className={`group relative overflow-hidden cursor-pointer rounded-xl border-2 bg-background shadow-lg hover:shadow-xl transition-all ${
+              isSelected ? "ring-2 ring-accent border-accent shadow-accent/20" : "border-foreground/20 hover:border-foreground/40"
             }`}
             onMouseEnter={() => setHoveredId(item.id)}
             onMouseLeave={() => setHoveredId(null)}
@@ -77,50 +77,34 @@ export function DeliveryGrid({
               
               {/* Overlay on hover */}
               {isHovered && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-2 transition-opacity">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          data-feedback-button
-                          variant="secondary"
-                          size="sm"
-                          className="h-9 w-9 p-0 rounded-full bg-white/90 hover:bg-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onFeedbackClick?.(item.id);
-                          }}
-                        >
-                          <MessageSquare className="h-4 w-4 text-foreground" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Leave feedback</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 transition-opacity">
+                  <Button
+                    data-feedback-button
+                    size="sm"
+                    className="h-10 px-4 rounded-full bg-accent text-background hover:bg-accent/90 font-black uppercase tracking-wider text-xs shadow-lg transition-all hover:scale-105"
+                    style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFeedbackClick?.(item.id);
+                    }}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Feedback
+                  </Button>
                   
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          data-download-button
-                          variant="secondary"
-                          size="sm"
-                          className="h-9 w-9 p-0 rounded-full bg-white/90 hover:bg-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDownloadClick?.(item.id);
-                          }}
-                        >
-                          <Download className="h-4 w-4 text-foreground" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Download</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Button
+                    data-download-button
+                    size="sm"
+                    className="h-10 px-4 rounded-full bg-background text-foreground border-2 border-foreground/30 hover:bg-foreground hover:text-background font-black uppercase tracking-wider text-xs shadow-lg transition-all hover:scale-105"
+                    style={{ fontWeight: '900' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownloadClick?.(item.id);
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
                 </div>
               )}
 
@@ -133,35 +117,11 @@ export function DeliveryGrid({
                   <Checkbox
                     checked={isSelected}
                     onCheckedChange={() => onToggleSelect?.(item.id)}
-                    className="bg-white/90 border-foreground/20"
+                    className="bg-background/95 border-2 border-foreground/40 hover:border-accent data-[state=checked]:bg-accent data-[state=checked]:border-accent shadow-lg"
                   />
                 </div>
               )}
 
-              {/* Feedback icon overlay (always visible, subtle) */}
-              {!isHovered && (
-                <div className="absolute top-2 right-2 z-10">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          data-feedback-button
-                          className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm flex items-center justify-center transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onFeedbackClick?.(item.id);
-                          }}
-                        >
-                          <MessageSquare className="h-4 w-4 text-white" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Leave feedback</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              )}
             </div>
 
             {/* Filename */}
