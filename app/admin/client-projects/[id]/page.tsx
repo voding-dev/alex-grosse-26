@@ -126,6 +126,7 @@ export default function ClientProjectDetailPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [showKeyMomentForm, setShowKeyMomentForm] = useState(false);
   const [showSignOffForm, setShowSignOffForm] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     if (project) {
@@ -560,6 +561,209 @@ export default function ClientProjectDetailPage() {
   // Sort key moments by date
   const sortedKeyMoments = [...(project.keyMoments || [])].sort((a, b) => a.date - b.date);
 
+  // Dashboard view (read-only)
+  if (!isEditMode) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
+        <div className="mb-8 sm:mb-12">
+          <Link href="/admin/client-projects" className="text-sm text-accent hover:text-accent/80 font-bold uppercase tracking-wider inline-flex items-center gap-1 group mb-4">
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+            Back to Projects
+          </Link>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground mb-2" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+                {project.title}
+              </h1>
+              <p className="text-foreground/70 text-base sm:text-lg mb-3">
+                {project.clientName}
+              </p>
+              <div className={`flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-wider w-fit ${config.color}`}>
+                <StatusIcon className="h-3 w-3" />
+                {config.label}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => setIsEditMode(true)}
+                className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+                style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Project
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Dashboard Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Main Info Card */}
+          <Card className="lg:col-span-2 border border-foreground/20 rounded-xl">
+            <CardHeader>
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                Project Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-foreground/60 mb-1" style={{ fontWeight: '900' }}>
+                  Description
+                </p>
+                <p className="text-sm text-foreground/80 leading-relaxed">
+                  {project.description || "No description provided."}
+                </p>
+              </div>
+              {project.scope && (
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider text-foreground/60 mb-1" style={{ fontWeight: '900' }}>
+                    Scope
+                  </p>
+                  <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                    {project.scope}
+                  </p>
+                </div>
+              )}
+              {project.notes && (
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider text-foreground/60 mb-1" style={{ fontWeight: '900' }}>
+                    Notes
+                  </p>
+                  <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                    {project.notes}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Stats Card */}
+          <Card className="border border-foreground/20 rounded-xl">
+            <CardHeader>
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-foreground/60 mb-1" style={{ fontWeight: '900' }}>
+                  Created
+                </p>
+                <p className="text-sm text-foreground/80">
+                  {format(new Date(project.createdAt), "MMM d, yyyy")}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-foreground/60 mb-1" style={{ fontWeight: '900' }}>
+                  Deliveries
+                </p>
+                <p className="text-sm text-foreground/80">
+                  {project.linkedDeliveryIds?.length || 0} linked
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-foreground/60 mb-1" style={{ fontWeight: '900' }}>
+                  Key Moments
+                </p>
+                <p className="text-sm text-foreground/80">
+                  {project.keyMoments?.length || 0} events
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-foreground/60 mb-1" style={{ fontWeight: '900' }}>
+                  Sign-offs
+                </p>
+                <p className="text-sm text-foreground/80">
+                  {project.signOffs?.length || 0} total
+                </p>
+              </div>
+              {project.contractStorageId && (
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider text-foreground/60 mb-1" style={{ fontWeight: '900' }}>
+                    Contract
+                  </p>
+                  <p className="text-sm text-accent font-medium">
+                    ✓ Uploaded
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Timeline Preview */}
+        {sortedKeyMoments.length > 0 && (
+          <Card className="mb-8 border border-foreground/20 rounded-xl">
+            <CardHeader>
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                Recent Timeline Events
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {sortedKeyMoments.slice(-5).reverse().map((moment, idx) => (
+                  <div key={idx} className="flex items-start gap-4 pb-3 border-b border-foreground/10 last:border-0 last:pb-0">
+                    <div className="flex-shrink-0">
+                      <Calendar className="h-5 w-5 text-accent" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black uppercase tracking-wider text-foreground mb-1" style={{ fontWeight: '900' }}>
+                        {moment.title}
+                      </p>
+                      {moment.description && (
+                        <p className="text-xs text-foreground/70 leading-relaxed mb-1">
+                          {moment.description}
+                        </p>
+                      )}
+                      <p className="text-xs text-foreground/60">
+                        {format(new Date(moment.date), "MMM d, yyyy")}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Linked Deliveries */}
+        {project.linkedDeliveryIds && project.linkedDeliveryIds.length > 0 && (
+          <Card className="mb-8 border border-foreground/20 rounded-xl">
+            <CardHeader>
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                Linked Delivery Portals
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {allDeliveries
+                  .filter((d: any) => project.linkedDeliveryIds?.includes(d._id))
+                  .map((delivery: any) => (
+                    <div key={delivery._id} className="flex items-center justify-between p-3 rounded-lg border border-foreground/10 bg-foreground/5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black uppercase tracking-wider text-foreground mb-1" style={{ fontWeight: '900' }}>
+                          /dl/{delivery.slug}
+                        </p>
+                        <p className="text-xs text-foreground/60">
+                          {delivery.title || "Untitled Delivery"}
+                        </p>
+                      </div>
+                      <Link href={`/dl/${delivery.slug}`} target="_blank">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  // Edit mode (existing form)
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
       <div className="mb-8 sm:mb-12">
@@ -581,6 +785,14 @@ export default function ClientProjectDetailPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button 
+              onClick={() => setIsEditMode(false)}
+              variant="outline"
+              className="font-black uppercase tracking-wider"
+              style={{ fontWeight: '900' }}
+            >
+              Cancel
+            </Button>
             <Button 
               onClick={handleSave}
               disabled={isSaving}

@@ -62,9 +62,9 @@ export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onTog
       const columnWidth = 600;
       const gap = 32; // gap-8 = 2rem = 32px
       
-      // Calculate how many columns fit
+      // Calculate how many columns fit - limit to 2 for gallery focus
       let cols = Math.floor((availableWidth + gap) / (columnWidth + gap));
-      cols = Math.max(1, Math.min(cols, 4)); // Between 1 and 4 columns
+      cols = Math.max(1, Math.min(cols, 2)); // Between 1 and 2 columns for gallery view
       setColumnCount(cols);
     };
 

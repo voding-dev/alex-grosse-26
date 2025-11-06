@@ -11,10 +11,12 @@ import { useToast } from "@/components/ui/use-toast";
 import { useSearchParams } from "next/navigation";
 import { Download, Calendar, AlertCircle, CreditCard, MessageSquare, Send, CheckCircle } from "lucide-react";
 import { MasonryGrid } from "@/components/masonry-grid";
+import { DeliveryGrid } from "@/components/delivery-grid";
+import { Lightbox } from "@/components/lightbox";
 import { Textarea } from "@/components/ui/textarea";
 import { AssetFeedbackModal } from "@/components/asset-feedback-modal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info } from "lucide-react";
+import { Info, Grid3x3, LayoutGrid } from "lucide-react";
 
 export default function DeliveryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -28,6 +30,9 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
   const [assetFeedback, setAssetFeedback] = useState<Record<string, string>>({});
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [selectedAssetForFeedback, setSelectedAssetForFeedback] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"masonry" | "grid">("grid");
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const delivery = useQuery(api.deliveries.getBySlug, { slug });
   const verifyPin = useMutation(api.deliveries.verifyPin);
@@ -300,6 +305,40 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
       aspectRatio: asset.width && asset.height ? asset.width / asset.height : undefined,
     }));
 
+  // Convert assets to grid format
+  const gridItems = filteredAssets.map((asset) => ({
+    id: asset._id,
+    storageId: delivery.watermark && asset.previewKey ? asset.previewKey : asset.storageKey,
+    filename: asset.filename,
+    type: asset.type,
+  }));
+
+  const handleGridItemClick = (index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
+
+  const handleDownloadClick = async (assetId: string) => {
+    const asset = filteredAssets.find((a) => a._id === assetId);
+    if (!asset) return;
+
+    try {
+      const url = await downloadAsset({ storageKey: asset.storageKey });
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = asset.filename || "download";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to download file.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-6 py-12">
@@ -357,7 +396,49 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
 
         {/* Actions + Help */}
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-2xl font-light">Your Files</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-light">Your Files</h2>
+            <div className="flex items-center gap-1 border border-foreground/20 rounded-lg p-1 bg-foreground/5">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setViewMode("grid")}
+                      className={`p-2 rounded transition-colors ${
+                        viewMode === "grid"
+                          ? "bg-accent text-background"
+                          : "hover:bg-foreground/10"
+                      }`}
+                    >
+                      <Grid3x3 className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Grid view (4 columns)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setViewMode("masonry")}
+                      className={`p-2 rounded transition-colors ${
+                        viewMode === "masonry"
+                          ? "bg-accent text-background"
+                          : "hover:bg-foreground/10"
+                      }`}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Gallery view (2 columns)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             {selectedAssets.size > 0 && (
               <>
@@ -404,16 +485,28 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
           </div>
         </div>
 
-        {/* Masonry Grid */}
-        {masonryItems.length > 0 ? (
+        {/* Grid or Masonry View */}
+        {filteredAssets.length > 0 ? (
           <div className="mb-12">
-            <MasonryGrid 
-              items={masonryItems} 
-              selectable={true}
-              selectedIds={selectedAssets}
-              onToggleSelect={toggleAsset}
-              onFeedbackClick={handleOpenFeedbackModal}
-            />
+            {viewMode === "grid" ? (
+              <DeliveryGrid
+                items={gridItems}
+                selectable={true}
+                selectedIds={selectedAssets}
+                onToggleSelect={toggleAsset}
+                onItemClick={handleGridItemClick}
+                onFeedbackClick={handleOpenFeedbackModal}
+                onDownloadClick={handleDownloadClick}
+              />
+            ) : (
+              <MasonryGrid 
+                items={masonryItems} 
+                selectable={true}
+                selectedIds={selectedAssets}
+                onToggleSelect={toggleAsset}
+                onFeedbackClick={handleOpenFeedbackModal}
+              />
+            )}
           </div>
         ) : (
           <Card>
@@ -421,6 +514,23 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
               <p className="text-foreground/60">No assets available.</p>
             </CardContent>
           </Card>
+        )}
+
+        {/* Lightbox for Grid View */}
+        {lightboxOpen && viewMode === "grid" && masonryItems.length > 0 && (
+          <Lightbox
+            images={masonryItems.map((item) => ({
+              id: item.id,
+              storageId: item.storageId,
+              alt: item.alt || "",
+              type: item.type,
+            }))}
+            currentIndex={lightboxIndex}
+            onClose={() => setLightboxOpen(false)}
+            onNext={() => setLightboxIndex((prev) => (prev + 1) % masonryItems.length)}
+            onPrev={() => setLightboxIndex((prev) => (prev - 1 + masonryItems.length) % masonryItems.length)}
+            onFeedbackClick={masonryItems[lightboxIndex] ? () => handleOpenFeedbackModal(masonryItems[lightboxIndex].id) : undefined}
+          />
         )}
 
         {/* Delivery-Level Feedback */}
