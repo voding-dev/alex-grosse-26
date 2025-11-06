@@ -44,6 +44,7 @@ export default function NewContactPage() {
         : [];
 
       await createContact({
+        adminEmail: adminEmail,
         email: formData.email,
         firstName: formData.firstName || undefined,
         lastName: formData.lastName || undefined,

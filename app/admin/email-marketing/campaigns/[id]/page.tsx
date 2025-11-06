@@ -21,12 +21,12 @@ export default function CampaignDetailPage() {
 
   const campaign = useQuery(
     api.emailMarketing.getCampaign,
-    adminEmail ? { id: id as any } : ("skip" as const)
+    adminEmail ? { id: id as any, email: adminEmail } : ("skip" as const)
   );
 
   const analytics = useQuery(
     api.emailMarketing.getCampaignAnalytics,
-    adminEmail ? { campaignId: id as any } : ("skip" as const)
+    adminEmail ? { campaignId: id as any, email: adminEmail } : ("skip" as const)
   );
 
   const sendCampaign = useMutation(api.emailMarketing.sendCampaign);
@@ -53,6 +53,7 @@ export default function CampaignDetailPage() {
     try {
       await sendCampaign({
         campaignId: campaign._id,
+        adminEmail: adminEmail,
       });
       toast({
         title: "Campaign sent",

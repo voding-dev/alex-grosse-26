@@ -25,12 +25,12 @@ export default function ContactDetailPage() {
 
   const contact = useQuery(
     api.emailMarketing.getContact,
-    adminEmail ? { id: id as any } : ("skip" as const)
+    adminEmail ? { id: id as any, email: adminEmail } : ("skip" as const)
   );
 
   const sends = useQuery(
     api.emailMarketing.getContactSends,
-    adminEmail ? { contactId: id as any } : ("skip" as const)
+    adminEmail ? { contactId: id as any, email: adminEmail } : ("skip" as const)
   ) || [];
 
   const updateContact = useMutation(api.emailMarketing.updateContact);
@@ -60,6 +60,7 @@ export default function ContactDetailPage() {
     try {
       await updateContact({
         id: contact._id,
+        adminEmail: adminEmail,
         firstName: formData.firstName || undefined,
         lastName: formData.lastName || undefined,
         tags: formData.tags,
@@ -83,7 +84,7 @@ export default function ContactDetailPage() {
     if (!adminEmail || !confirm("Are you sure you want to delete this contact?")) return;
 
     try {
-      await deleteContact({ id: contact._id });
+      await deleteContact({ id: contact._id, adminEmail: adminEmail });
       toast({
         title: "Contact deleted",
         description: "Contact has been deleted.",

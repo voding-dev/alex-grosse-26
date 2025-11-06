@@ -47,6 +47,7 @@ export default function NewCampaignPage() {
         : [];
 
       await createCampaign({
+        adminEmail: adminEmail,
         name: formData.name,
         subject: formData.subject,
         fromEmail: formData.fromEmail || undefined,
