@@ -339,14 +339,14 @@ export default function DeliveriesPage() {
                               <div className="flex items-center gap-2.5 flex-1 min-w-0">
                                 <h3 className="font-black uppercase tracking-wider text-base sm:text-lg break-words text-foreground leading-tight flex-1 min-w-0" style={{ fontWeight: '900' }}>
                                   {delivery.title || fullUrl}
-                                </h3>
-                                {feedbackCount > 0 && (
+                            </h3>
+                            {feedbackCount > 0 && (
                                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-xs font-black text-background shrink-0" style={{ fontWeight: '900' }}>
-                                    {feedbackCount}
-                                  </span>
-                                )}
-                              </div>
-                              
+                                {feedbackCount}
+                              </span>
+                            )}
+                        </div>
+
                               {/* Action Menu */}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -395,38 +395,38 @@ export default function DeliveriesPage() {
                               <span>{(delivery.allowedAssetIds || []).length} assets</span>
                               <span className="text-foreground/30">•</span>
                               <span>Created {new Date(delivery.originalDeliveryDate || delivery.createdAt).toLocaleDateString()}</span>
-                            </div>
-                            
+                        </div>
+
                             {/* Status Badges */}
                             <div className="flex items-center gap-2 flex-wrap">
-                              {isPaidStorage && paidExpiresAtDate && (
+                          {isPaidStorage && paidExpiresAtDate && (
                                 <div className="flex items-center gap-1.5 rounded-full bg-foreground/10 border border-foreground/20 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-foreground/80" style={{ fontWeight: '900' }}>
                                   <Calendar className="h-3.5 w-3.5" />
-                                  Paid until {paidExpiresAtDate.toLocaleDateString()}
-                                </div>
-                              )}
-                              {!isPaidStorage && expiresAtDate && (
+                              Paid until {paidExpiresAtDate.toLocaleDateString()}
+                            </div>
+                          )}
+                          {!isPaidStorage && expiresAtDate && (
                                 <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black uppercase tracking-wider ${
-                                  daysUntilExpiry !== null && daysUntilExpiry <= 7
-                                    ? "bg-accent/20 border border-accent/30 text-accent"
+                              daysUntilExpiry !== null && daysUntilExpiry <= 7
+                                ? "bg-accent/20 border border-accent/30 text-accent"
                                     : "bg-foreground/10 border border-foreground/20 text-foreground/70"
                                 }`} style={{ fontWeight: '900' }}>
                                   <Calendar className="h-3.5 w-3.5" />
-                                  {daysUntilExpiry !== null && daysUntilExpiry <= 7
-                                    ? `Expires in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''}`
-                                    : `Expires ${expiresAtDate.toLocaleDateString()}`
-                                  }
-                                </div>
-                              )}
-                              {feedbackCount > 0 && (
+                              {daysUntilExpiry !== null && daysUntilExpiry <= 7
+                                ? `Expires in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''}`
+                                : `Expires ${expiresAtDate.toLocaleDateString()}`
+                              }
+                            </div>
+                          )}
+                          {feedbackCount > 0 && (
                                 <div className="flex items-center gap-1.5 rounded-full bg-accent/20 border border-accent/30 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-accent" style={{ fontWeight: '900' }}>
                                   <MessageSquare className="h-3.5 w-3.5" />
-                                  {feedbackCount} feedback
-                                </div>
-                              )}
+                              {feedbackCount} feedback
                             </div>
-                          </div>
+                          )}
+                            </div>
                         </div>
+                      </div>
 
                         {/* PIN Section - Grouped Actions */}
                         <div className="flex items-center justify-between gap-3 pt-3 border-t border-foreground/10">
@@ -461,20 +461,20 @@ export default function DeliveriesPage() {
                                     <Eye className="h-4 w-4" />
                                   )}
                                 </Button>
-                                <Button
+                        <Button
                                   variant="ghost"
-                                  size="sm"
+                          size="sm"
                                   onClick={() => copyPin(delivery.pinPlaintext || "", delivery.title)}
                                   className="h-8 w-8 p-0 hover:bg-accent/10"
                                   title="Copy PIN"
-                                >
+                        >
                                   <Copy className="h-4 w-4" />
-                                </Button>
+                        </Button>
                               </>
                             )}
-                            <Button
+                          <Button 
                               variant="ghost"
-                              size="sm"
+                            size="sm"
                               onClick={() => handleResetPinClick(delivery._id, delivery.title)}
                               disabled={resettingPin[delivery._id]}
                               className="h-8 w-8 p-0 hover:bg-accent/10"
@@ -485,7 +485,7 @@ export default function DeliveriesPage() {
                               ) : (
                                 <RefreshCw className="h-4 w-4" />
                               )}
-                            </Button>
+                          </Button>
                           </div>
                         </div>
                       </div>
@@ -582,16 +582,16 @@ export default function DeliveriesPage() {
                             Edit
                           </Button>
                         </Link>
-                        <Link href={deliveryUrl} target="_blank" className="w-full sm:w-auto">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
+                      <Link href={deliveryUrl} target="_blank" className="w-full sm:w-auto">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
                             className="w-full sm:w-auto font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
                             style={{ fontWeight: '900' }}
-                          >
+                        >
                             <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                        </Button>
+                      </Link>
                       </div>
                     </div>
                   </CardContent>

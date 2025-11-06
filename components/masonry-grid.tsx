@@ -189,10 +189,10 @@ export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onTog
                   className="absolute left-2 top-2 z-10"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => onToggleSelect?.(item.id)}
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect?.(item.id)}
                     className="h-5 w-5 cursor-pointer rounded border-2 border-foreground/40 bg-background/95 backdrop-blur shadow-lg checked:bg-accent checked:border-accent"
                   />
                 </div>

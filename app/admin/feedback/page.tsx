@@ -98,10 +98,10 @@ export default function FeedbackPage() {
     <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
       <div className="mb-8 sm:mb-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex-1">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
-            Client Feedback
-          </h1>
-          <p className="text-foreground/70 text-base sm:text-lg">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+          Client Feedback
+        </h1>
+        <p className="text-foreground/70 text-base sm:text-lg">
             Review client interactions (access, downloads, approvals, comments) across delivery portals.
           </p>
         </div>
@@ -216,7 +216,7 @@ export default function FeedbackPage() {
                             View Dashboard
                           </>
                         )}
-                      </Button>
+                        </Button>
                     </div>
                   </div>
                 </CardHeader>
@@ -239,38 +239,38 @@ export default function FeedbackPage() {
                       </TabsTrigger>
                     </TabsList>
                     <TabsContent value="feedback" className="space-y-4">
-                      {feedbackItems.map((fb: any) => (
-                        <div 
-                          key={fb._id} 
+                  {feedbackItems.map((fb: any) => (
+                    <div 
+                      key={fb._id} 
                           onClick={() => handleFeedbackClick(fb)}
                           className="rounded-xl border border-foreground/10 bg-foreground/5 p-4 sm:p-5 hover:border-accent/30 transition-colors cursor-pointer"
-                        >
+                    >
                           <div className="flex items-start gap-4">
                             {/* Asset Thumbnail */}
                             {fb.assetId && (
                               <FeedbackAssetThumbnail assetId={fb.assetId} />
                             )}
-                            <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0">
                               <div className="mb-3 flex flex-wrap items-center gap-2.5">
-                                {fb.decision && getDecisionBadge(fb.decision)}
-                                {fb.assetId ? (
+                            {fb.decision && getDecisionBadge(fb.decision)}
+                            {fb.assetId ? (
                                   <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded bg-accent/10 border border-accent/20 text-accent" style={{ fontWeight: '900' }}>
                                     PER-ASSET
                                   </span>
-                                ) : (
+                            ) : (
                                   <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded bg-foreground/10 border border-foreground/20 text-foreground/80" style={{ fontWeight: '900' }}>
                                     PROJECT
                                   </span>
-                                )}
+                            )}
                                 <span className="text-xs text-foreground/60 font-medium">
-                                  {new Date(fb.createdAt).toLocaleDateString()} at {new Date(fb.createdAt).toLocaleTimeString()}
-                                </span>
-                              </div>
-                              <p className="text-sm text-foreground/80 leading-relaxed">{fb.body}</p>
-                            </div>
+                              {new Date(fb.createdAt).toLocaleDateString()} at {new Date(fb.createdAt).toLocaleTimeString()}
+                            </span>
                           </div>
+                              <p className="text-sm text-foreground/80 leading-relaxed">{fb.body}</p>
                         </div>
-                      ))}
+                      </div>
+                    </div>
+                  ))}
                     </TabsContent>
                   </Tabs>
                 </CardContent>

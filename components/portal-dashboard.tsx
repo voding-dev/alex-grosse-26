@@ -36,10 +36,11 @@ export function PortalDashboard({ deliveryId, onAssetClick }: PortalDashboardPro
   // Filter assets for this delivery
   const filteredAssets = useMemo(() => {
     if (!delivery || !assets) return [];
-    if (!delivery.allowedAssetIds || delivery.allowedAssetIds.length === 0) {
+    const allowedAssetIds = delivery.allowedAssetIds;
+    if (!allowedAssetIds || allowedAssetIds.length === 0) {
       return [];
     }
-    return (assets || []).filter((asset) => delivery.allowedAssetIds.includes(asset._id));
+    return (assets || []).filter((asset) => allowedAssetIds.includes(asset._id));
   }, [delivery, assets]);
 
   // Group feedback by asset
