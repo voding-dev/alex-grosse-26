@@ -214,7 +214,9 @@ export default function MediaLibraryPage() {
                   const media = allMedia?.find((m) => m._id === args.id);
                   return media ? { storageKey: media.storageKey, width: media.width, height: media.height, size: media.size } : null;
                 },
-                addDisplayLocation,
+                addDisplayLocation: async (args) => {
+                  await addDisplayLocation(args);
+                },
                 createMedia,
               });
 

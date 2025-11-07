@@ -118,7 +118,9 @@ export default function LandingPageEditorPage() {
           const media = heroMedia?.find((m) => m._id === args.id);
           return media ? { storageKey: media.storageKey, width: media.width, height: media.height, size: media.size } : null;
         },
-        addDisplayLocation,
+        addDisplayLocation: async (args) => {
+          await addDisplayLocation(args);
+        },
         createMedia,
       });
       
@@ -222,7 +224,9 @@ export default function LandingPageEditorPage() {
           const media = galleryMedia?.find((m) => m._id === args.id);
           return media ? { storageKey: media.storageKey, width: media.width, height: media.height, size: media.size } : null;
         },
-        addDisplayLocation,
+        addDisplayLocation: async (args) => {
+          await addDisplayLocation(args);
+        },
         createMedia,
       });
       
