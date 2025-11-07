@@ -53,6 +53,7 @@ import {
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { MediaThumbnail } from "@/components/media-thumbnail";
 import { uploadImageToMediaLibrary } from "@/lib/upload-utils";
+import { compressImage } from "@/lib/image-compression";
 import { Checkbox } from "@/components/ui/checkbox";
 
 type MediaItem = {
