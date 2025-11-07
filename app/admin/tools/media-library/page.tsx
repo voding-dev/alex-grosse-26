@@ -52,7 +52,7 @@ import {
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { MediaThumbnail } from "@/components/media-thumbnail";
-import { compressImage, generateFileHash } from "@/lib/image-compression";
+import { uploadImageToMediaLibrary } from "@/lib/upload-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 
 type MediaItem = {
@@ -71,7 +71,7 @@ type MediaItem = {
   sourceAssetId?: Id<"assets">;
   sourceType?: "asset" | "upload";
   displayLocations?: Array<{
-    type: "portfolio" | "project" | "delivery" | "pitch_deck" | "quote_builder";
+    type: "portfolio" | "project" | "delivery" | "pitch_deck" | "quote_builder" | "gallery" | "hero_carousel" | "about" | "cover";
     entityId: string;
     entityName?: string;
   }>;
@@ -148,6 +148,11 @@ export default function MediaLibraryPage() {
   const addDisplayLocation = useMutation(api.mediaLibrary.addDisplayLocation);
   const removeDisplayLocation = useMutation(api.mediaLibrary.removeDisplayLocation);
   const getSignedDownloadUrl = useAction(api.storage.getSignedDownloadUrl);
+  
+  // Get media query for duplicate checking
+  const allMedia = useQuery(api.mediaLibrary.list, {
+    includeAssets: false,
+  });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -179,118 +184,108 @@ export default function MediaLibraryPage() {
       for (const file of selectedFiles) {
         try {
           const isImage = file.type.startsWith("image/");
-          let fileToUpload: File | Blob = file;
-          let originalSize = file.size;
-          let compressedSize = file.size;
-          let compressionRatio: number | undefined;
-          let width: number | undefined;
-          let height: number | undefined;
-          let fileHash: string | undefined;
-
-          // Generate file hash for duplicate detection (from original file)
-          try {
-            fileHash = await generateFileHash(file);
-          } catch (error) {
-            console.warn(`Failed to generate hash for ${file.name}:`, error);
-          }
-
-          // Compress images automatically
+          
+          // For images, use centralized upload utility with compression and media library integration
           if (isImage) {
             try {
-              const compressionResult = await compressImage(file, {
-                quality: 0.7, // 70% quality
-                maxWidth: 1920,
-                maxHeight: 1920,
-                outputFormat: "jpeg",
-                enableResize: true,
-              });
-
-              fileToUpload = compressionResult.blob;
-              originalSize = compressionResult.originalSize;
-              compressedSize = compressionResult.compressedSize;
-              compressionRatio = compressionResult.compressionRatio;
-              width = compressionResult.width;
-              height = compressionResult.height;
-            } catch (error) {
-              console.warn(`Failed to compress ${file.name}, using original:`, error);
-              // Fall back to original file if compression fails
-              const img = new Image();
-              const url = URL.createObjectURL(file);
-              await new Promise((resolve, reject) => {
-                img.onload = () => {
-                  width = img.width;
-                  height = img.height;
-                  URL.revokeObjectURL(url);
-                  resolve(null);
-                };
-                img.onerror = reject;
-                img.src = url;
-              });
-            }
-          } else {
-            // For videos, just get dimensions if needed
-            // Video processing is more complex, so we'll skip it for now
-          }
-
-          // Check for duplicate by file hash
-          if (fileHash) {
-            try {
-              const duplicateId = await checkDuplicateMutation({
+              const uploadResult = await uploadImageToMediaLibrary({
+                file,
                 sessionToken: sessionToken || undefined,
-                fileHash: fileHash,
+                tags: [],
+                folder: folderFilter !== "all" ? folderFilter : undefined,
+                generateUploadUrl,
+                checkDuplicateMutation,
+                getMedia: async (args) => {
+                  const media = allMedia?.find((m) => m._id === args.id);
+                  return media ? { storageKey: media.storageKey, width: media.width, height: media.height, size: media.size } : null;
+                },
+                addDisplayLocation,
+                createMedia,
               });
-              
-              if (duplicateId) {
+
+              if (uploadResult.isDuplicate) {
                 duplicateCount++;
                 toast({
                   title: "Duplicate detected",
                   description: `${file.name} already exists in the media library`,
                   variant: "default",
                 });
-                continue; // Skip this file
+              } else {
+                successCount++;
               }
-            } catch (error) {
-              console.warn(`Failed to check duplicate for ${file.name}:`, error);
-              // Continue with upload if duplicate check fails
+            } catch (error: any) {
+              console.error(`Error uploading ${file.name}:`, error);
+              toast({
+                title: "Upload failed",
+                description: error.message || `Failed to upload ${file.name}`,
+                variant: "destructive",
+              });
+              errorCount++;
+            }
+          } else {
+            // For videos, use direct upload (no compression)
+            try {
+              // Get upload URL
+              const uploadUrl = await generateUploadUrl();
+
+              // Upload file
+              const result = await fetch(uploadUrl, {
+                method: "POST",
+                headers: { "Content-Type": file.type },
+                body: file,
+              });
+
+              if (!result.ok) {
+                throw new Error(`Failed to upload ${file.name}`);
+              }
+
+              const { storageId } = await result.json();
+
+              // Get video dimensions
+              let width: number | undefined;
+              let height: number | undefined;
+              try {
+                const video = document.createElement("video");
+                const url = URL.createObjectURL(file);
+                await new Promise((resolve, reject) => {
+                  video.onloadedmetadata = () => {
+                    width = video.videoWidth;
+                    height = video.videoHeight;
+                    URL.revokeObjectURL(url);
+                    resolve(null);
+                  };
+                  video.onerror = reject;
+                  video.src = url;
+                });
+              } catch (error) {
+                console.warn(`Failed to get video dimensions for ${file.name}:`, error);
+              }
+
+              // Create media record
+              await createMedia({
+                sessionToken: sessionToken || undefined,
+                filename: file.name,
+                storageKey: storageId,
+                type: "video",
+                width,
+                height,
+                size: file.size,
+                tags: [],
+                folder: folderFilter !== "all" ? folderFilter : undefined,
+              });
+
+              successCount++;
+            } catch (error: any) {
+              console.error(`Error uploading ${file.name}:`, error);
+              toast({
+                title: "Upload failed",
+                description: error.message || `Failed to upload ${file.name}`,
+                variant: "destructive",
+              });
+              errorCount++;
             }
           }
-
-          // Get upload URL
-          const uploadUrl = await generateUploadUrl();
-
-          // Upload file (compressed if image, original if video)
-          const result = await fetch(uploadUrl, {
-            method: "POST",
-            headers: { "Content-Type": isImage ? "image/jpeg" : file.type },
-            body: fileToUpload,
-          });
-
-          if (!result.ok) {
-            throw new Error(`Failed to upload ${file.name}`);
-          }
-
-          const { storageId } = await result.json();
-
-          // Create media record with compression metadata
-          await createMedia({
-            sessionToken: sessionToken || undefined,
-            filename: file.name,
-            storageKey: storageId,
-            type: isImage ? "image" : "video",
-            width,
-            height,
-            size: compressedSize, // Use compressed size
-            tags: [],
-            folder: folderFilter !== "all" ? folderFilter : undefined,
-            // Compression metadata (only for images)
-            originalSize: isImage ? originalSize : undefined,
-            compressedSize: isImage ? compressedSize : undefined,
-            compressionRatio: isImage ? compressionRatio : undefined,
-            fileHash: fileHash,
-          });
-
-          successCount++;
-        } catch (error) {
+        } catch (error: any) {
           console.error(`Error uploading ${file.name}:`, error);
           errorCount++;
         }
@@ -314,11 +309,11 @@ export default function MediaLibraryPage() {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload error:", error);
       toast({
         title: "Upload failed",
-        description: "Failed to upload files",
+        description: error.message || "Failed to upload files",
         variant: "destructive",
       });
     } finally {

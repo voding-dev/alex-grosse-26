@@ -750,9 +750,13 @@ export default defineSchema({
         v.literal("project"),
         v.literal("delivery"),
         v.literal("pitch_deck"),
-        v.literal("quote_builder")
+        v.literal("quote_builder"),
+        v.literal("gallery"),
+        v.literal("hero_carousel"),
+        v.literal("about"),
+        v.literal("cover")
       ),
-      entityId: v.string(), // ID of the portfolio/project/delivery/etc
+      entityId: v.string(), // ID of the portfolio/project/delivery/etc, or subtype identifier
       entityName: v.optional(v.string()), // Human-readable name for display
     })),
     // Compression metadata (for images)

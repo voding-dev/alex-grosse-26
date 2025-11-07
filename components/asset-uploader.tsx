@@ -27,6 +27,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Id } from "@/convex/_generated/dataModel";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { isValidVideoUrl } from "@/lib/video-utils";
+import { uploadImageToMediaLibrary } from "@/lib/upload-utils";
 
 interface AssetUploaderProps {
   projectId?: Id<"projects">;
@@ -46,7 +47,7 @@ type MediaItem = {
 
 export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, onUploadComplete }: AssetUploaderProps) {
   const { toast } = useToast();
-  const { adminEmail } = useAdminAuth();
+  const { adminEmail, sessionToken } = useAdminAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -64,6 +65,10 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
   
   const generateUploadUrl = useMutation(api.storageMutations.generateUploadUrl);
   const createAsset = useMutation(api.assets.create);
+  const checkDuplicateMutation = useMutation(api.mediaLibrary.checkDuplicateMutation);
+  const getMediaQuery = useQuery(api.mediaLibrary.get, undefined);
+  const createMedia = useMutation(api.mediaLibrary.create);
+  const addDisplayLocation = useMutation(api.mediaLibrary.addDisplayLocation);
   
   // Media library queries
   const allMedia = useQuery(api.mediaLibrary.list, {
@@ -244,58 +249,154 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
     setIsUploading(true);
     let successCount = 0;
     let errorCount = 0;
+    let duplicateCount = 0;
 
     try {
       for (const file of selectedFiles) {
         try {
-          // 1. Get upload URL from Convex
-          const uploadUrl = await generateUploadUrl();
-
-          // 2. Upload file to Convex storage
-          const result = await fetch(uploadUrl, {
-            method: "POST",
-            headers: { "Content-Type": file.type },
-            body: file,
-          });
-
-          if (!result.ok) {
-            throw new Error(`Failed to upload ${file.name}`);
-          }
-
-          const { storageId } = await result.json();
-
-          // 3. Create asset record in database
-          const fileType = file.type.startsWith("image/")
+          const isImage = file.type.startsWith("image/");
+          const isVideo = file.type.startsWith("video/");
+          const isPdf = file.type === "application/pdf";
+          const fileType = isImage
             ? "image"
-            : file.type.startsWith("video/")
+            : isVideo
               ? "video"
-              : file.type === "application/pdf"
+              : isPdf
                 ? "pdf"
                 : "other";
 
-          await createAsset({
-            projectId: projectId,
-            portfolioId: portfolioId, // Pass portfolioId for portfolio items
-            deliveryId: deliveryId, // Pass deliveryId for delivery items
-            uploadType: uploadType, // Pass uploadType to separate portfolio, project, and delivery uploads
-            filename: file.name,
-            storageKey: storageId,
-            type: fileType,
-            size: file.size,
-            email: adminEmail || undefined,
-          });
+          // For images, use centralized upload utility with compression and media library
+          if (isImage) {
+            // Determine display location type based on uploadType
+            let displayLocationType: "portfolio" | "project" | "delivery" | undefined;
+            let entityId: string | undefined;
+            let entityName: string | undefined;
 
-          successCount++;
+            if (uploadType === "portfolio" && portfolioId) {
+              displayLocationType = "portfolio";
+              entityId = portfolioId;
+            } else if (uploadType === "project" && projectId) {
+              displayLocationType = "project";
+              entityId = projectId;
+            } else if (uploadType === "delivery" && deliveryId) {
+              displayLocationType = "delivery";
+              entityId = deliveryId;
+            }
+
+            // Upload image with compression and media library integration
+            const uploadResult = await uploadImageToMediaLibrary({
+              file,
+              sessionToken: sessionToken || undefined,
+              displayLocation: displayLocationType
+                ? {
+                    type: displayLocationType,
+                    entityId: entityId || "",
+                    entityName: entityName,
+                  }
+                : undefined,
+              generateUploadUrl,
+              checkDuplicateMutation,
+              getMedia: async (args) => {
+                // Search media list for duplicate
+                const media = allMedia?.find((m) => m._id === args.id);
+                return media ? { storageKey: media.storageKey, width: media.width, height: media.height, size: media.size } : null;
+              },
+              addDisplayLocation,
+              createMedia,
+            });
+
+            if (uploadResult.isDuplicate) {
+              duplicateCount++;
+              toast({
+                title: "Duplicate detected",
+                description: `${file.name} already exists in the media library`,
+                variant: "default",
+              });
+              // Still create asset record even if duplicate in media library
+              // This allows the asset to be linked to the project/portfolio/delivery
+              // We need to get the storage key from the duplicate media library entry
+              // For now, we'll search the media list for the duplicate
+              const duplicateMedia = allMedia?.find((m) => m._id === uploadResult.duplicateId);
+              if (duplicateMedia) {
+                await createAsset({
+                  projectId: projectId,
+                  portfolioId: portfolioId,
+                  deliveryId: deliveryId,
+                  uploadType: uploadType,
+                  filename: file.name,
+                  storageKey: duplicateMedia.storageKey,
+                  type: fileType,
+                  size: duplicateMedia.size || uploadResult.compressedSize,
+                  width: duplicateMedia.width || uploadResult.width,
+                  height: duplicateMedia.height || uploadResult.height,
+                  email: adminEmail || undefined,
+                });
+                successCount++;
+                continue;
+              }
+            }
+
+            // Create asset record in database
+            await createAsset({
+              projectId: projectId,
+              portfolioId: portfolioId,
+              deliveryId: deliveryId,
+              uploadType: uploadType,
+              filename: file.name,
+              storageKey: uploadResult.storageKey,
+              type: fileType,
+              size: uploadResult.compressedSize,
+              width: uploadResult.width,
+              height: uploadResult.height,
+              email: adminEmail || undefined,
+            });
+
+            successCount++;
+          } else {
+            // For non-images (videos, PDFs), upload directly without compression
+            const uploadUrl = await generateUploadUrl();
+            const result = await fetch(uploadUrl, {
+              method: "POST",
+              headers: { "Content-Type": file.type },
+              body: file,
+            });
+
+            if (!result.ok) {
+              throw new Error(`Failed to upload ${file.name}`);
+            }
+
+            const { storageId } = await result.json();
+
+            // Create asset record in database
+            await createAsset({
+              projectId: projectId,
+              portfolioId: portfolioId,
+              deliveryId: deliveryId,
+              uploadType: uploadType,
+              filename: file.name,
+              storageKey: storageId,
+              type: fileType,
+              size: file.size,
+              email: adminEmail || undefined,
+            });
+
+            successCount++;
+          }
         } catch (error) {
           console.error(`Error uploading ${file.name}:`, error);
           errorCount++;
         }
       }
 
+      const message = `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`;
+      const extraMessages = [];
+      if (duplicateCount > 0) extraMessages.push(`${duplicateCount} duplicate${duplicateCount > 1 ? 's' : ''} detected (still added to assets)`);
+      if (errorCount > 0) extraMessages.push(`${errorCount} failed`);
+
       if (successCount > 0) {
         toast({
           title: "Upload successful",
-          description: `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
+          description: [message, ...extraMessages].join(", "),
         });
         setSelectedFiles([]);
         if (onUploadComplete) onUploadComplete();

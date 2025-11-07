@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { uploadImageToMediaLibrary } from "@/lib/upload-utils";
 import { HeroCarouselImage } from "@/components/hero-carousel-image";
 import { PortraitsGalleryImage } from "@/components/portraits-gallery-image";
 import { X, ChevronUp, ChevronDown, Upload, Eye } from "lucide-react";
@@ -21,7 +22,7 @@ import { useParams } from "next/navigation";
 
 export default function LandingPageEditorPage() {
   const params = useParams();
-  const { adminEmail } = useAdminAuth();
+  const { adminEmail, sessionToken } = useAdminAuth();
   const landingPageId = params.id as string;
   
   // Landing page content
@@ -49,6 +50,19 @@ export default function LandingPageEditorPage() {
   const updateLandingPage = useMutation(api.landingPages.update);
   
   const generateUploadUrl = useMutation(api.storageMutations.generateUploadUrl);
+  const checkDuplicateMutation = useMutation(api.mediaLibrary.checkDuplicateMutation);
+  const createMedia = useMutation(api.mediaLibrary.create);
+  const addDisplayLocation = useMutation(api.mediaLibrary.addDisplayLocation);
+  
+  // Media library queries
+  const galleryMedia = useQuery(api.mediaLibrary.list, {
+    type: "image",
+    includeAssets: false,
+  });
+  const heroMedia = useQuery(api.mediaLibrary.list, {
+    type: "image",
+    includeAssets: false,
+  });
   
   const { toast } = useToast();
   
@@ -82,33 +96,55 @@ export default function LandingPageEditorPage() {
   const handleHeroImageUpload = async (file: File) => {
     try {
       setUploading(true);
-      const uploadUrl = await generateUploadUrl();
-      const result = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      
-      if (!result.ok) {
-        throw new Error("Failed to upload image");
-      }
-      
-      const { storageId } = await result.json();
       
       if (!landingPage) {
         throw new Error("Landing page not found");
       }
       
+      // Upload image with compression and media library integration
+      const uploadResult = await uploadImageToMediaLibrary({
+        file,
+        sessionToken: sessionToken || undefined,
+        displayLocation: {
+          type: "hero_carousel",
+          entityId: landingPage._id,
+          entityName: landingPage.title || "Landing Page Hero Carousel",
+          subType: "landing_page",
+        },
+        generateUploadUrl,
+        checkDuplicateMutation,
+        getMedia: async (args) => {
+          // Search media list for duplicate
+          const media = heroMedia?.find((m) => m._id === args.id);
+          return media ? { storageKey: media.storageKey, width: media.width, height: media.height, size: media.size } : null;
+        },
+        addDisplayLocation,
+        createMedia,
+      });
+      
+      // Handle duplicate case - get storage key from media list if needed
+      let storageKey = uploadResult.storageKey;
+      if (uploadResult.isDuplicate && !storageKey) {
+        const duplicateMedia = heroMedia?.find((m) => m._id === uploadResult.duplicateId);
+        if (duplicateMedia) {
+          storageKey = duplicateMedia.storageKey;
+        }
+      }
+      
       await addHeroImage({
         landingPageId: landingPage._id,
-        imageStorageId: storageId,
+        imageStorageId: storageKey,
         alt: file.name,
+        width: uploadResult.width,
+        height: uploadResult.height,
         email: adminEmail || undefined,
       });
       
       toast({
         title: "Image uploaded",
-        description: "Hero carousel image added successfully.",
+        description: uploadResult.isDuplicate
+          ? "Hero carousel image added successfully (duplicate detected, using existing media library entry)."
+          : "Hero carousel image added successfully.",
       });
     } catch (error: any) {
       toast({
@@ -164,54 +200,55 @@ export default function LandingPageEditorPage() {
   const handleGalleryImageUpload = async (file: File) => {
     try {
       setUploadingGallery(true);
-      const uploadUrl = await generateUploadUrl();
-      const result = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      
-      if (!result.ok) {
-        throw new Error("Failed to upload image");
-      }
-      
-      const { storageId } = await result.json();
-      
-      // Get image dimensions if it's an image
-      let width: number | undefined;
-      let height: number | undefined;
-      
-      if (file.type.startsWith("image/")) {
-        const img = new Image();
-        const objectUrl = URL.createObjectURL(file);
-        await new Promise((resolve, reject) => {
-          img.onload = () => {
-            width = img.naturalWidth;
-            height = img.naturalHeight;
-            URL.revokeObjectURL(objectUrl);
-            resolve(null);
-          };
-          img.onerror = reject;
-          img.src = objectUrl;
-        });
-      }
       
       if (!landingPage) {
         throw new Error("Landing page not found");
       }
       
+      // Upload image with compression and media library integration
+      const uploadResult = await uploadImageToMediaLibrary({
+        file,
+        sessionToken: sessionToken || undefined,
+        displayLocation: {
+          type: "gallery",
+          entityId: landingPage._id,
+          entityName: landingPage.title || "Landing Page Gallery",
+          subType: "landing_page",
+        },
+        generateUploadUrl,
+        checkDuplicateMutation,
+        getMedia: async (args) => {
+          // Search media list for duplicate
+          const media = galleryMedia?.find((m) => m._id === args.id);
+          return media ? { storageKey: media.storageKey, width: media.width, height: media.height, size: media.size } : null;
+        },
+        addDisplayLocation,
+        createMedia,
+      });
+      
+      // Handle duplicate case - get storage key from media list if needed
+      let storageKey = uploadResult.storageKey;
+      if (uploadResult.isDuplicate && !storageKey) {
+        const duplicateMedia = galleryMedia?.find((m) => m._id === uploadResult.duplicateId);
+        if (duplicateMedia) {
+          storageKey = duplicateMedia.storageKey;
+        }
+      }
+      
       await addGalleryImage({
         landingPageId: landingPage._id,
-        imageStorageId: storageId,
+        imageStorageId: storageKey,
         alt: file.name,
-        width,
-        height,
+        width: uploadResult.width,
+        height: uploadResult.height,
         email: adminEmail || undefined,
       });
       
       toast({
         title: "Image uploaded",
-        description: "Gallery image added successfully.",
+        description: uploadResult.isDuplicate
+          ? "Gallery image added successfully (duplicate detected, using existing media library entry)."
+          : "Gallery image added successfully.",
       });
     } catch (error: any) {
       toast({

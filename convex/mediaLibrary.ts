@@ -272,7 +272,11 @@ export const create = mutation({
         v.literal("project"),
         v.literal("delivery"),
         v.literal("pitch_deck"),
-        v.literal("quote_builder")
+        v.literal("quote_builder"),
+        v.literal("gallery"),
+        v.literal("hero_carousel"),
+        v.literal("about"),
+        v.literal("cover")
       ),
       entityId: v.string(),
       entityName: v.optional(v.string()),
@@ -337,7 +341,11 @@ export const update = mutation({
         v.literal("project"),
         v.literal("delivery"),
         v.literal("pitch_deck"),
-        v.literal("quote_builder")
+        v.literal("quote_builder"),
+        v.literal("gallery"),
+        v.literal("hero_carousel"),
+        v.literal("about"),
+        v.literal("cover")
       ),
       entityId: v.string(),
       entityName: v.optional(v.string()),
@@ -483,7 +491,11 @@ export const addDisplayLocation = mutation({
       v.literal("project"),
       v.literal("delivery"),
       v.literal("pitch_deck"),
-      v.literal("quote_builder")
+      v.literal("quote_builder"),
+      v.literal("gallery"),
+      v.literal("hero_carousel"),
+      v.literal("about"),
+      v.literal("cover")
     ),
     entityId: v.string(),
     entityName: v.optional(v.string()),
@@ -532,7 +544,11 @@ export const removeDisplayLocation = mutation({
       v.literal("project"),
       v.literal("delivery"),
       v.literal("pitch_deck"),
-      v.literal("quote_builder")
+      v.literal("quote_builder"),
+      v.literal("gallery"),
+      v.literal("hero_carousel"),
+      v.literal("about"),
+      v.literal("cover")
     ),
     entityId: v.string(),
   },

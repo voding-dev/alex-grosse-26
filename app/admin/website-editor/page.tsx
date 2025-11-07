@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { uploadImageToMediaLibrary } from "@/lib/upload-utils";
 import { useMutation as useConvexMutation } from "convex/react";
 import { HeroCarouselImage } from "@/components/hero-carousel-image";
 import { X, ChevronUp, ChevronDown, Upload, Plus, Eye, Briefcase, Trash2, Image as ImageIcon, Search, Check, Loader2 } from "lucide-react";
@@ -28,7 +29,7 @@ import {
 } from "@/components/ui/select";
 
 export default function WebsiteEditorPage() {
-  const { adminEmail } = useAdminAuth();
+  const { adminEmail, sessionToken } = useAdminAuth();
   const router = useRouter();
   
   // Hero Carousel
@@ -37,6 +38,9 @@ export default function WebsiteEditorPage() {
   const removeImage = useMutation(api.heroCarousel.remove);
   const reorderImages = useMutation(api.heroCarousel.reorder);
   const generateUploadUrl = useMutation(api.storageMutations.generateUploadUrl);
+  const checkDuplicateMutation = useMutation(api.mediaLibrary.checkDuplicateMutation);
+  const createMedia = useMutation(api.mediaLibrary.create);
+  const addDisplayLocation = useMutation(api.mediaLibrary.addDisplayLocation);
   
   // Homepage Contact
   const homepage = useQuery(api.homepage.get);
@@ -278,28 +282,48 @@ export default function WebsiteEditorPage() {
   const handleHeroImageUpload = async (file: File) => {
     try {
       setUploading(true);
-      const uploadUrl = await generateUploadUrl();
-      const result = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
+      
+      // Upload image with compression and media library integration
+      const uploadResult = await uploadImageToMediaLibrary({
+        file,
+        sessionToken: sessionToken || undefined,
+        displayLocation: {
+          type: "hero_carousel",
+          entityId: "website",
+          entityName: "Website Hero Carousel",
+          subType: "website",
+        },
+        generateUploadUrl,
+        checkDuplicateMutation,
+        getMedia: async (args) => {
+          // Search media list for duplicate
+          const media = heroMedia?.find((m) => m._id === args.id);
+          return media ? { storageKey: media.storageKey, width: media.width, height: media.height, size: media.size } : null;
+        },
+        addDisplayLocation,
+        createMedia,
       });
       
-      if (!result.ok) {
-        throw new Error("Failed to upload image");
+      // Handle duplicate case - get storage key from media list if needed
+      let storageKey = uploadResult.storageKey;
+      if (uploadResult.isDuplicate && !storageKey) {
+        const duplicateMedia = heroMedia?.find((m) => m._id === uploadResult.duplicateId);
+        if (duplicateMedia) {
+          storageKey = duplicateMedia.storageKey;
+        }
       }
       
-      const { storageId } = await result.json();
-      
       await addImage({
-        imageStorageId: storageId,
+        imageStorageId: storageKey,
         alt: file.name,
         email: adminEmail || undefined,
       });
       
       toast({
         title: "Image uploaded",
-        description: "Hero carousel image added successfully.",
+        description: uploadResult.isDuplicate
+          ? "Hero carousel image added successfully (duplicate detected, using existing media library entry)."
+          : "Hero carousel image added successfully.",
       });
     } catch (error: any) {
       toast({
@@ -517,29 +541,47 @@ export default function WebsiteEditorPage() {
 
   const handleAboutImageUpload = async (file: File) => {
     try {
-      const uploadUrl = await generateAboutUploadUrl();
-      const result = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
+      // Upload image with compression and media library integration
+      const uploadResult = await uploadImageToMediaLibrary({
+        file,
+        sessionToken: sessionToken || undefined,
+        displayLocation: {
+          type: "about",
+          entityId: "about",
+          entityName: "About Section",
+        },
+        generateUploadUrl: generateAboutUploadUrl,
+        checkDuplicateMutation,
+        getMedia: async (args) => {
+          // Search media list for duplicate
+          const media = aboutMedia?.find((m) => m._id === args.id);
+          return media ? { storageKey: media.storageKey, width: media.width, height: media.height, size: media.size } : null;
+        },
+        addDisplayLocation,
+        createMedia,
       });
       
-      if (!result.ok) {
-        throw new Error("Failed to upload image");
+      // Handle duplicate case - get storage key from media list if needed
+      let storageKey = uploadResult.storageKey;
+      if (uploadResult.isDuplicate && !storageKey) {
+        const duplicateMedia = aboutMedia?.find((m) => m._id === uploadResult.duplicateId);
+        if (duplicateMedia) {
+          storageKey = duplicateMedia.storageKey;
+        }
       }
       
-      const { storageId } = await result.json();
-      
-      setAboutFormData({ ...aboutFormData, imageStorageId: storageId });
+      setAboutFormData({ ...aboutFormData, imageStorageId: storageKey });
       
       await updateAbout({
-        imageStorageId: storageId,
+        imageStorageId: storageKey,
         email: adminEmail || undefined,
       });
       
       toast({
         title: "Image uploaded",
-        description: "About image updated successfully.",
+        description: uploadResult.isDuplicate
+          ? "About image updated successfully (duplicate detected, using existing media library entry)."
+          : "About image updated successfully.",
       });
     } catch (error: any) {
       toast({
