@@ -65,8 +65,9 @@ export function CustomTimePicker({
     const minutesContainer = minutesRef.current;
 
     // Prevent page scrolling when hovering over the popover (but allow column scrolling)
-    const preventPageScroll = (e: WheelEvent) => {
-      const target = e.target as HTMLElement;
+    const preventPageScroll = (e: Event) => {
+      const wheelEvent = e as WheelEvent;
+      const target = wheelEvent.target as HTMLElement;
       
       // Check if we're inside a scrollable column - if so, allow native scrolling
       if (hoursContainer?.contains(target) || minutesContainer?.contains(target)) {
@@ -77,8 +78,8 @@ export function CustomTimePicker({
       // If we're not in a scrollable column, prevent page scroll
       const popoverContent = document.querySelector('[data-radix-popper-content-wrapper]');
       if (popoverContent && popoverContent.contains(target)) {
-        e.preventDefault();
-        e.stopPropagation();
+        wheelEvent.preventDefault();
+        wheelEvent.stopPropagation();
       }
     };
 
@@ -103,8 +104,9 @@ export function CustomTimePicker({
     const minutesContainer = minutesRef.current;
 
     // Prevent page scroll on touch when over popover (but allow column scrolling)
-    const preventPageTouchScroll = (e: TouchEvent) => {
-      const target = e.target as HTMLElement;
+    const preventPageTouchScroll = (e: Event) => {
+      const touchEvent = e as TouchEvent;
+      const target = touchEvent.target as HTMLElement;
       
       // Check if we're inside a scrollable column - if so, allow native scrolling
       if (hoursContainer?.contains(target) || minutesContainer?.contains(target)) {
@@ -115,7 +117,7 @@ export function CustomTimePicker({
       // If we're not in a scrollable column, prevent page scroll
       const popoverContent = document.querySelector('[data-radix-popper-content-wrapper]');
       if (popoverContent && popoverContent.contains(target)) {
-        e.preventDefault();
+        touchEvent.preventDefault();
       }
     };
 
