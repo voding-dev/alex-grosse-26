@@ -178,76 +178,84 @@ export function BookingModal({ open, onOpenChange, bookingToken }: BookingModalP
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+          {/* Fixed Header */}
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-foreground/10 flex-shrink-0">
             <DialogTitle className="text-2xl sm:text-3xl font-black uppercase tracking-tight" style={{ fontWeight: '900' }}>
               {request?.title || "Book a Session"}
             </DialogTitle>
             {request?.description && (
-              <DialogDescription className="text-base leading-relaxed">
+              <DialogDescription className="text-base leading-relaxed mt-2">
                 {request.description}
               </DialogDescription>
             )}
           </DialogHeader>
 
-          {/* Success Confirmation */}
-          {bookedSlotId && slots && (() => {
-            const bookedSlot = slots.find(s => s._id === bookedSlotId);
-            return bookedSlot ? (
-              <div className="rounded-lg border-2 border-accent bg-accent/15 p-6 flex items-start gap-4">
-                <CheckCircle2 className="h-6 w-6 flex-shrink-0 mt-0.5 text-accent" />
-                <div className="flex-1 space-y-3">
-                  <div className="text-lg sm:text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
-                    Booking Confirmed!
-                  </div>
-                  <div className="text-base sm:text-lg font-medium">
-                    {formatRange(bookedSlot.start, bookedSlot.end)}
-                  </div>
-                  <div className="text-sm sm:text-base opacity-90 leading-relaxed">
-                    Your time slot has been reserved. You should receive a confirmation email shortly.
-                  </div>
-                </div>
-              </div>
-            ) : null;
-          })()}
+          {/* Scrollable Content Area */}
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
 
-          {/* Available Times Section */}
-          {!bookedSlotId && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="text-xl sm:text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
-                  Available Times
-                </div>
-                {maxSelections > 1 && (
-                  <div className="text-sm sm:text-base opacity-80">
-                    You can select up to <strong>{maxSelections}</strong> slot{maxSelections !== 1 ? 's' : ''}. 
-                    {canBookMore ? (
-                      <> You have <strong>{maxSelections - bookedSlotsCount}</strong> selection{maxSelections - bookedSlotsCount !== 1 ? 's' : ''} remaining.</>
-                    ) : (
-                      <> You have reached the maximum number of selections.</>
-                    )}
+            {/* Success Confirmation */}
+            {bookedSlotId && slots && (() => {
+              const bookedSlot = slots.find(s => s._id === bookedSlotId);
+              return bookedSlot ? (
+                <div className="rounded-xl border-2 border-accent/50 bg-gradient-to-br from-accent/20 to-accent/10 p-6 sm:p-8 flex items-start gap-4 shadow-lg">
+                  <div className="flex-shrink-0">
+                    <div className="rounded-full bg-accent p-3">
+                      <CheckCircle2 className="h-6 w-6 text-black" />
+                    </div>
                   </div>
-                )}
-              </div>
+                  <div className="flex-1 space-y-3">
+                    <div className="text-xl sm:text-2xl font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                      Booking Confirmed!
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-foreground/90">
+                      {formatRange(bookedSlot.start, bookedSlot.end)}
+                    </div>
+                    <div className="text-sm sm:text-base text-foreground/70 leading-relaxed">
+                      Your time slot has been reserved. You should receive a confirmation email shortly.
+                    </div>
+                  </div>
+                </div>
+              ) : null;
+            })()}
+
+            {/* Available Times Section */}
+            {!bookedSlotId && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2">
+                  <div className="text-xl sm:text-2xl font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                    Available Times
+                  </div>
+                  {maxSelections > 1 && (
+                    <div className="text-xs sm:text-sm text-foreground/70 bg-foreground/5 px-3 py-1.5 rounded-full border border-foreground/10">
+                      You can select up to <strong className="font-bold">{maxSelections}</strong> slot{maxSelections !== 1 ? 's' : ''}. 
+                      {canBookMore ? (
+                        <> <strong className="font-bold">{maxSelections - bookedSlotsCount}</strong> remaining.</>
+                      ) : (
+                        <> Maximum reached.</>
+                      )}
+                    </div>
+                  )}
+                </div>
               
               {slots?.length ? (
                 <div className="space-y-6">
                   {sortedDateGroups.map(([dateKey, dateSlots]) => {
                     const dateObj = new Date(dateSlots[0].start);
                     return (
-                      <div key={dateKey} className="space-y-4">
+                      <div key={dateKey} className="space-y-4 pb-6 border-b border-foreground/5 last:border-b-0">
                         {/* Date Header */}
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="text-2xl sm:text-3xl font-black uppercase tracking-tight" style={{ fontWeight: '900' }}>
+                        <div className="flex items-center gap-3 mb-4 pb-2 border-b border-foreground/10">
+                          <div className="text-xl sm:text-2xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
                             {formatDateShort(dateObj.getTime())}
                           </div>
-                          <div className="text-base sm:text-lg font-bold uppercase tracking-wider opacity-60">
+                          <div className="text-sm sm:text-base font-bold uppercase tracking-wider text-foreground/50">
                             {formatWeekday(dateObj.getTime())}
                           </div>
                         </div>
                         
                         {/* Time Slots Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {dateSlots.map((s) => {
                             const isBooking = bookingSlotId === s._id;
                             const isBookedByMe = s.bookedByInviteId === invite?._id;
@@ -256,41 +264,50 @@ export function BookingModal({ open, onOpenChange, bookingToken }: BookingModalP
                             return (
                               <div key={s._id}>
                                 {/* Time Slot Card */}
-                                <div 
-                                  className={`relative rounded-lg border-2 p-4 transition-all cursor-pointer ${
+                                <button
+                                  type="button"
+                                  disabled={!canSelectThis}
+                                  className={`relative w-full rounded-xl border-2 p-4 sm:p-5 transition-all text-left ${
                                     isBookedByMe 
-                                      ? 'border-accent shadow-lg scale-105' 
+                                      ? 'border-accent bg-accent/10 shadow-md scale-[1.02] cursor-default' 
                                       : isBooked 
-                                        ? 'border-foreground/30 opacity-60 cursor-not-allowed' 
+                                        ? 'border-foreground/20 bg-foreground/5 opacity-50 cursor-not-allowed' 
                                         : canSelectThis 
-                                          ? 'hover:shadow-lg hover:scale-105 hover:border-accent/60' 
-                                          : 'opacity-60 cursor-not-allowed'
+                                          ? 'border-foreground/20 bg-background hover:border-accent/60 hover:bg-accent/5 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] cursor-pointer' 
+                                          : 'border-foreground/20 bg-foreground/5 opacity-50 cursor-not-allowed'
                                   }`}
                                   onClick={() => canSelectThis && handleSelectClick(s)}
                                 >
                                   {isBookedByMe && (
-                                    <div className="absolute -top-2 -right-2">
-                                      <div className="rounded-full bg-accent p-1">
-                                        <CheckCircle2 className="h-4 w-4 text-black" />
+                                    <div className="absolute -top-2 -right-2 z-10">
+                                      <div className="rounded-full bg-accent p-1.5 shadow-md">
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-black" />
                                       </div>
                                     </div>
                                   )}
                                   <div className="space-y-2">
-                                    <div className="text-lg sm:text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                                    <div className={`text-base sm:text-lg font-black uppercase tracking-wider ${
+                                      isBookedByMe ? 'text-accent' : isBooked ? 'text-foreground/50' : 'text-foreground'
+                                    }`} style={{ fontWeight: '900' }}>
                                       {formatTime(s.start, s.end)}
                                     </div>
                                     {isBookedByMe && (
-                                      <div className="text-xs font-bold uppercase tracking-wider opacity-80 text-accent">
+                                      <div className="text-xs font-bold uppercase tracking-wider text-accent">
                                         Booked by You
                                       </div>
                                     )}
                                     {!isBooked && canSelectThis && (
-                                      <div className="text-xs font-bold uppercase tracking-wider opacity-60">
-                                        Click to book
+                                      <div className="text-xs font-bold uppercase tracking-wider text-foreground/50">
+                                        Available
+                                      </div>
+                                    )}
+                                    {isBooked && !isBookedByMe && (
+                                      <div className="text-xs font-bold uppercase tracking-wider text-foreground/40">
+                                        Unavailable
                                       </div>
                                     )}
                                   </div>
-                                </div>
+                                </button>
                               </div>
                             );
                           })}
@@ -300,101 +317,124 @@ export function BookingModal({ open, onOpenChange, bookingToken }: BookingModalP
                   })}
                 </div>
               ) : (
-                <div className="rounded-lg border-2 border-accent/40 bg-accent/8 p-8 text-center">
-                  <div className="text-base sm:text-lg opacity-80">
-                    No available times. Please contact the organizer at {request?.organizerEmail || 'the provided email'}.
+                <div className="rounded-xl border-2 border-foreground/20 bg-foreground/5 p-8 sm:p-12 text-center">
+                  <Clock className="h-12 w-12 mx-auto mb-4 text-foreground/40" />
+                  <div className="text-base sm:text-lg text-foreground/70 font-medium">
+                    No available times. Please contact the organizer at{' '}
+                    <a href={`mailto:${request?.organizerEmail}`} className="text-accent hover:underline font-bold">
+                      {request?.organizerEmail || 'the provided email'}
+                    </a>.
                   </div>
                 </div>
               )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
 
-          {/* Booking Information Modal */}
+          {/* Fixed Footer */}
+          <div className="px-6 py-4 border-t border-foreground/10 flex-shrink-0">
+            <Button 
+              onClick={() => onOpenChange(false)} 
+              variant="outline"
+              className="w-full sm:w-auto font-bold uppercase tracking-wider h-11 px-6 rounded-lg border-foreground/20 hover:bg-foreground/5"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Booking Information Modal */}
           <Dialog open={selectedSlotForBooking !== null} onOpenChange={(open) => !open && setSelectedSlotForBooking(null)}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
+            <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+              {/* Fixed Header */}
+              <DialogHeader className="px-6 pt-6 pb-4 border-b border-foreground/10 flex-shrink-0">
                 <DialogTitle className="text-2xl sm:text-3xl font-black uppercase tracking-tight" style={{ fontWeight: '900' }}>
                   Booking Information
                 </DialogTitle>
                 {selectedSlotForBooking && (
-                  <DialogDescription className="text-base sm:text-lg opacity-90 leading-relaxed">
+                  <DialogDescription className="text-base sm:text-lg mt-2 leading-relaxed">
                     Please provide your information to complete the booking for{' '}
-                    <strong className="font-bold">{formatRange(selectedSlotForBooking.start, selectedSlotForBooking.end)}</strong>
+                    <strong className="font-bold text-foreground">{formatRange(selectedSlotForBooking.start, selectedSlotForBooking.end)}</strong>
                   </DialogDescription>
                 )}
               </DialogHeader>
 
-              <div className="space-y-6">
-                <div>
-                  <Label className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                    <User className="inline h-4 w-4 mr-2 text-accent" />
-                    Name *
-                  </Label>
-                  <Input
-                    className="h-12 text-base"
-                    value={bookingInfo.name}
-                    onChange={(e) => setBookingInfo({ ...bookingInfo, name: e.target.value })}
-                    placeholder="Your full name"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                    <Mail className="inline h-4 w-4 mr-2 text-accent" />
-                    Email *
-                  </Label>
-                  <Input
-                    type="email"
-                    className="h-12 text-base"
-                    value={bookingInfo.email}
-                    onChange={(e) => setBookingInfo({ ...bookingInfo, email: e.target.value })}
-                    placeholder="your@email.com"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                    <Phone className="inline h-4 w-4 mr-2 text-accent" />
-                    Phone
-                  </Label>
-                  <Input
-                    type="tel"
-                    className="h-12 text-base"
-                    value={bookingInfo.phone}
-                    onChange={(e) => setBookingInfo({ ...bookingInfo, phone: e.target.value })}
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
-                
-                <div>
-                  <Label className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                    <MessageSquare className="inline h-4 w-4 mr-2 text-accent" />
-                    Notes
-                  </Label>
-                  <Textarea
-                    className="text-base min-h-[120px]"
-                    value={bookingInfo.notes}
-                    onChange={(e) => setBookingInfo({ ...bookingInfo, notes: e.target.value })}
-                    placeholder="Any additional information or special requests..."
-                    rows={5}
-                  />
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto px-6 py-6">
+                <div className="space-y-6">
+                  <div>
+                    <Label className="text-sm font-black uppercase tracking-wider mb-2 block flex items-center gap-2" style={{ fontWeight: '900' }}>
+                      <User className="h-4 w-4 text-accent" />
+                      Name *
+                    </Label>
+                    <Input
+                      className="h-12 text-base border-foreground/20 focus:border-accent/50"
+                      value={bookingInfo.name}
+                      onChange={(e) => setBookingInfo({ ...bookingInfo, name: e.target.value })}
+                      placeholder="Your full name"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm font-black uppercase tracking-wider mb-2 block flex items-center gap-2" style={{ fontWeight: '900' }}>
+                      <Mail className="h-4 w-4 text-accent" />
+                      Email *
+                    </Label>
+                    <Input
+                      type="email"
+                      className="h-12 text-base border-foreground/20 focus:border-accent/50"
+                      value={bookingInfo.email}
+                      onChange={(e) => setBookingInfo({ ...bookingInfo, email: e.target.value })}
+                      placeholder="your@email.com"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm font-black uppercase tracking-wider mb-2 block flex items-center gap-2" style={{ fontWeight: '900' }}>
+                      <Phone className="h-4 w-4 text-accent" />
+                      Phone
+                    </Label>
+                    <Input
+                      type="tel"
+                      className="h-12 text-base border-foreground/20 focus:border-accent/50"
+                      value={bookingInfo.phone}
+                      onChange={(e) => setBookingInfo({ ...bookingInfo, phone: e.target.value })}
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm font-black uppercase tracking-wider mb-2 block flex items-center gap-2" style={{ fontWeight: '900' }}>
+                      <MessageSquare className="h-4 w-4 text-accent" />
+                      Notes
+                    </Label>
+                    <Textarea
+                      className="text-base min-h-[120px] border-foreground/20 focus:border-accent/50 resize-none"
+                      value={bookingInfo.notes}
+                      onChange={(e) => setBookingInfo({ ...bookingInfo, notes: e.target.value })}
+                      placeholder="Any additional information or special requests..."
+                      rows={5}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-8 pt-6 border-t">
+              {/* Fixed Footer */}
+              <DialogFooter className="px-6 py-4 border-t border-foreground/10 flex-shrink-0 flex flex-col sm:flex-row gap-3">
                 <Button
                   onClick={() => setSelectedSlotForBooking(null)}
                   variant="outline"
-                  className="flex-1 sm:flex-none font-bold uppercase tracking-wider h-12 px-6 sm:px-8 rounded-lg"
+                  className="flex-1 sm:flex-none font-bold uppercase tracking-wider h-12 px-6 sm:px-8 rounded-lg border-foreground/20 hover:bg-foreground/5"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleSubmitBooking}
-                  disabled={bookingSlotId !== null}
-                  className="flex-1 sm:flex-none font-black uppercase tracking-wider h-12 px-6 sm:px-8 rounded-lg bg-accent text-black"
+                  disabled={bookingSlotId !== null || !bookingInfo.name || !bookingInfo.email}
+                  className="flex-1 sm:flex-none font-black uppercase tracking-wider h-12 px-6 sm:px-8 rounded-lg bg-accent text-black hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   style={{ fontWeight: '900' }}
                 >
                   {bookingSlotId !== null ? (
@@ -409,14 +449,6 @@ export function BookingModal({ open, onOpenChange, bookingToken }: BookingModalP
               </DialogFooter>
             </DialogContent>
           </Dialog>
-
-          <DialogFooter>
-            <Button onClick={() => onOpenChange(false)} variant="outline">
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

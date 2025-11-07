@@ -15,6 +15,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { PagesUsingRequest } from "@/components/pages-using-token";
+import { CustomDatePicker } from "@/components/ui/custom-date-picker";
+import { CustomTimePicker } from "@/components/ui/custom-time-picker";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { format } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,13 +33,13 @@ import {
 export default function SchedulingRequestDetailPage() {
   const params = useParams<{ id: string }>();
   const requestId = params?.id as any;
-  const { adminEmail, sessionToken } = useAdminAuth();
+  const { adminEmail, sessionToken, isChecking } = useAdminAuth();
   const { toast } = useToast();
 
-  const data = useQuery(api.scheduling.getRequest, requestId ? { 
+  const data = useQuery(api.scheduling.getRequest, (!isChecking && requestId && adminEmail && sessionToken) ? { 
     id: requestId, 
-    email: adminEmail || undefined,
-    sessionToken: sessionToken || undefined
+    email: adminEmail,
+    sessionToken: sessionToken
   } : "skip");
   const createPublicInvite = useMutation(api.scheduling.createPublicInvite);
   const updateRequest = useMutation(api.scheduling.updateRequest);
@@ -47,10 +51,14 @@ export default function SchedulingRequestDetailPage() {
   const [isEditing, setIsEditing] = useState(false as any);
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [showAddSlot, setShowAddSlot] = useState(false);
-  const [editSlotStart, setEditSlotStart] = useState('');
-  const [editSlotEnd, setEditSlotEnd] = useState('');
-  const [addSlotStart, setAddSlotStart] = useState('');
-  const [addSlotEnd, setAddSlotEnd] = useState('');
+  const [editSlotStartDate, setEditSlotStartDate] = useState('');
+  const [editSlotStartTime, setEditSlotStartTime] = useState('');
+  const [editSlotEndDate, setEditSlotEndDate] = useState('');
+  const [editSlotEndTime, setEditSlotEndTime] = useState('');
+  const [addSlotStartDate, setAddSlotStartDate] = useState('');
+  const [addSlotStartTime, setAddSlotStartTime] = useState('');
+  const [addSlotEndDate, setAddSlotEndDate] = useState('');
+  const [addSlotEndTime, setAddSlotEndTime] = useState('');
   const [deleteRequestDialog, setDeleteRequestDialog] = useState(false);
   const [cancelBookingDialog, setCancelBookingDialog] = useState<{ open: boolean; slotId: Id<"schedulingSlots"> | null }>({ open: false, slotId: null });
   const [deleteSlotDialog, setDeleteSlotDialog] = useState<{ open: boolean; slotId: Id<"schedulingSlots"> | null }>({ open: false, slotId: null });
@@ -590,8 +598,12 @@ export default function SchedulingRequestDetailPage() {
                                     className="flex-1 h-8 text-xs font-bold uppercase tracking-wider hover:bg-accent/10 hover:text-accent"
                                     onClick={() => {
                                       setEditingSlotId(s._id);
-                                      setEditSlotStart(new Date(s.start).toISOString().slice(0, 16));
-                                      setEditSlotEnd(new Date(s.end).toISOString().slice(0, 16));
+                                      const startDate = new Date(s.start);
+                                      const endDate = new Date(s.end);
+                                      setEditSlotStartDate(format(startDate, "yyyy-MM-dd"));
+                                      setEditSlotStartTime(format(startDate, "HH:mm"));
+                                      setEditSlotEndDate(format(endDate, "yyyy-MM-dd"));
+                                      setEditSlotEndTime(format(endDate, "HH:mm"));
                                     }}
                                     disabled={isBooked}
                                   >
@@ -629,172 +641,479 @@ export default function SchedulingRequestDetailPage() {
       </Card>
 
       {/* Edit Slot Modal */}
-      {editingSlotId && (() => {
-        const slot = slots.find((s: any) => s._id === editingSlotId);
-        if (!slot) return null;
-        
-        return (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <Card className="max-w-md w-full border-2 border-accent/30">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+      <Dialog open={editingSlotId !== null} onOpenChange={(open) => {
+        if (!open) {
+          setEditingSlotId(null);
+          setEditSlotStartDate('');
+          setEditSlotStartTime('');
+          setEditSlotEndDate('');
+          setEditSlotEndTime('');
+        }
+      }}>
+        {editingSlotId && (() => {
+          const slot = slots.find((s: any) => s._id === editingSlotId);
+          if (!slot) return null;
+          
+          return (
+            <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+              {/* Fixed Header */}
+              <DialogHeader className="px-6 pt-6 pb-4 border-b border-foreground/10 flex-shrink-0">
+                <DialogTitle className="text-2xl sm:text-3xl font-black uppercase tracking-tight" style={{ fontWeight: '900' }}>
                   Edit Time Slot
-                </CardTitle>
-                <CardDescription>Update the start and end time for this slot</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-sm font-black uppercase tracking-wider mb-2 block" style={{ fontWeight: '900' }}>
-                    Start Time *
-                  </Label>
-                  <Input
-                    type="datetime-local"
-                    value={editSlotStart}
-                    onChange={(e) => setEditSlotStart(e.target.value)}
-                    className="h-12 text-base"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label className="text-sm font-black uppercase tracking-wider mb-2 block" style={{ fontWeight: '900' }}>
-                    End Time *
-                  </Label>
-                  <Input
-                    type="datetime-local"
-                    value={editSlotEnd}
-                    onChange={(e) => setEditSlotEnd(e.target.value)}
-                    className="h-12 text-base"
-                    required
-                  />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    variant="outline"
-                    className="flex-1 font-bold uppercase tracking-wider"
-                    onClick={() => {
-                      setEditingSlotId(null);
-                      setEditSlotStart('');
-                      setEditSlotEnd('');
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    className="flex-1 font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
-                    style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
-                    onClick={async () => {
-                      try {
-                        const startMs = new Date(editSlotStart).getTime();
-                        const endMs = new Date(editSlotEnd).getTime();
-                        if (endMs <= startMs) {
-                          toast({ title: 'Error', description: 'End time must be after start time', variant: 'destructive' });
-                          return;
-                        }
-                        await updateSlot({
-                          id: slot._id,
-                          start: startMs,
-                          end: endMs,
-                          email: adminEmail || undefined,
-                        });
-                        setEditingSlotId(null);
-                        setEditSlotStart('');
-                        setEditSlotEnd('');
-                        toast({ title: 'Updated', description: 'Time slot updated successfully' });
-                      } catch (e: any) {
-                        toast({ title: 'Error', description: e.message || 'Failed to update slot', variant: 'destructive' });
-                      }
-                    }}
-                  >
-                    Save Changes
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        );
-      })()}
+                </DialogTitle>
+                <DialogDescription className="text-base mt-2 leading-relaxed">
+                  Update the start and end time for this slot. Changes will affect future bookings.
+                </DialogDescription>
+              </DialogHeader>
 
-      {/* Add Slot Modal */}
-      {showAddSlot && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="max-w-md w-full border-2 border-accent/30">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
-                Add New Time Slot
-              </CardTitle>
-              <CardDescription>Create a new available time slot for this request</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label className="text-sm font-black uppercase tracking-wider mb-2 block" style={{ fontWeight: '900' }}>
-                  Start Time *
-                </Label>
-                <Input
-                  type="datetime-local"
-                  value={addSlotStart}
-                  onChange={(e) => setAddSlotStart(e.target.value)}
-                  className="h-12 text-base"
-                  required
-                />
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto px-6 py-6">
+                <div className="space-y-6">
+                  {/* Start Time Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 pb-2 border-b border-foreground/10">
+                      <Clock className="h-5 w-5 text-accent" />
+                      <Label className="text-lg font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                        Start Time *
+                      </Label>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
+                          Date *
+                        </Label>
+                        <CustomDatePicker
+                          value={editSlotStartDate}
+                          onChange={(date) => {
+                            setEditSlotStartDate(date);
+                            // Auto-set end date if not set or if start date is after end date
+                            if (!editSlotEndDate || date > editSlotEndDate) {
+                              setEditSlotEndDate(date);
+                            }
+                          }}
+                          placeholder="Select start date"
+                          min={format(new Date(), "yyyy-MM-dd")}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
+                          Time *
+                        </Label>
+                        <CustomTimePicker
+                          value={editSlotStartTime}
+                          onChange={(time) => {
+                            setEditSlotStartTime(time);
+                            // Auto-set end time if not set or if start time is after end time (on same date)
+                            if (editSlotStartDate === editSlotEndDate && (!editSlotEndTime || time >= editSlotEndTime)) {
+                              // Set end time to 1 hour after start time
+                              const [hours, minutes] = time.split(':').map(Number);
+                              const endHours = (hours + 1) % 24;
+                              const endTimeStr = `${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                              setEditSlotEndTime(endTimeStr);
+                            }
+                          }}
+                          placeholder="Select start time"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* End Time Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 pb-2 border-b border-foreground/10">
+                      <Clock className="h-5 w-5 text-accent" />
+                      <Label className="text-lg font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                        End Time *
+                      </Label>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
+                          Date *
+                        </Label>
+                        <CustomDatePicker
+                          value={editSlotEndDate}
+                          onChange={(date) => setEditSlotEndDate(date)}
+                          placeholder="Select end date"
+                          min={editSlotStartDate || format(new Date(), "yyyy-MM-dd")}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
+                          Time *
+                        </Label>
+                        <CustomTimePicker
+                          value={editSlotEndTime}
+                          onChange={(time) => setEditSlotEndTime(time)}
+                          placeholder="Select end time"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Duration Preview */}
+                  {(editSlotStartDate && editSlotStartTime && editSlotEndDate && editSlotEndTime) && (() => {
+                    try {
+                      const startDateTime = new Date(`${editSlotStartDate}T${editSlotStartTime}`);
+                      const endDateTime = new Date(`${editSlotEndDate}T${editSlotEndTime}`);
+                      const durationMs = endDateTime.getTime() - startDateTime.getTime();
+                      const durationMinutes = Math.round(durationMs / (1000 * 60));
+                      const durationHours = Math.floor(durationMinutes / 60);
+                      const remainingMinutes = durationMinutes % 60;
+                      
+                      if (durationMs <= 0) {
+                        return (
+                          <div className="rounded-lg border-2 border-red-500/50 bg-red-500/10 p-4">
+                            <div className="text-sm font-bold uppercase tracking-wider text-red-500">
+                              ⚠️ End time must be after start time
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <div className="rounded-lg border-2 border-accent/30 bg-accent/5 p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Calendar className="h-4 w-4 text-accent" />
+                            <span className="text-sm font-bold uppercase tracking-wider text-foreground/70">
+                              Slot Duration
+                            </span>
+                          </div>
+                          <div className="text-lg font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                            {durationHours > 0 ? `${durationHours} hour${durationHours !== 1 ? 's' : ''}` : ''}
+                            {durationHours > 0 && remainingMinutes > 0 ? ' ' : ''}
+                            {remainingMinutes > 0 ? `${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}` : ''}
+                            {durationMinutes === 0 ? '0 minutes' : ''}
+                          </div>
+                          <div className="text-xs text-foreground/60 mt-1">
+                            {format(startDateTime, "MMM dd, yyyy 'at' h:mm a")} → {format(endDateTime, "MMM dd, yyyy 'at' h:mm a")}
+                          </div>
+                        </div>
+                      );
+                    } catch (e) {
+                      return null;
+                    }
+                  })()}
+                </div>
               </div>
-              <div>
-                <Label className="text-sm font-black uppercase tracking-wider mb-2 block" style={{ fontWeight: '900' }}>
-                  End Time *
-                </Label>
-                <Input
-                  type="datetime-local"
-                  value={addSlotEnd}
-                  onChange={(e) => setAddSlotEnd(e.target.value)}
-                  className="h-12 text-base"
-                  required
-                />
-              </div>
-              <div className="flex gap-3 pt-4">
+
+              {/* Fixed Footer */}
+              <DialogFooter className="px-6 py-4 border-t border-foreground/10 flex-shrink-0 flex flex-col sm:flex-row gap-3">
                 <Button
                   variant="outline"
-                  className="flex-1 font-bold uppercase tracking-wider"
                   onClick={() => {
-                    setShowAddSlot(false);
-                    setAddSlotStart('');
-                    setAddSlotEnd('');
+                    setEditingSlotId(null);
+                    setEditSlotStartDate('');
+                    setEditSlotStartTime('');
+                    setEditSlotEndDate('');
+                    setEditSlotEndTime('');
                   }}
+                  className="flex-1 sm:flex-none font-bold uppercase tracking-wider h-12 px-6 sm:px-8 rounded-lg border-foreground/20 hover:bg-foreground/5"
                 >
                   Cancel
                 </Button>
                 <Button
-                  className="flex-1 font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
-                  style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
                   onClick={async () => {
-                    if (!requestId || !addSlotStart || !addSlotEnd) return;
+                    if (!editSlotStartDate || !editSlotStartTime || !editSlotEndDate || !editSlotEndTime) {
+                      toast({ 
+                        title: 'Missing information', 
+                        description: 'Please fill in all date and time fields', 
+                        variant: 'destructive' 
+                      });
+                      return;
+                    }
                     try {
-                      const startMs = new Date(addSlotStart).getTime();
-                      const endMs = new Date(addSlotEnd).getTime();
-                      if (endMs <= startMs) {
-                        toast({ title: 'Error', description: 'End time must be after start time', variant: 'destructive' });
+                      const startDateTime = new Date(`${editSlotStartDate}T${editSlotStartTime}`);
+                      const endDateTime = new Date(`${editSlotEndDate}T${editSlotEndTime}`);
+                      const startMs = startDateTime.getTime();
+                      const endMs = endDateTime.getTime();
+                      
+                      if (isNaN(startMs) || isNaN(endMs)) {
+                        toast({ 
+                          title: 'Invalid date/time', 
+                          description: 'Please select valid dates and times', 
+                          variant: 'destructive' 
+                        });
                         return;
                       }
-                      await createSlot({
-                        requestId,
+                      
+                      if (endMs <= startMs) {
+                        toast({ 
+                          title: 'Invalid time range', 
+                          description: 'End time must be after start time', 
+                          variant: 'destructive' 
+                        });
+                        return;
+                      }
+                      
+                      await updateSlot({
+                        id: slot._id,
                         start: startMs,
                         end: endMs,
                         email: adminEmail || undefined,
                       });
-                      setShowAddSlot(false);
-                      setAddSlotStart('');
-                      setAddSlotEnd('');
-                      toast({ title: 'Created', description: 'Time slot added successfully' });
+                      setEditingSlotId(null);
+                      setEditSlotStartDate('');
+                      setEditSlotStartTime('');
+                      setEditSlotEndDate('');
+                      setEditSlotEndTime('');
+                      toast({ 
+                        title: 'Success', 
+                        description: 'Time slot updated successfully' 
+                      });
                     } catch (e: any) {
-                      toast({ title: 'Error', description: e.message || 'Failed to create slot', variant: 'destructive' });
+                      toast({ 
+                        title: 'Error', 
+                        description: e.message || 'Failed to update slot', 
+                        variant: 'destructive' 
+                      });
                     }
                   }}
+                  disabled={!editSlotStartDate || !editSlotStartTime || !editSlotEndDate || !editSlotEndTime}
+                  className="flex-1 sm:flex-none font-black uppercase tracking-wider h-12 px-6 sm:px-8 rounded-lg bg-accent text-black hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  style={{ fontWeight: '900' }}
                 >
-                  Create Slot
+                  Save Changes
                 </Button>
+              </DialogFooter>
+            </DialogContent>
+          );
+        })()}
+      </Dialog>
+
+      {/* Add Slot Modal */}
+      <Dialog open={showAddSlot} onOpenChange={(open) => {
+        setShowAddSlot(open);
+        if (!open) {
+          setAddSlotStartDate('');
+          setAddSlotStartTime('');
+          setAddSlotEndDate('');
+          setAddSlotEndTime('');
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+          {/* Fixed Header */}
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-foreground/10 flex-shrink-0">
+            <DialogTitle className="text-2xl sm:text-3xl font-black uppercase tracking-tight" style={{ fontWeight: '900' }}>
+              Add New Time Slot
+            </DialogTitle>
+            <DialogDescription className="text-base mt-2 leading-relaxed">
+              Create a new available time slot for this request. Select the date and time for when the slot starts and ends.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <div className="space-y-6">
+              {/* Start Time Section */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-foreground/10">
+                  <Clock className="h-5 w-5 text-accent" />
+                  <Label className="text-lg font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                    Start Time *
+                  </Label>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
+                      Date *
+                    </Label>
+                    <CustomDatePicker
+                      value={addSlotStartDate}
+                      onChange={(date) => {
+                        setAddSlotStartDate(date);
+                        // Auto-set end date if not set or if start date is after end date
+                        if (!addSlotEndDate || date > addSlotEndDate) {
+                          setAddSlotEndDate(date);
+                        }
+                      }}
+                      placeholder="Select start date"
+                      min={format(new Date(), "yyyy-MM-dd")}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
+                      Time *
+                    </Label>
+                    <CustomTimePicker
+                      value={addSlotStartTime}
+                      onChange={(time) => {
+                        setAddSlotStartTime(time);
+                        // Auto-set end time if not set or if start time is after end time (on same date)
+                        if (addSlotStartDate === addSlotEndDate && (!addSlotEndTime || time >= addSlotEndTime)) {
+                          // Set end time to 1 hour after start time
+                          const [hours, minutes] = time.split(':').map(Number);
+                          const endHours = (hours + 1) % 24;
+                          const endTimeStr = `${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                          setAddSlotEndTime(endTimeStr);
+                        }
+                      }}
+                      placeholder="Select start time"
+                    />
+                  </div>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+
+              {/* End Time Section */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-foreground/10">
+                  <Clock className="h-5 w-5 text-accent" />
+                  <Label className="text-lg font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                    End Time *
+                  </Label>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
+                      Date *
+                    </Label>
+                    <CustomDatePicker
+                      value={addSlotEndDate}
+                      onChange={(date) => setAddSlotEndDate(date)}
+                      placeholder="Select end date"
+                      min={addSlotStartDate || format(new Date(), "yyyy-MM-dd")}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
+                      Time *
+                    </Label>
+                    <CustomTimePicker
+                      value={addSlotEndTime}
+                      onChange={(time) => setAddSlotEndTime(time)}
+                      placeholder="Select end time"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Duration Preview */}
+              {(addSlotStartDate && addSlotStartTime && addSlotEndDate && addSlotEndTime) && (() => {
+                try {
+                  const startDateTime = new Date(`${addSlotStartDate}T${addSlotStartTime}`);
+                  const endDateTime = new Date(`${addSlotEndDate}T${addSlotEndTime}`);
+                  const durationMs = endDateTime.getTime() - startDateTime.getTime();
+                  const durationMinutes = Math.round(durationMs / (1000 * 60));
+                  const durationHours = Math.floor(durationMinutes / 60);
+                  const remainingMinutes = durationMinutes % 60;
+                  
+                  if (durationMs <= 0) {
+                    return (
+                      <div className="rounded-lg border-2 border-red-500/50 bg-red-500/10 p-4">
+                        <div className="text-sm font-bold uppercase tracking-wider text-red-500">
+                          ⚠️ End time must be after start time
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="rounded-lg border-2 border-accent/30 bg-accent/5 p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Calendar className="h-4 w-4 text-accent" />
+                        <span className="text-sm font-bold uppercase tracking-wider text-foreground/70">
+                          Slot Duration
+                        </span>
+                      </div>
+                      <div className="text-lg font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                        {durationHours > 0 ? `${durationHours} hour${durationHours !== 1 ? 's' : ''}` : ''}
+                        {durationHours > 0 && remainingMinutes > 0 ? ' ' : ''}
+                        {remainingMinutes > 0 ? `${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}` : ''}
+                        {durationMinutes === 0 ? '0 minutes' : ''}
+                      </div>
+                      <div className="text-xs text-foreground/60 mt-1">
+                        {format(startDateTime, "MMM dd, yyyy 'at' h:mm a")} → {format(endDateTime, "MMM dd, yyyy 'at' h:mm a")}
+                      </div>
+                    </div>
+                  );
+                } catch (e) {
+                  return null;
+                }
+              })()}
+            </div>
+          </div>
+
+          {/* Fixed Footer */}
+          <DialogFooter className="px-6 py-4 border-t border-foreground/10 flex-shrink-0 flex flex-col sm:flex-row gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddSlot(false);
+                setAddSlotStartDate('');
+                setAddSlotStartTime('');
+                setAddSlotEndDate('');
+                setAddSlotEndTime('');
+              }}
+              className="flex-1 sm:flex-none font-bold uppercase tracking-wider h-12 px-6 sm:px-8 rounded-lg border-foreground/20 hover:bg-foreground/5"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!requestId || !addSlotStartDate || !addSlotStartTime || !addSlotEndDate || !addSlotEndTime) {
+                  toast({ 
+                    title: 'Missing information', 
+                    description: 'Please fill in all date and time fields', 
+                    variant: 'destructive' 
+                  });
+                  return;
+                }
+                try {
+                  const startDateTime = new Date(`${addSlotStartDate}T${addSlotStartTime}`);
+                  const endDateTime = new Date(`${addSlotEndDate}T${addSlotEndTime}`);
+                  const startMs = startDateTime.getTime();
+                  const endMs = endDateTime.getTime();
+                  
+                  if (isNaN(startMs) || isNaN(endMs)) {
+                    toast({ 
+                      title: 'Invalid date/time', 
+                      description: 'Please select valid dates and times', 
+                      variant: 'destructive' 
+                    });
+                    return;
+                  }
+                  
+                  if (endMs <= startMs) {
+                    toast({ 
+                      title: 'Invalid time range', 
+                      description: 'End time must be after start time', 
+                      variant: 'destructive' 
+                    });
+                    return;
+                  }
+                  
+                  await createSlot({
+                    requestId,
+                    start: startMs,
+                    end: endMs,
+                    email: adminEmail || undefined,
+                  });
+                  setShowAddSlot(false);
+                  setAddSlotStartDate('');
+                  setAddSlotStartTime('');
+                  setAddSlotEndDate('');
+                  setAddSlotEndTime('');
+                  toast({ 
+                    title: 'Success', 
+                    description: 'Time slot added successfully' 
+                  });
+                } catch (e: any) {
+                  toast({ 
+                    title: 'Error', 
+                    description: e.message || 'Failed to create slot', 
+                    variant: 'destructive' 
+                  });
+                }
+              }}
+              disabled={!addSlotStartDate || !addSlotStartTime || !addSlotEndDate || !addSlotEndTime}
+              className="flex-1 sm:flex-none font-black uppercase tracking-wider h-12 px-6 sm:px-8 rounded-lg bg-accent text-black hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              style={{ fontWeight: '900' }}
+            >
+              Create Slot
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Request Dialog */}
       <AlertDialog open={deleteRequestDialog} onOpenChange={setDeleteRequestDialog}>

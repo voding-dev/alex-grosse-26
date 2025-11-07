@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 interface CustomDatePickerProps {
@@ -25,23 +26,12 @@ export function CustomDatePicker({
 }: CustomDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(value ? new Date(value + "T00:00:00") : new Date());
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+    if (value) {
+      setCurrentMonth(new Date(value + "T00:00:00"));
     }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen]);
+  }, [value]);
 
   const selectedDate = value ? new Date(value + "T00:00:00") : null;
   const minDate = min ? new Date(min + "T00:00:00") : null;
@@ -86,22 +76,21 @@ export function CustomDatePicker({
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
-    <div ref={containerRef} className={cn("relative", className)}>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "w-full h-12 text-base justify-start text-left font-normal",
-          !value && "text-muted-foreground"
-        )}
-      >
-        <Calendar className="mr-2 h-4 w-4" />
-        {value ? format(new Date(value + "T00:00:00"), "MMM dd, yyyy") : placeholder}
-      </Button>
-
-      {isOpen && (
-        <div className="absolute z-50 mt-2 w-auto bg-background border border-foreground/20 rounded-lg shadow-lg p-4">
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className={cn(
+            "w-full h-12 text-base justify-start text-left font-normal border-foreground/20 hover:border-accent/50 focus:border-accent/50",
+            !value && "text-muted-foreground"
+          )}
+        >
+          <Calendar className="mr-2 h-4 w-4" />
+          {value ? format(new Date(value + "T00:00:00"), "MMM dd, yyyy") : placeholder}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-4" align="start" sideOffset={8}>
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <Button
@@ -193,9 +182,8 @@ export function CustomDatePicker({
               Today
             </Button>
           </div>
-        </div>
-      )}
-    </div>
+        </PopoverContent>
+    </Popover>
   );
 }
 
