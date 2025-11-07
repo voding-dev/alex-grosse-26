@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import Image from "next/image";
+import Link from "next/link";
 
 function formatRange(startMs: number, endMs: number) {
   const start = new Date(startMs);
@@ -132,19 +134,59 @@ export default function BookingInvitePage() {
 
   if (inviteData === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 py-12 bg-background">
-        <div className="mx-auto max-w-2xl w-full">
-          <Card className="border border-foreground/20">
-            <CardContent className="p-8 sm:p-12 text-center">
-              <div className="text-lg font-black uppercase tracking-wider mb-4" style={{ fontWeight: '900' }}>
-                Invalid or Expired Invite
-              </div>
-              <p className="text-sm text-foreground/70">
-                This booking link is no longer valid. Please contact the organizer for a new invitation.
-              </p>
-            </CardContent>
-          </Card>
+      <div className="min-h-screen flex flex-col bg-background">
+        {/* Subtle Branding Header */}
+        <header className="sticky top-0 z-40 border-b border-foreground/10 bg-background/80 backdrop-blur-xl supports-backdrop-filter:bg-background/60">
+          <div className="mx-auto max-w-7xl px-6 py-4">
+            <div className="flex items-center justify-center">
+              <Link href="/" className="flex flex-col items-center gap-2 group transition-opacity hover:opacity-80">
+                <Image
+                  src="/ic-wordmark-white.svg"
+                  alt="COURTRIGHT"
+                  width={200}
+                  height={50}
+                  className="h-8 w-auto object-contain opacity-60 group-hover:opacity-80 transition-opacity"
+                />
+                <span className="text-xs font-black uppercase tracking-wider text-foreground/60 group-hover:text-foreground/80 transition-colors" style={{ fontWeight: '900' }}>
+                  Scheduling Portal
+                </span>
+              </Link>
+            </div>
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12">
+          <div className="mx-auto max-w-2xl w-full">
+            <Card className="border border-foreground/20">
+              <CardContent className="p-8 sm:p-12 text-center">
+                <div className="text-lg font-black uppercase tracking-wider mb-4" style={{ fontWeight: '900' }}>
+                  Invalid or Expired Invite
+                </div>
+                <p className="text-sm text-foreground/70">
+                  This booking link is no longer valid. Please contact the organizer for a new invitation.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
+        {/* Subtle Branding Footer */}
+        <footer className="border-t border-foreground/10 py-8">
+          <div className="mx-auto max-w-7xl px-6">
+            <div className="flex flex-col items-center justify-center gap-3">
+              <Link href="/" className="flex items-center gap-2 group transition-opacity hover:opacity-80">
+                <Image
+                  src="/ic-brandmark-white.svg"
+                  alt="Ian Courtright"
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 object-contain opacity-40 group-hover:opacity-60 transition-opacity"
+                />
+              </Link>
+              <p className="text-xs text-foreground/40 font-medium">
+                Secure scheduling portal by Ian Courtright
+              </p>
+            </div>
+          </div>
+        </footer>
       </div>
     );
   }
@@ -164,42 +206,117 @@ export default function BookingInvitePage() {
   // Loading state
   if (inviteData === undefined || slots === undefined) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 py-12" style={{ backgroundColor: brand.primary }}>
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto" style={{ color: brand.accent }} />
-          <div className="text-sm sm:text-base opacity-80" style={{ color: brand.text }}>
-            Loading booking information...
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: brand.primary }}>
+        {/* Subtle Branding Header */}
+        <header className="sticky top-0 z-40 border-b" style={{ borderColor: hexToRgba(brand.text, 0.1), backgroundColor: hexToRgba(brand.primary, 0.8), backdropFilter: 'blur(12px)' }}>
+          <div className="mx-auto max-w-7xl px-6 py-4">
+            <div className="flex items-center justify-center">
+              <Link href="/" className="flex flex-col items-center gap-2 group transition-opacity hover:opacity-80">
+                {brand.logoUrl ? (
+                  <Image
+                    src={brand.logoUrl}
+                    alt={brand.name}
+                    width={200}
+                    height={50}
+                    className="h-8 w-auto object-contain opacity-60 group-hover:opacity-80 transition-opacity"
+                  />
+                ) : (
+                  <Image
+                    src="/ic-wordmark-white.svg"
+                    alt="COURTRIGHT"
+                    width={200}
+                    height={50}
+                    className="h-8 w-auto object-contain opacity-60 group-hover:opacity-80 transition-opacity"
+                  />
+                )}
+                <span className="text-xs font-black uppercase tracking-wider transition-colors" style={{ fontWeight: '900', color: hexToRgba(brand.text, 0.6) }}>
+                  Scheduling Portal
+                </span>
+              </Link>
+            </div>
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto" style={{ color: brand.accent }} />
+            <div className="text-sm sm:text-base opacity-80" style={{ color: brand.text }}>
+              Loading booking information...
+            </div>
           </div>
         </div>
+        {/* Subtle Branding Footer */}
+        <footer className="border-t py-8" style={{ borderColor: hexToRgba(brand.text, 0.1) }}>
+          <div className="mx-auto max-w-7xl px-6">
+            <div className="flex flex-col items-center justify-center gap-3">
+              <Link href="/" className="flex items-center gap-2 group transition-opacity hover:opacity-80">
+                <Image
+                  src="/ic-brandmark-white.svg"
+                  alt="Ian Courtright"
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 object-contain opacity-40 group-hover:opacity-60 transition-opacity"
+                />
+              </Link>
+              <p className="text-xs font-medium" style={{ color: hexToRgba(brand.text, 0.4) }}>
+                Secure scheduling portal by Ian Courtright
+              </p>
+            </div>
+          </div>
+        </footer>
       </div>
     );
   }
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen flex flex-col"
       style={{ backgroundColor: brand.primary, color: brand.text }}
     >
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 sm:py-16 space-y-8 sm:space-y-12">
-        {/* Header Section */}
-        <div className="space-y-6 sm:space-y-8">
-          {brand.logoUrl && (
-            <div className="flex items-center justify-center sm:justify-start pb-2">
-              <img src={brand.logoUrl} alt="brand" className="h-8 sm:h-10 w-auto opacity-90" />
-            </div>
-          )}
-          
-          <div className="space-y-4 sm:space-y-6">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight text-center sm:text-left leading-tight" style={{ fontWeight: '900', letterSpacing: '-0.02em', color: brand.text }}>
-              {request?.title || "Booking"}
-            </h1>
-            {request?.description && (
-              <div className="text-base sm:text-lg leading-relaxed opacity-90 max-w-2xl text-center sm:text-left" style={{ whiteSpace: 'pre-line', color: brand.text }}>
-                {request.description}
-              </div>
-            )}
+      {/* Subtle Branding Header */}
+      <header className="sticky top-0 z-40 border-b" style={{ borderColor: hexToRgba(brand.text, 0.1), backgroundColor: hexToRgba(brand.primary, 0.8), backdropFilter: 'blur(12px)' }}>
+        <div className="mx-auto max-w-7xl px-6 py-4">
+          <div className="flex items-center justify-center">
+            <Link href="/" className="flex flex-col items-center gap-2 group transition-opacity hover:opacity-80">
+              {brand.logoUrl ? (
+                <Image
+                  src={brand.logoUrl}
+                  alt={brand.name}
+                  width={200}
+                  height={50}
+                  className="h-8 w-auto object-contain opacity-60 group-hover:opacity-80 transition-opacity"
+                />
+              ) : (
+                <Image
+                  src="/ic-wordmark-white.svg"
+                  alt="COURTRIGHT"
+                  width={200}
+                  height={50}
+                  className="h-8 w-auto object-contain opacity-60 group-hover:opacity-80 transition-opacity"
+                />
+              )}
+              <span className="text-xs font-black uppercase tracking-wider transition-colors" style={{ fontWeight: '900', color: hexToRgba(brand.text, 0.6) }}>
+                Scheduling Portal
+              </span>
+            </Link>
           </div>
         </div>
+      </header>
+
+      <div className="flex-1">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 sm:py-16 space-y-8 sm:space-y-12">
+          {/* Header Section */}
+          <div className="space-y-6 sm:space-y-8">
+            <div className="space-y-4 sm:space-y-6">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight text-center sm:text-left leading-tight" style={{ fontWeight: '900', letterSpacing: '-0.02em', color: brand.text }}>
+                {request?.title || "Booking"}
+              </h1>
+              {request?.description && (
+                <div className="text-base sm:text-lg leading-relaxed opacity-90 max-w-2xl text-center sm:text-left" style={{ whiteSpace: 'pre-line', color: brand.text }}>
+                  {request.description}
+                </div>
+              )}
+            </div>
+          </div>
 
         {/* Already Booked Message */}
         {bookedSlotsCount > 0 && maxSelections === 1 && (
@@ -406,6 +523,7 @@ export default function BookingInvitePage() {
             </div>
           )}
         </div>
+        </div>
       </div>
 
       {/* Booking Information Modal */}
@@ -555,6 +673,26 @@ export default function BookingInvitePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Subtle Branding Footer */}
+      <footer className="border-t py-8 mt-16" style={{ borderColor: hexToRgba(brand.text, 0.1) }}>
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="flex flex-col items-center justify-center gap-3">
+            <Link href="/" className="flex items-center gap-2 group transition-opacity hover:opacity-80">
+              <Image
+                src="/ic-brandmark-white.svg"
+                alt="Ian Courtright"
+                width={24}
+                height={24}
+                className="h-6 w-6 object-contain opacity-40 group-hover:opacity-60 transition-opacity"
+              />
+            </Link>
+            <p className="text-xs font-medium" style={{ color: hexToRgba(brand.text, 0.4) }}>
+              Secure scheduling portal by Ian Courtright
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

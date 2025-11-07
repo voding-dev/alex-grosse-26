@@ -19,157 +19,200 @@ export const list = query({
     )), // Filter by display location
   },
   handler: async (ctx, args) => {
-    let media = await ctx.db.query("mediaLibrary").order("desc").collect();
+    try {
+      console.log("[mediaLibrary.list] Query started");
+      let media = await ctx.db.query("mediaLibrary").order("desc").collect();
+      console.log(`[mediaLibrary.list] Found ${media.length} media items in mediaLibrary table`);
 
-    // Create a Set of storageKeys that already exist in media library
-    // This prevents duplicates when including assets
-    const existingStorageKeys = new Set(media.map((m) => m.storageKey));
+      // Create a Set of storageKeys that already exist in media library
+      // This prevents duplicates when including assets
+      const existingStorageKeys = new Set(media.map((m) => m.storageKey));
 
-    // If includeAssets is true, also fetch assets from assets table
-    if (args.includeAssets) {
-      const assets = await ctx.db
-        .query("assets")
-        .filter((q) => 
-          q.or(
-            q.eq(q.field("type"), "image"),
-            q.eq(q.field("type"), "video")
-          )
-        )
-        .order("desc")
-        .collect();
+      // If includeAssets is true, also fetch assets from assets table
+      if (args.includeAssets) {
+        try {
+          console.log("[mediaLibrary.list] Fetching assets...");
+          const assets = await ctx.db
+            .query("assets")
+            .filter((q) => 
+              q.or(
+                q.eq(q.field("type"), "image"),
+                q.eq(q.field("type"), "video")
+              )
+            )
+            .order("desc")
+            .collect();
+          console.log(`[mediaLibrary.list] Found ${assets.length} assets`);
 
-      // Convert assets to media library format
-      // Only include assets whose storageKey doesn't already exist in media library
-      const assetMedia = await Promise.all(
-        assets
-          .filter((asset) => {
-            // Filter out assets with invalid storage keys (seed data, etc.)
-            const storageKey = asset.storageKey;
-            if (!storageKey || 
-                storageKey.startsWith("seed-") || 
-                storageKey.startsWith("mock-") ||
-                storageKey.includes("seed-storage") ||
-                storageKey.length === 0) {
-              return false;
-            }
-            // Skip assets whose storageKey already exists in media library
-            // This prevents duplicates - the media library entry is the source of truth
-            if (existingStorageKeys.has(storageKey)) {
-              return false;
-            }
-            return true;
-          })
-          .map(async (asset) => {
-            // Build display locations with entity names
-            const displayLocations = [];
-            
-            if (asset.projectId) {
-              const project = await ctx.db.get(asset.projectId);
-              displayLocations.push({
-                type: "project" as const,
-                entityId: asset.projectId,
-                entityName: project?.title,
-              });
-            }
-            if (asset.portfolioId) {
-              const portfolio = await ctx.db.get(asset.portfolioId);
-              displayLocations.push({
-                type: "portfolio" as const,
-                entityId: asset.portfolioId,
-                entityName: portfolio?.title,
-              });
-            }
-            if (asset.deliveryId) {
-              const delivery = await ctx.db.get(asset.deliveryId);
-              displayLocations.push({
-                type: "delivery" as const,
-                entityId: asset.deliveryId,
-                entityName: delivery?.title,
-              });
-            }
+          // Convert assets to media library format
+          // Only include assets whose storageKey doesn't already exist in media library
+          const assetMedia = await Promise.all(
+            assets
+              .filter((asset) => {
+                // Filter out assets with invalid storage keys (seed data, etc.)
+                const storageKey = asset.storageKey;
+                if (!storageKey || 
+                    storageKey.startsWith("seed-") || 
+                    storageKey.startsWith("mock-") ||
+                    storageKey.includes("seed-storage") ||
+                    storageKey.length === 0) {
+                  return false;
+                }
+                // Skip assets whose storageKey already exists in media library
+                // This prevents duplicates - the media library entry is the source of truth
+                if (existingStorageKeys.has(storageKey)) {
+                  return false;
+                }
+                return true;
+              })
+              .map(async (asset) => {
+                try {
+                  // Build display locations with entity names
+                  const displayLocations = [];
+                  
+                  if (asset.projectId) {
+                    try {
+                      const project = await ctx.db.get(asset.projectId);
+                      if (project) {
+                        displayLocations.push({
+                          type: "project" as const,
+                          entityId: asset.projectId,
+                          entityName: project.title,
+                        });
+                      }
+                    } catch (error) {
+                      console.warn(`Failed to get project ${asset.projectId}:`, error);
+                    }
+                  }
+                  if (asset.portfolioId) {
+                    try {
+                      const portfolio = await ctx.db.get(asset.portfolioId);
+                      if (portfolio) {
+                        displayLocations.push({
+                          type: "portfolio" as const,
+                          entityId: asset.portfolioId,
+                          entityName: portfolio.title,
+                        });
+                      }
+                    } catch (error) {
+                      console.warn(`Failed to get portfolio ${asset.portfolioId}:`, error);
+                    }
+                  }
+                  if (asset.deliveryId) {
+                    try {
+                      const delivery = await ctx.db.get(asset.deliveryId);
+                      if (delivery) {
+                        displayLocations.push({
+                          type: "delivery" as const,
+                          entityId: asset.deliveryId,
+                          entityName: delivery.title,
+                        });
+                      }
+                    } catch (error) {
+                      console.warn(`Failed to get delivery ${asset.deliveryId}:`, error);
+                    }
+                  }
 
-            return {
-              _id: `asset_${asset._id}` as any, // Prefix to distinguish from media library IDs
-              _creationTime: asset._creationTime,
-              filename: asset.filename,
-              storageKey: asset.storageKey,
-              type: asset.type === "image" ? "image" as const : "video" as const,
-              width: asset.width,
-              height: asset.height,
-              duration: asset.duration,
-              size: asset.size,
-              canonicalUrl: undefined,
-              tags: [],
-              folder: undefined,
-              alt: undefined,
-              description: undefined,
-              sourceAssetId: asset._id,
-              sourceType: "asset" as const,
-              displayLocations,
-              createdAt: asset._creationTime,
-              updatedAt: asset._creationTime,
-            };
-          })
-      );
+                  return {
+                    _id: `asset_${asset._id}` as any, // Prefix to distinguish from media library IDs
+                    _creationTime: asset._creationTime,
+                    filename: asset.filename,
+                    storageKey: asset.storageKey,
+                    type: asset.type === "image" ? "image" as const : "video" as const,
+                    width: asset.width,
+                    height: asset.height,
+                    duration: asset.duration,
+                    size: asset.size,
+                    canonicalUrl: undefined,
+                    tags: [],
+                    folder: undefined,
+                    alt: undefined,
+                    description: undefined,
+                    sourceAssetId: asset._id,
+                    sourceType: "asset" as const,
+                    displayLocations,
+                    createdAt: asset._creationTime,
+                    updatedAt: asset._creationTime,
+                  };
+                } catch (error) {
+                  console.error(`Error processing asset ${asset._id}:`, error);
+                  // Return null for failed assets, filter them out later
+                  return null;
+                }
+              })
+          );
 
-      media = [...media, ...assetMedia];
-    }
-
-    // Filter by type
-    if (args.type) {
-      media = media.filter((m) => m.type === args.type);
-    }
-
-    // Filter by folder
-    if (args.folder) {
-      if (args.folder === "__not_in_folder__") {
-        // Filter for items not in a folder (folder is undefined or empty)
-        media = media.filter((m) => !m.folder || m.folder.trim() === "");
-      } else {
-        media = media.filter((m) => m.folder === args.folder);
+          // Filter out any null results from failed asset processing
+          const validAssetMedia = assetMedia.filter((item) => item !== null);
+          media = [...media, ...validAssetMedia];
+        } catch (error) {
+          console.error("Error fetching assets:", error);
+          // Continue with just media library items if assets fetch fails
+        }
       }
-    }
 
-    // Filter by tags (any matching tag)
-    if (args.tags && args.tags.length > 0) {
-      const hasNotTagged = args.tags.includes("__not_tagged__");
-      const otherTags = args.tags.filter((tag) => tag !== "__not_tagged__");
-      
-      if (hasNotTagged && otherTags.length > 0) {
-        // If both "not tagged" and other tags are selected, show items that are either not tagged OR have one of the other tags
-        media = media.filter((m) => 
-          m.tags.length === 0 || otherTags.some((tag) => m.tags.includes(tag))
-        );
-      } else if (hasNotTagged) {
-        // Filter for items with no tags
-        media = media.filter((m) => m.tags.length === 0);
-      } else {
-        // Filter for items with any of the selected tags
+      // Filter by type
+      if (args.type) {
+        media = media.filter((m) => m.type === args.type);
+      }
+
+      // Filter by folder
+      if (args.folder) {
+        if (args.folder === "__not_in_folder__") {
+          // Filter for items not in a folder (folder is undefined or empty)
+          media = media.filter((m) => !m.folder || m.folder.trim() === "");
+        } else {
+          media = media.filter((m) => m.folder === args.folder);
+        }
+      }
+
+      // Filter by tags (any matching tag)
+      if (args.tags && args.tags.length > 0) {
+        const hasNotTagged = args.tags.includes("__not_tagged__");
+        const otherTags = args.tags.filter((tag) => tag !== "__not_tagged__");
+        
+        if (hasNotTagged && otherTags.length > 0) {
+          // If both "not tagged" and other tags are selected, show items that are either not tagged OR have one of the other tags
+          media = media.filter((m) => 
+            m.tags.length === 0 || otherTags.some((tag) => m.tags.includes(tag))
+          );
+        } else if (hasNotTagged) {
+          // Filter for items with no tags
+          media = media.filter((m) => m.tags.length === 0);
+        } else {
+          // Filter for items with any of the selected tags
+          media = media.filter((m) =>
+            otherTags.some((tag) => m.tags.includes(tag))
+          );
+        }
+      }
+
+      // Filter by display location type
+      if (args.displayLocationType) {
         media = media.filter((m) =>
-          otherTags.some((tag) => m.tags.includes(tag))
+          m.displayLocations.some((loc) => loc.type === args.displayLocationType)
         );
       }
-    }
 
-    // Filter by display location type
-    if (args.displayLocationType) {
-      media = media.filter((m) =>
-        m.displayLocations.some((loc) => loc.type === args.displayLocationType)
-      );
-    }
+      // Search in filename, description, alt
+      if (args.search) {
+        const searchLower = args.search.toLowerCase();
+        media = media.filter(
+          (m) =>
+            m.filename.toLowerCase().includes(searchLower) ||
+            (m.description && m.description.toLowerCase().includes(searchLower)) ||
+            (m.alt && m.alt.toLowerCase().includes(searchLower))
+        );
+      }
 
-    // Search in filename, description, alt
-    if (args.search) {
-      const searchLower = args.search.toLowerCase();
-      media = media.filter(
-        (m) =>
-          m.filename.toLowerCase().includes(searchLower) ||
-          (m.description && m.description.toLowerCase().includes(searchLower)) ||
-          (m.alt && m.alt.toLowerCase().includes(searchLower))
-      );
+      console.log(`[mediaLibrary.list] Returning ${media.length} total media items`);
+      return media;
+    } catch (error) {
+      console.error("[mediaLibrary.list] Error in query:", error);
+      console.error("[mediaLibrary.list] Error stack:", error instanceof Error ? error.stack : "No stack trace");
+      // Return empty array on error instead of hanging
+      return [];
     }
-
-    return media;
   },
 });
 

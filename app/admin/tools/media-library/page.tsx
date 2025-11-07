@@ -123,6 +123,17 @@ export default function MediaLibraryPage() {
     search: searchQuery || undefined,
     includeAssets: includeAssets,
   });
+
+  // Debug: Log query state
+  useEffect(() => {
+    if (media === undefined) {
+      console.log("[Media Library] Query is loading...");
+    } else if (Array.isArray(media)) {
+      console.log(`[Media Library] Query completed with ${media.length} items`);
+    } else {
+      console.log("[Media Library] Query returned unexpected value:", media);
+    }
+  }, [media]);
   const folders = useQuery(api.mediaLibrary.getFolders);
   const tags = useQuery(api.mediaLibrary.getTags);
   
@@ -160,6 +171,10 @@ export default function MediaLibraryPage() {
         (f) => f.type.startsWith("image/") || f.type.startsWith("video/")
       );
       setSelectedFiles((prev) => [...prev, ...filesArray]);
+      // Reset input value to allow re-selection of the same file
+      if (e.target) {
+        e.target.value = "";
+      }
     }
   };
 
@@ -302,6 +317,10 @@ export default function MediaLibraryPage() {
           description: [message, ...extraMessages].join(", "),
         });
         setSelectedFiles([]);
+        // Reset file input to allow re-selection
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
       } else if (errorCount > 0) {
         toast({
           title: "Upload failed",
@@ -954,7 +973,14 @@ export default function MediaLibraryPage() {
         )}
 
         {/* Media Grid */}
-        {media && media.length > 0 ? (
+        {media === undefined ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-foreground/60" />
+              <p className="text-foreground/60">Loading media...</p>
+            </CardContent>
+          </Card>
+        ) : media && media.length > 0 ? (
           <div
             className={
               viewMode === "grid"

@@ -17,10 +17,14 @@ import { useToast } from "@/components/ui/use-toast";
 export default function SchedulingRequestDetailPage() {
   const params = useParams<{ id: string }>();
   const requestId = params?.id as any;
-  const { adminEmail } = useAdminAuth();
+  const { adminEmail, sessionToken } = useAdminAuth();
   const { toast } = useToast();
 
-  const data = useQuery(api.scheduling.getRequest, requestId ? { id: requestId, email: adminEmail || undefined } : "skip");
+  const data = useQuery(api.scheduling.getRequest, requestId ? { 
+    id: requestId, 
+    email: adminEmail || undefined,
+    sessionToken: sessionToken || undefined
+  } : "skip");
   const createPublicInvite = useMutation(api.scheduling.createPublicInvite);
   const updateRequest = useMutation(api.scheduling.updateRequest);
   const removeRequest = useMutation(api.scheduling.removeRequest);

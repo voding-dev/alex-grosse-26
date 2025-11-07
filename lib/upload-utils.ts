@@ -27,7 +27,7 @@ export interface UploadImageOptions {
   addDisplayLocation?: (args: {
     sessionToken?: string;
     id: Id<"mediaLibrary">;
-    locationType: string;
+    locationType: "portfolio" | "project" | "delivery" | "pitch_deck" | "quote_builder" | "gallery" | "hero_carousel" | "about" | "cover";
     entityId: string;
     entityName?: string;
   }) => Promise<void>;
@@ -125,6 +125,7 @@ export async function uploadImageToMediaLibrary(
     } catch (error) {
       console.warn(`Failed to compress ${file.name}, using original:`, error);
       // Fall back to original file if compression fails
+      fileToUpload = file; // Ensure we use the original file
       const img = new Image();
       const url = URL.createObjectURL(file);
       await new Promise((resolve, reject) => {

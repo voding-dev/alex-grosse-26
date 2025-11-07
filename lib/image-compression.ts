@@ -44,6 +44,8 @@ export async function compressImage(
     }
 
     const img = new Image();
+    const blobUrl = URL.createObjectURL(file);
+    
     img.onload = () => {
       try {
         let width = img.width;
@@ -72,6 +74,9 @@ export async function compressImage(
 
         canvas.toBlob(
           (blob) => {
+            // Clean up the blob URL after we're done with it
+            URL.revokeObjectURL(blobUrl);
+            
             if (!blob) {
               reject(new Error("Failed to create blob"));
               return;
@@ -95,15 +100,17 @@ export async function compressImage(
           quality
         );
       } catch (error) {
+        URL.revokeObjectURL(blobUrl);
         reject(error);
       }
     };
 
     img.onerror = () => {
+      URL.revokeObjectURL(blobUrl);
       reject(new Error("Failed to load image"));
     };
 
-    img.src = URL.createObjectURL(file);
+    img.src = blobUrl;
   });
 }
 

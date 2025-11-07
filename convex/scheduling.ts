@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "./auth";
+import { requireAdminWithSession } from "./adminAuth";
 
 function generateToken(): string {
   // Simple random token, adequate for invite links
@@ -37,15 +38,20 @@ export const listRequests = query({
 
 // Get a scheduling request with slots & invites (admin)
 export const getRequest = query({
-  args: { id: v.id("schedulingRequests"), email: v.optional(v.string()) },
+  args: { id: v.id("schedulingRequests"), email: v.optional(v.string()), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    if (args.email) {
+    // Try session-based auth first if sessionToken is provided
+    if (args.sessionToken) {
+      await requireAdminWithSession(ctx, args.sessionToken);
+    } else if (args.email) {
+      // Fallback to email-based check
       const user = await ctx.db
         .query("users")
         .withIndex("by_email", (q: any) => q.eq("email", args.email))
         .first();
       if (!user || user.role !== "admin") throw new Error("Unauthorized - admin access required");
     } else {
+      // Last resort: try Convex auth
       await requireAdmin(ctx);
     }
 

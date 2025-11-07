@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PortraitsGalleryImage } from "@/components/portraits-gallery-image";
-import { PortraitsLightbox } from "@/components/portraits-lightbox";
+import { Lightbox } from "@/components/lightbox";
 
 interface GalleryImage {
   _id: string;
@@ -84,8 +84,8 @@ export function Gallery({ galleryImages, title = "Recent Work", description }: G
 
       {/* Lightbox */}
       {lightboxOpen && galleryImages.length > 0 && (
-        <PortraitsLightbox
-          galleryImages={galleryImages}
+        <Lightbox
+          images={galleryImages}
           currentIndex={currentLightboxIndex}
           onClose={() => setLightboxOpen(false)}
           onNext={handleNext}

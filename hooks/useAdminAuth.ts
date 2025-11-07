@@ -1,24 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 export function useAdminAuth() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
-  const [isChecking, setIsChecking] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const tokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("admin_session_token");
       console.log("[useAdminAuth] Reading token from localStorage:", token ? "present" : "missing");
+      tokenRef.current = token;
       setSessionToken(token);
-      setIsChecking(false);
+      setIsInitialized(true); // Mark as initialized after first check
       
       // Listen for storage changes (e.g., when login sets the token)
       const handleStorageChange = (e: StorageEvent) => {
-        if (e.key === "admin_session_token") {
+        if (e.key === "admin_session_token" && e.newValue !== tokenRef.current) {
           console.log("[useAdminAuth] Storage changed, updating token");
+          tokenRef.current = e.newValue;
           setSessionToken(e.newValue);
         }
       };
@@ -26,20 +29,19 @@ export function useAdminAuth() {
       window.addEventListener("storage", handleStorageChange);
       
       // Also check periodically in case localStorage was set in same window
+      // Use a longer interval to avoid excessive checks
       const checkToken = () => {
         const currentToken = localStorage.getItem("admin_session_token");
-        setSessionToken((prevToken) => {
-          if (currentToken !== prevToken) {
-            console.log("[useAdminAuth] Token changed in localStorage, updating");
-            return currentToken;
-          }
-          return prevToken;
-        });
+        // Only update if token actually changed
+        if (currentToken !== tokenRef.current) {
+          console.log("[useAdminAuth] Token changed in localStorage, updating");
+          tokenRef.current = currentToken;
+          setSessionToken(currentToken);
+        }
       };
       
-      // Check immediately and then periodically
-      checkToken();
-      const interval = setInterval(checkToken, 100);
+      // Check periodically (reduced frequency)
+      const interval = setInterval(checkToken, 2000); // Check every 2 seconds
       
       return () => {
         window.removeEventListener("storage", handleStorageChange);
@@ -48,20 +50,26 @@ export function useAdminAuth() {
     }
   }, []);
 
+  // Only query if initialized and token is present
   const user = useQuery(
     api.auth.getCurrentUser,
-    sessionToken ? { sessionToken } : ("skip" as const)
+    isInitialized && sessionToken ? { sessionToken } : ("skip" as const)
   );
+
+  // isChecking is true until initialized
+  const isChecking = !isInitialized;
 
   // Only log when state actually changes, not on every render
   useEffect(() => {
-    console.log("[useAdminAuth] State:", {
-      sessionToken: sessionToken ? "present" : "missing",
-      isChecking,
-      user: user ? "found" : "null",
-      isAuthenticated: !isChecking && sessionToken !== null && user !== null,
-    });
-  }, [sessionToken, isChecking, user]);
+    if (isInitialized) {
+      console.log("[useAdminAuth] State:", {
+        sessionToken: sessionToken ? "present" : "missing",
+        isChecking,
+        user: user === undefined ? "loading" : user === null ? "null" : "found",
+        isAuthenticated: !isChecking && sessionToken !== null && user !== null,
+      });
+    }
+  }, [sessionToken, isChecking, user, isInitialized]);
 
   return {
     adminEmail: user?.email || null,
