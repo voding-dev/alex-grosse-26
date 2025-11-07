@@ -1240,9 +1240,9 @@ export default function PortraitsEditorPage() {
               Choose images from your media library to add to the hero carousel
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col min-h-0">
             {/* Filters */}
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-shrink-0">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/40" />
                 <Input
@@ -1277,7 +1277,13 @@ export default function PortraitsEditorPage() {
               </Select>
             </div>
             {/* Media Grid */}
-            <div className="flex-1 overflow-y-auto">
+            <div 
+              className="flex-1 overflow-y-auto min-h-0"
+              onWheel={(e) => {
+                // Stop propagation to prevent body scrolling when scrolling within modal
+                e.stopPropagation();
+              }}
+            >
               {heroMedia && heroMedia.length > 0 ? (
                 <div className="grid grid-cols-4 gap-4">
                   {heroMedia.filter((m) => m.type === "image").map((media) => {
@@ -1305,7 +1311,7 @@ export default function PortraitsEditorPage() {
               )}
             </div>
             {selectedHeroMediaItems.length > 0 && (
-              <div className="border-t border-foreground/10 pt-4">
+              <div className="border-t border-foreground/10 pt-4 flex-shrink-0">
                 <p className="text-sm text-foreground/60 mb-2">
                   {selectedHeroMediaItems.length} item{selectedHeroMediaItems.length !== 1 ? 's' : ''} selected
                 </p>
@@ -1353,9 +1359,9 @@ export default function PortraitsEditorPage() {
               Choose images from your media library to add to the gallery
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col min-h-0">
             {/* Filters */}
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-shrink-0">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/40" />
                 <Input
@@ -1390,7 +1396,13 @@ export default function PortraitsEditorPage() {
               </Select>
             </div>
             {/* Media Grid */}
-            <div className="flex-1 overflow-y-auto">
+            <div 
+              className="flex-1 overflow-y-auto min-h-0"
+              onWheel={(e) => {
+                // Stop propagation to prevent body scrolling when scrolling within modal
+                e.stopPropagation();
+              }}
+            >
               {galleryMedia && galleryMedia.length > 0 ? (
                 <div className="grid grid-cols-4 gap-4">
                   {galleryMedia.filter((m) => m.type === "image").map((media) => {
@@ -1418,7 +1430,7 @@ export default function PortraitsEditorPage() {
               )}
             </div>
             {selectedGalleryMediaItems.length > 0 && (
-              <div className="border-t border-foreground/10 pt-4">
+              <div className="border-t border-foreground/10 pt-4 flex-shrink-0">
                 <p className="text-sm text-foreground/60 mb-2">
                   {selectedGalleryMediaItems.length} item{selectedGalleryMediaItems.length !== 1 ? 's' : ''} selected
                 </p>

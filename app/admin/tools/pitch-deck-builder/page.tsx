@@ -572,7 +572,7 @@ export default function PitchDeckBuilderPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-black/20 text-black hover:bg-black/5 hover:border-accent/60 transition font-medium"
+                        className="border-black/20 bg-white text-black hover:bg-black/5 hover:border-accent/60 transition font-medium"
                         onClick={() => handleOpenMediaSelector("cover")}
                       >
                         <ImageIcon className="h-3 w-3 mr-2" />
@@ -662,7 +662,7 @@ export default function PitchDeckBuilderPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="border-black/20 text-black hover:bg-black/5 hover:border-accent/60 transition font-medium"
+                      className="border-black/20 bg-white text-black hover:bg-black/5 hover:border-accent/60 transition font-medium"
                       onClick={() => handleOpenMediaSelector("imagery")}
                     >
                       <ImageIcon className="h-3 w-3 mr-2" />
@@ -757,9 +757,9 @@ export default function PitchDeckBuilderPage() {
               Choose images from your media library
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col min-h-0">
             {/* Filters */}
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-shrink-0">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/40" />
                 <Input
@@ -794,7 +794,13 @@ export default function PitchDeckBuilderPage() {
               </Select>
             </div>
             {/* Media Grid */}
-            <div className="flex-1 overflow-y-auto">
+            <div 
+              className="flex-1 overflow-y-auto min-h-0"
+              onWheel={(e) => {
+                // Stop propagation to prevent body scrolling when scrolling within modal
+                e.stopPropagation();
+              }}
+            >
               <div className="grid grid-cols-4 gap-4">
                 {allMedia?.filter((m) => m.type === "image").map((media) => (
                   <MediaSelectorItem
