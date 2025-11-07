@@ -190,14 +190,10 @@ export default function LandingPage({ params }: { params: Promise<{ slug: string
                     </p>
                   </div>
                   <div className="flex flex-col gap-3 sm:gap-4">
-                    {(landingPage.bookingToken || landingPage.calUrl) && (
+                    {landingPage.bookingToken && (
                       <button
                         onClick={() => {
-                          if (landingPage.bookingToken) {
-                            setBookingModalOpen(true);
-                          } else if (landingPage.calUrl) {
-                            window.open(landingPage.calUrl as string, "_blank");
-                          }
+                          setBookingModalOpen(true);
                         }}
                         className="w-full rounded-lg bg-cta-primary px-6 py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-md transition-all hover:scale-105 hover:bg-[#1e6a8a] hover:shadow-lg sm:px-8 sm:py-4 sm:text-base"
                       >

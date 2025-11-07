@@ -210,14 +210,10 @@ export default function DesignPage() {
                     </p>
                   </div>
                   <div className="flex flex-col gap-3 sm:gap-4">
-                    {(design?.bookingToken || design?.calUrl) && (
+                    {design?.bookingToken && (
                       <button
                         onClick={() => {
-                          if (design?.bookingToken) {
-                            setBookingModalOpen(true);
-                          } else if (design?.calUrl) {
-                            window.open(design.calUrl as string, "_blank");
-                          }
+                          setBookingModalOpen(true);
                         }}
                         className="w-full rounded-lg bg-cta-primary px-6 py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-md transition-all hover:scale-105 hover:bg-[#1e6a8a] hover:shadow-lg sm:px-8 sm:py-4 sm:text-base"
                       >
