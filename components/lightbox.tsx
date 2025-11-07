@@ -7,6 +7,7 @@ import { LightboxFooter } from "./lightbox-footer";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { getVideoEmbedUrl } from "@/lib/video-utils";
+import { useToast } from "@/components/ui/use-toast";
 
 interface LightboxProps {
   images: Array<{ id: string; src?: string; storageId?: string; videoUrl?: string; alt?: string; type: "image" | "video" | "pdf" }>;
@@ -19,6 +20,7 @@ interface LightboxProps {
 
 export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onFeedbackClick }: LightboxProps) {
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
   const currentImage = images[currentIndex];
   
   // Get URL for current image if it has storageId
@@ -29,6 +31,44 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onFeed
   
   // Use URL from storageId or fall back to src
   const imageUrl = currentImageUrl || currentImage?.src;
+
+  // Share handler
+  const handleShare = async () => {
+    const currentUrl = typeof window !== "undefined" ? window.location.href : "";
+    
+    // Try Web Share API first (mobile devices)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: currentImage?.alt || `Image ${currentIndex + 1}`,
+          text: `Check out this image: ${currentImage?.alt || `Image ${currentIndex + 1}`}`,
+          url: currentUrl,
+        });
+        return;
+      } catch (err) {
+        // User cancelled or error occurred, fall through to clipboard
+        if ((err as Error).name !== "AbortError") {
+          console.error("Error sharing:", err);
+        }
+      }
+    }
+    
+    // Fallback to clipboard
+    try {
+      await navigator.clipboard.writeText(currentUrl);
+      toast({
+        title: "Link copied",
+        description: "Share link copied to clipboard",
+      });
+    } catch (err) {
+      console.error("Failed to copy to clipboard:", err);
+      toast({
+        title: "Error",
+        description: "Failed to copy link. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Handle ESC key and arrow keys globally
   useEffect(() => {
@@ -180,6 +220,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onFeed
         onPrev={onPrev} 
         onNext={onNext}
         onFeedbackClick={onFeedbackClick && currentImage ? () => onFeedbackClick(currentImage.id) : undefined}
+        onShareClick={handleShare}
       />
     </div>
   );

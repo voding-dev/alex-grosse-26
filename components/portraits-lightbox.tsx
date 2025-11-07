@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { LightboxHeader } from "./lightbox-header";
 import { LightboxFooter } from "./lightbox-footer";
+import { useToast } from "@/components/ui/use-toast";
 
 interface PortraitsLightboxProps {
   galleryImages: Array<{
@@ -21,6 +22,7 @@ interface PortraitsLightboxProps {
 
 export function PortraitsLightbox({ galleryImages, currentIndex, onClose, onNext, onPrev }: PortraitsLightboxProps) {
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
   const currentImage = galleryImages[currentIndex];
 
   // Handle ESC key and arrow keys globally
@@ -66,6 +68,44 @@ export function PortraitsLightbox({ galleryImages, currentIndex, onClose, onNext
   );
 
   const imageSrc = currentImageUrl;
+
+  // Share handler
+  const handleShare = async () => {
+    const currentUrl = typeof window !== "undefined" ? window.location.href : "";
+    
+    // Try Web Share API first (mobile devices)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: currentImage?.alt || `Portrait ${currentIndex + 1}`,
+          text: `Check out this portrait: ${currentImage?.alt || `Portrait ${currentIndex + 1}`}`,
+          url: currentUrl,
+        });
+        return;
+      } catch (err) {
+        // User cancelled or error occurred, fall through to clipboard
+        if ((err as Error).name !== "AbortError") {
+          console.error("Error sharing:", err);
+        }
+      }
+    }
+    
+    // Fallback to clipboard
+    try {
+      await navigator.clipboard.writeText(currentUrl);
+      toast({
+        title: "Link copied",
+        description: "Share link copied to clipboard",
+      });
+    } catch (err) {
+      console.error("Failed to copy to clipboard:", err);
+      toast({
+        title: "Error",
+        description: "Failed to copy link. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div
@@ -118,7 +158,8 @@ export function PortraitsLightbox({ galleryImages, currentIndex, onClose, onNext
         currentIndex={currentIndex} 
         totalImages={galleryImages.length} 
         onPrev={onPrev} 
-        onNext={onNext} 
+        onNext={onNext}
+        onShareClick={handleShare}
       />
     </div>
   );
