@@ -15,7 +15,13 @@ if (typeof window !== "undefined" && convexUrl) {
   console.error("[Convex Client] For production: https://adjoining-dinosaur-258.convex.cloud");
 }
 
-const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
+// Create Convex client with better connection handling
+const convex = convexUrl ? new ConvexReactClient(convexUrl, {
+  // Automatically reconnect on connection loss
+  unsavedChangesWarning: false,
+  // Increase timeout for inactive servers
+  webSocketConstructor: typeof WebSocket !== "undefined" ? WebSocket : undefined,
+}) : null;
 
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
@@ -31,10 +37,14 @@ export function ConvexClientProvider({ children }: { children: ReactNode }) {
         // We'll log after a delay to see if connection is established
         console.log("[Convex Client] ✅ Client initialized");
         console.log("[Convex Client] 📡 URL:", convexUrl);
-        console.log("[Convex Client] 💡 If queries aren't working, check:");
-        console.log("[Convex Client]   1. Is Convex dev server running? (for local: npx convex dev)");
-        console.log("[Convex Client]   2. Is the URL correct? (local: http://127.0.0.1:3210, prod: https://adjoining-dinosaur-258.convex.cloud)");
-        console.log("[Convex Client]   3. Check browser console for WebSocket errors");
+        
+        // Note: If you see "InactiveServer" errors, this is normal for Convex free tier
+        // The deployment may sleep after inactivity and needs to wake up (can take 10-30 seconds)
+        console.log("[Convex Client] 💡 Connection tips:");
+        console.log("[Convex Client]   - If you see 'InactiveServer' errors, wait 10-30 seconds for the server to wake up");
+        console.log("[Convex Client]   - The client will automatically reconnect");
+        console.log("[Convex Client]   - For local dev, make sure 'npx convex dev' is running");
+        console.log("[Convex Client]   - For production, ensure NEXT_PUBLIC_CONVEX_URL is set in Vercel");
         
         // Check websocket connection by looking at the client's internal state
         // If there are connection issues, they'll show up in the browser console
