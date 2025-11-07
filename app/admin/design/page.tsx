@@ -196,6 +196,7 @@ export default function DesignEditorPage() {
       setDesignFormData({
         heroText: "",
         calUrl: "",
+        bookingToken: "",
         stripeUrl: "",
         howItWorksTitle: defaultHowItWorksTitle,
         howItWorksSteps: defaultHowItWorksSteps,

@@ -196,6 +196,7 @@ export default function PortraitsEditorPage() {
       setPortraitsFormData({
         heroText: "",
         calUrl: "",
+        bookingToken: "",
         stripeUrl: "",
         howItWorksTitle: defaultHowItWorksTitle,
         howItWorksSteps: defaultHowItWorksSteps,

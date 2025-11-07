@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ExternalLink, Copy, Pencil, Trash2, Calendar, Clock, Users, Mail, Phone, MessageSquare, Link2, CheckCircle2, User } from "lucide-react";
@@ -51,8 +52,8 @@ export default function SchedulingRequestDetailPage() {
   const [addSlotStart, setAddSlotStart] = useState('');
   const [addSlotEnd, setAddSlotEnd] = useState('');
   const [deleteRequestDialog, setDeleteRequestDialog] = useState(false);
-  const [cancelBookingDialog, setCancelBookingDialog] = useState<{ open: boolean; slotId: string | null }>({ open: false, slotId: null });
-  const [deleteSlotDialog, setDeleteSlotDialog] = useState<{ open: boolean; slotId: string | null }>({ open: false, slotId: null });
+  const [cancelBookingDialog, setCancelBookingDialog] = useState<{ open: boolean; slotId: Id<"schedulingSlots"> | null }>({ open: false, slotId: null });
+  const [deleteSlotDialog, setDeleteSlotDialog] = useState<{ open: boolean; slotId: Id<"schedulingSlots"> | null }>({ open: false, slotId: null });
 
   const copy = async (text: string) => {
     try {
@@ -215,7 +216,7 @@ export default function SchedulingRequestDetailPage() {
           </CardHeader>
           <CardContent>
             {publicToken ? (
-              <PagesUsingRequest requestId={request._id} adminEmail={adminEmail} />
+              <PagesUsingRequest requestId={request._id} adminEmail={adminEmail || undefined} />
             ) : (
               <p className="text-sm text-foreground/60">
                 No public invite token found. Create a shareable link to use this request on pages.
@@ -840,7 +841,7 @@ export default function SchedulingRequestDetailPage() {
               onClick={async () => {
                 if (!cancelBookingDialog.slotId) return;
                 try {
-                  await cancelBooking({ slotId: cancelBookingDialog.slotId, email: adminEmail || undefined });
+                  await cancelBooking({ slotId: cancelBookingDialog.slotId as Id<"schedulingSlots">, email: adminEmail || undefined });
                   toast({ title: 'Booking cancelled', description: 'Slot is now available' });
                   setCancelBookingDialog({ open: false, slotId: null });
                 } catch (e: any) {
@@ -870,7 +871,7 @@ export default function SchedulingRequestDetailPage() {
               onClick={async () => {
                 if (!deleteSlotDialog.slotId) return;
                 try {
-                  await removeSlot({ id: deleteSlotDialog.slotId, email: adminEmail || undefined });
+                  await removeSlot({ id: deleteSlotDialog.slotId as Id<"schedulingSlots">, email: adminEmail || undefined });
                   toast({ title: 'Deleted', description: 'Time slot removed' });
                   setDeleteSlotDialog({ open: false, slotId: null });
                 } catch (e: any) {
