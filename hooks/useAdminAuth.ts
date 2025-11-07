@@ -12,7 +12,6 @@ export function useAdminAuth() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("admin_session_token");
-      console.log("[useAdminAuth] Reading token from localStorage:", token ? "present" : "missing");
       tokenRef.current = token;
       setSessionToken(token);
       setIsInitialized(true); // Mark as initialized after first check
@@ -20,7 +19,6 @@ export function useAdminAuth() {
       // Listen for storage changes (e.g., when login sets the token)
       const handleStorageChange = (e: StorageEvent) => {
         if (e.key === "admin_session_token" && e.newValue !== tokenRef.current) {
-          console.log("[useAdminAuth] Storage changed, updating token");
           tokenRef.current = e.newValue;
           setSessionToken(e.newValue);
         }
@@ -34,7 +32,6 @@ export function useAdminAuth() {
         const currentToken = localStorage.getItem("admin_session_token");
         // Only update if token actually changed
         if (currentToken !== tokenRef.current) {
-          console.log("[useAdminAuth] Token changed in localStorage, updating");
           tokenRef.current = currentToken;
           setSessionToken(currentToken);
         }
@@ -58,32 +55,6 @@ export function useAdminAuth() {
 
   // isChecking is true until initialized
   const isChecking = !isInitialized;
-
-  // Log query state and catch errors
-  useEffect(() => {
-    if (isInitialized && sessionToken) {
-      // Log when query state changes
-      if (user === undefined) {
-        console.log("[useAdminAuth] Query is loading...");
-      } else if (user === null) {
-        console.log("[useAdminAuth] Query returned null (no user found)");
-      } else {
-        console.log("[useAdminAuth] Query returned user:", user.email);
-      }
-    }
-  }, [user, isInitialized, sessionToken]);
-
-  // Only log when state actually changes, not on every render
-  useEffect(() => {
-    if (isInitialized) {
-      console.log("[useAdminAuth] State:", {
-        sessionToken: sessionToken ? "present" : "missing",
-        isChecking,
-        user: user === undefined ? "loading" : user === null ? "null" : "found",
-        isAuthenticated: !isChecking && sessionToken !== null && user !== null,
-      });
-    }
-  }, [sessionToken, isChecking, user, isInitialized]);
 
   return {
     adminEmail: user?.email || null,
