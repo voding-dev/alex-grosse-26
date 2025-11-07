@@ -139,8 +139,6 @@ export default function LandingPageEditorPage() {
         landingPageId: landingPage._id,
         imageStorageId: storageKey,
         alt: file.name,
-        width: uploadResult.width,
-        height: uploadResult.height,
         email: adminEmail || undefined,
       });
       
