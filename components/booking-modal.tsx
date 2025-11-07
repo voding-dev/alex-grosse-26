@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,8 @@ export function BookingModal({ open, onOpenChange, bookingToken }: BookingModalP
     phone: "",
     notes: "",
   });
+  const scrollableContentRef = useRef<HTMLDivElement>(null);
+  const bookingFormContentRef = useRef<HTMLDivElement>(null);
 
   const inviteData = useQuery(
     api.scheduling.getInviteByToken,
@@ -136,6 +138,37 @@ export function BookingModal({ open, onOpenChange, bookingToken }: BookingModalP
   const maxSelections = request?.maxSelectionsPerPerson ?? 1;
   const canBookMore = bookedSlotsCount < maxSelections;
 
+  // Prevent page scrolling when modal is open, but allow modal content scrolling
+  useEffect(() => {
+    if (!open) return;
+
+    // Prevent body scroll when modal is open
+    const originalOverflow = document.body.style.overflow;
+    const originalPosition = document.body.style.position;
+    const originalTop = document.body.style.top;
+    const originalWidth = document.body.style.width;
+    
+    // Lock body scroll
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    const scrollY = window.scrollY;
+    document.body.style.top = `-${scrollY}px`;
+
+    return () => {
+      // Restore body styles
+      document.body.style.overflow = originalOverflow;
+      document.body.style.position = originalPosition;
+      document.body.style.top = originalTop;
+      document.body.style.width = originalWidth;
+      
+      // Restore scroll position
+      if (originalPosition === 'fixed') {
+        window.scrollTo(0, parseInt(originalTop || '0') * -1);
+      }
+    };
+  }, [open]);
+
   // If no token or invalid invite, show error
   if (!bookingToken || inviteData === null) {
     return (
@@ -178,7 +211,10 @@ export function BookingModal({ open, onOpenChange, bookingToken }: BookingModalP
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+        <DialogContent 
+          className="max-w-4xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
+          style={{ maxHeight: '90vh' }}
+        >
           {/* Fixed Header */}
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-foreground/10 flex-shrink-0">
             <DialogTitle className="text-2xl sm:text-3xl font-black uppercase tracking-tight" style={{ fontWeight: '900' }}>
@@ -192,7 +228,16 @@ export function BookingModal({ open, onOpenChange, bookingToken }: BookingModalP
           </DialogHeader>
 
           {/* Scrollable Content Area */}
-          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+          <div 
+            ref={scrollableContentRef}
+            className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6 space-y-6 min-h-0"
+            style={{ 
+              overscrollBehavior: 'contain',
+              WebkitOverflowScrolling: 'touch',
+              touchAction: 'pan-y',
+              scrollbarWidth: 'thin'
+            }}
+          >
 
             {/* Success Confirmation */}
             {bookedSlotId && slots && (() => {
@@ -346,7 +391,10 @@ export function BookingModal({ open, onOpenChange, bookingToken }: BookingModalP
 
       {/* Booking Information Modal */}
           <Dialog open={selectedSlotForBooking !== null} onOpenChange={(open) => !open && setSelectedSlotForBooking(null)}>
-            <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+            <DialogContent 
+              className="max-w-2xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
+              style={{ maxHeight: '90vh' }}
+            >
               {/* Fixed Header */}
               <DialogHeader className="px-6 pt-6 pb-4 border-b border-foreground/10 flex-shrink-0">
                 <DialogTitle className="text-2xl sm:text-3xl font-black uppercase tracking-tight" style={{ fontWeight: '900' }}>
@@ -361,7 +409,16 @@ export function BookingModal({ open, onOpenChange, bookingToken }: BookingModalP
               </DialogHeader>
 
               {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto px-6 py-6">
+              <div 
+                ref={bookingFormContentRef}
+                className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6 min-h-0"
+                style={{ 
+                  overscrollBehavior: 'contain',
+                  WebkitOverflowScrolling: 'touch',
+                  touchAction: 'pan-y',
+                  scrollbarWidth: 'thin'
+                }}
+              >
                 <div className="space-y-6">
                   <div>
                     <Label className="text-sm font-black uppercase tracking-wider mb-2 block flex items-center gap-2" style={{ fontWeight: '900' }}>
