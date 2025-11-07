@@ -551,7 +551,7 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
               <X className="h-4 w-4 text-foreground/60" />
             </button>
             <div className="flex items-start gap-3 pr-8">
-              <Sparkles className="h-5 w-5 text-accent mt-0.5 flex-shrink-0" />
+              <Sparkles className="h-5 w-5 text-accent mt-0.5 shrink-0" />
               <div className="flex-1">
                 <p className="text-sm font-black uppercase tracking-wider text-foreground mb-1" style={{ fontWeight: '900' }}>
                   Quick Tip

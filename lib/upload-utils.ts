@@ -236,7 +236,7 @@ export async function uploadImageToMediaLibrary(
   }
 
   // Upload file (compressed if image, original if video)
-  console.log(`[upload-utils] Uploading ${file.name} (${fileToUpload instanceof Blob ? fileToUpload.size : fileToUpload.size} bytes)...`);
+  console.log(`[upload-utils] Uploading ${file.name} (${fileToUpload.size} bytes)...`);
   let result: Response;
   try {
     result = await fetch(uploadUrl, {
