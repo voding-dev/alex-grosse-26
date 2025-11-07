@@ -162,7 +162,11 @@ export default function SchedulingPage() {
                             {req.recipientEmails.length} recipient{req.recipientEmails.length !== 1 ? 's' : ''}
                           </div>
                         </div>
-                        <PagesUsingRequest requestId={req._id} adminEmail={adminEmail || undefined} />
+                        <PagesUsingRequest 
+                          requestId={req._id} 
+                          adminEmail={adminEmail || undefined}
+                          textColor={hexToRgba(brand.text, 0.7)}
+                        />
                         {brand.logoUrl && (
                           <div className="absolute bottom-6 right-6 sm:bottom-8 sm:right-8">
                             <Image
@@ -244,7 +248,11 @@ export default function SchedulingPage() {
                             {req.durationMinutes} min
                           </div>
                         </div>
-                        <PagesUsingRequest requestId={req._id} adminEmail={adminEmail || undefined} />
+                        <PagesUsingRequest 
+                          requestId={req._id} 
+                          adminEmail={adminEmail || undefined}
+                          textColor={hexToRgba(brand.text, 0.5)}
+                        />
                         {brand.logoUrl && (
                           <div className="absolute bottom-6 right-6 sm:bottom-8 sm:right-8">
                             <Image
