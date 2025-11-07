@@ -47,10 +47,13 @@ import {
   Grid,
   List,
   Minimize2,
+  Download,
+  CheckCircle,
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { MediaThumbnail } from "@/components/media-thumbnail";
 import { compressImage, generateFileHash } from "@/lib/image-compression";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type MediaItem = {
   _id: Id<"mediaLibrary">;
@@ -88,6 +91,7 @@ export default function MediaLibraryPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [compressingItemId, setCompressingItemId] = useState<Id<"mediaLibrary"> | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<Set<string>>(new Set());
   
   // Filters
   const [typeFilter, setTypeFilter] = useState<"all" | "image" | "video">("all");
@@ -602,6 +606,104 @@ export default function MediaLibraryPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  // Selection handlers
+  const toggleMedia = (mediaId: string) => {
+    const newSet = new Set(selectedMedia);
+    if (newSet.has(mediaId)) {
+      newSet.delete(mediaId);
+    } else {
+      newSet.add(mediaId);
+    }
+    setSelectedMedia(newSet);
+  };
+
+  const handleSelectAll = () => {
+    if (!media) return;
+    if (selectedMedia.size === media.length) {
+      // Deselect all
+      setSelectedMedia(new Set());
+    } else {
+      // Select all
+      const allIds = new Set(media.map((item) => item._id.toString()));
+      setSelectedMedia(allIds);
+    }
+  };
+
+  const isAllSelected = media && media.length > 0 && selectedMedia.size === media.length;
+  const isSomeSelected = selectedMedia.size > 0 && media && selectedMedia.size < media.length;
+
+  // Download handlers
+  const handleDownload = async (mediaId: string) => {
+    try {
+      const item = media?.find((m) => m._id.toString() === mediaId);
+      if (!item) return;
+
+      const url = await getSignedDownloadUrl({ storageKey: item.storageKey });
+      if (url) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = item.filename || "download";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to get download URL.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to download file.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadSelected = async () => {
+    if (selectedMedia.size === 0) return;
+    
+    toast({
+      title: "Download started",
+      description: `Downloading ${selectedMedia.size} file(s)...`,
+    });
+
+    // Download each selected file
+    for (const mediaId of selectedMedia) {
+      await handleDownload(mediaId);
+      // Small delay between downloads to avoid overwhelming the browser
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    toast({
+      title: "Download complete",
+      description: `Downloaded ${selectedMedia.size} file(s).`,
+    });
+  };
+
+  const handleDownloadAll = async () => {
+    if (!media || media.length === 0) return;
+    
+    toast({
+      title: "Download started",
+      description: `Downloading all ${media.length} files...`,
+    });
+
+    // Download each file
+    for (const item of media) {
+      await handleDownload(item._id.toString());
+      // Small delay between downloads to avoid overwhelming the browser
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    toast({
+      title: "Download complete",
+      description: `Downloaded all ${media.length} files.`,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -627,6 +729,54 @@ export default function MediaLibraryPage() {
               {viewMode === "grid" ? <List className="h-4 w-4" /> : <Grid className="h-4 w-4" />}
             </Button>
           </div>
+        </div>
+
+        {/* Primary Actions Bar - Select All and Download */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className={`flex items-center gap-3 px-5 py-3 rounded-xl border-2 transition-all ${
+            isAllSelected 
+              ? "border-accent bg-accent/10 shadow-lg shadow-accent/20" 
+              : "border-foreground/20 bg-foreground/5 backdrop-blur-sm hover:border-foreground/40"
+          }`}>
+            <Checkbox
+              checked={isAllSelected}
+              onCheckedChange={handleSelectAll}
+              className="h-5 w-5 border-2 border-foreground/40 data-[state=checked]:bg-accent data-[state=checked]:border-accent shadow-lg"
+            />
+            <div className="flex items-center gap-2">
+              <CheckCircle className={`h-4 w-4 ${isAllSelected ? "text-accent" : "text-foreground/40"}`} />
+              <span className="text-sm font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                Select All Files
+              </span>
+            </div>
+            {selectedMedia.size > 0 && (
+              <span className="text-xs font-medium text-accent bg-accent/20 px-2 py-1 rounded-full">
+                {selectedMedia.size} selected
+              </span>
+            )}
+          </div>
+          
+          {selectedMedia.size > 0 && (
+            <Button 
+              onClick={handleDownloadSelected} 
+              className="font-black uppercase tracking-wider bg-background text-foreground border-2 border-foreground/30 hover:bg-foreground hover:text-background shadow-lg transition-all hover:scale-105"
+              style={{ fontWeight: '900' }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download Selected ({selectedMedia.size})
+            </Button>
+          )}
+
+          {media && media.length > 0 && (
+            <Button 
+              onClick={handleDownloadAll} 
+              className="font-black uppercase tracking-wider bg-background text-foreground border-2 border-foreground/30 hover:bg-foreground hover:text-background shadow-lg transition-all hover:scale-105"
+              style={{ fontWeight: '900' }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download All
+            </Button>
+          )}
         </div>
 
         {/* Filters */}
@@ -817,10 +967,27 @@ export default function MediaLibraryPage() {
                 : "space-y-4"
             }
           >
-            {media.map((item) => (
-                <Card key={item._id} className="group relative overflow-hidden">
+            {media.map((item) => {
+              const isSelected = selectedMedia.has(item._id.toString());
+              return (
+                <Card key={item._id} className={`group relative overflow-hidden ${
+                  isSelected ? "ring-2 ring-accent border-accent shadow-accent/20" : ""
+                }`}>
                   <CardContent className="p-0">
-                    <MediaThumbnail media={item} />
+                    <div className="relative">
+                      <MediaThumbnail media={item} />
+                      {/* Selection checkbox */}
+                      <div
+                        className="absolute top-2 left-2 z-10"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleMedia(item._id.toString())}
+                          className="bg-background/95 border-2 border-foreground/40 hover:border-accent data-[state=checked]:bg-accent data-[state=checked]:border-accent shadow-lg"
+                        />
+                      </div>
+                    </div>
                     <div className="p-3 space-y-2">
                       <p className="text-xs font-medium truncate">{item.filename}</p>
                       <div className="flex items-center justify-between text-xs text-foreground/60">
@@ -939,7 +1106,8 @@ export default function MediaLibraryPage() {
                     </div>
                   </CardContent>
                 </Card>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <Card>
