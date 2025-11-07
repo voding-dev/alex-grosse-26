@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { Nav } from "@/components/nav";
 import { HeroCarouselImage } from "@/components/hero-carousel-image";
 import { PortraitsGalleryImage } from "@/components/portraits-gallery-image";
+import { Lightbox } from "@/components/lightbox";
 import { Mail, Phone } from "lucide-react";
 import Image from "next/image";
 
@@ -20,6 +21,11 @@ export default function GraphicDesignerPage() {
   const allCategoryGalleries = useQuery(api.graphicDesignerCategoryGallery.list) || [];
   
   const [currentIndex, setCurrentIndex] = useState(0);
+  
+  // Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [currentLightboxIndex, setCurrentLightboxIndex] = useState(0);
+  const [currentLightboxImages, setCurrentLightboxImages] = useState<Array<{ _id: string; imageStorageId: string; alt?: string }>>([]);
 
   useEffect(() => {
     if (heroCarouselImages.length === 0) return;
@@ -36,6 +42,25 @@ export default function GraphicDesignerPage() {
   // Get gallery images for a category
   const getCategoryGallery = (categoryId: string) => {
     return allCategoryGalleries.filter(img => img.categoryId === categoryId);
+  };
+  
+  // Open lightbox with category gallery images
+  const openLightbox = (categoryId: string, imageIndex: number) => {
+    const categoryGallery = getCategoryGallery(categoryId);
+    if (categoryGallery.length > 0) {
+      setCurrentLightboxImages(categoryGallery);
+      setCurrentLightboxIndex(imageIndex);
+      setLightboxOpen(true);
+    }
+  };
+  
+  // Lightbox navigation handlers
+  const handleLightboxNext = () => {
+    setCurrentLightboxIndex((prev) => (prev + 1) % currentLightboxImages.length);
+  };
+  
+  const handleLightboxPrev = () => {
+    setCurrentLightboxIndex((prev) => (prev - 1 + currentLightboxImages.length) % currentLightboxImages.length);
   };
   
   const heroTitle = graphicDesigner?.heroTitle || "DESIGN THAT STOPS TRAFFIC";
@@ -134,15 +159,16 @@ export default function GraphicDesignerPage() {
                       {categoryGallery.length > 0 && (
                         <div className="mt-8">
                           <div className="grid grid-cols-3 gap-4">
-                            {categoryGallery.slice(0, 3).map((image) => (
+                            {categoryGallery.slice(0, 3).map((image, imageIdx) => (
                               <div
                                 key={image._id}
-                                className="relative aspect-square overflow-hidden bg-black rounded-lg"
+                                className="relative aspect-square overflow-hidden bg-black rounded-lg cursor-pointer group hover:opacity-90 transition-opacity"
+                                onClick={() => openLightbox(category.id, imageIdx)}
                               >
                                 <PortraitsGalleryImage
                                   storageId={image.imageStorageId}
                                   alt={image.alt || `${category.name} gallery`}
-                                  onClick={() => {}}
+                                  onClick={() => openLightbox(category.id, imageIdx)}
                                   aspectRatio={image.width && image.height ? image.width / image.height : undefined}
                                 />
                               </div>
@@ -283,6 +309,17 @@ export default function GraphicDesignerPage() {
         </footer>
 
       </main>
+      
+      {/* Lightbox */}
+      {lightboxOpen && currentLightboxImages.length > 0 && (
+        <Lightbox
+          images={currentLightboxImages}
+          currentIndex={currentLightboxIndex}
+          onClose={() => setLightboxOpen(false)}
+          onNext={handleLightboxNext}
+          onPrev={handleLightboxPrev}
+        />
+      )}
     </>
   );
 }
