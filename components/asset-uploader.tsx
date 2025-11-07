@@ -304,7 +304,9 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
               addDisplayLocation: async (args) => {
                 await addDisplayLocation(args);
               },
-              createMedia,
+              createMedia: async (args) => {
+                return await createMedia(args);
+              },
             });
 
             if (uploadResult.isDuplicate) {

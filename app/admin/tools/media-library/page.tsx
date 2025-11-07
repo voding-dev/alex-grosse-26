@@ -217,7 +217,9 @@ export default function MediaLibraryPage() {
                 addDisplayLocation: async (args) => {
                   await addDisplayLocation(args);
                 },
-                createMedia,
+                createMedia: async (args) => {
+                  return await createMedia(args);
+                },
               });
 
               if (uploadResult.isDuplicate) {

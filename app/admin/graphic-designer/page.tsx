@@ -544,7 +544,9 @@ export default function GraphicDesignerEditorPage() {
         addDisplayLocation: async (args) => {
           await addDisplayLocation(args);
         },
-        createMedia,
+        createMedia: async (args) => {
+          return await createMedia(args);
+        },
       });
       
       // Handle duplicate case - get storage key from media list if needed
@@ -680,7 +682,9 @@ export default function GraphicDesignerEditorPage() {
         addDisplayLocation: async (args) => {
           await addDisplayLocation(args);
         },
-        createMedia,
+        createMedia: async (args) => {
+          return await createMedia(args);
+        },
       });
       
       // Handle duplicate case - get storage key from media list if needed

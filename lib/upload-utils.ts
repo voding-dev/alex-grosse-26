@@ -44,7 +44,7 @@ export interface UploadImageOptions {
     alt?: string;
     description?: string;
     displayLocations?: Array<{
-      type: string;
+      type: "portfolio" | "project" | "delivery" | "pitch_deck" | "quote_builder" | "gallery" | "hero_carousel" | "about" | "cover";
       entityId: string;
       entityName?: string;
     }>;
@@ -267,7 +267,11 @@ export async function uploadImageToMediaLibrary(
   }
 
   // Build display locations array
-  const displayLocations = displayLocation
+  const displayLocations: Array<{
+    type: "portfolio" | "project" | "delivery" | "pitch_deck" | "quote_builder" | "gallery" | "hero_carousel" | "about" | "cover";
+    entityId: string;
+    entityName?: string;
+  }> = displayLocation
     ? [
         {
           type: displayLocation.type,
