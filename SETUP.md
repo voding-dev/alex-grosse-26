@@ -60,7 +60,7 @@ Note: PINs are randomly generated for security. Never use hardcoded PINs in prod
 ## Next Steps
 
 - Upload real assets via admin dashboard
-- Configure Cal.com and Stripe links in Settings
+- Configure Stripe links per-page in Settings
 - Customize branding and copy
 - Deploy to Vercel
 

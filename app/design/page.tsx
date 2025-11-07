@@ -76,7 +76,7 @@ export default function DesignPage() {
       </section>
 
       {/* Prominent CTA Banner Section */}
-      {(design?.bookingToken || design?.calUrl || design?.stripeUrl) && (
+      {(design?.bookingToken || design?.stripeUrl) && (
         <section className="bg-linear-to-br from-cta-primary via-[#1e6a8a] to-cta-primary py-12 sm:py-16 md:py-20">   
           <div className="mx-auto w-full max-w-[2000px] px-4 sm:px-6 md:px-8 lg:px-16 xl:px-20 2xl:px-24">
             <div className="mx-auto max-w-4xl text-center">
@@ -87,14 +87,10 @@ export default function DesignPage() {
                 Choose how you'd like to get started—book a session or secure your project with a deposit.
               </p>
               <div className="flex flex-col gap-4 sm:flex-row sm:justify-center sm:gap-6">
-                {(design?.bookingToken || design?.calUrl) && (
+                {design?.bookingToken && (
                   <button
                     onClick={() => {
-                      if (design?.bookingToken) {
-                        setBookingModalOpen(true);
-                      } else if (design?.calUrl) {
-                        window.open(design.calUrl as string, "_blank");
-                      }
+                      setBookingModalOpen(true);
                     }}
                     className="transform rounded-lg bg-white px-8 py-4 text-base font-bold uppercase tracking-wide text-cta-primary shadow-2xl transition-all hover:scale-105 hover:shadow-3xl sm:px-10 sm:py-5 sm:text-lg"
                   >
@@ -203,7 +199,7 @@ export default function DesignPage() {
               </div>
 
               {/* Sticky CTA Box */}
-              {(design?.bookingToken || design?.calUrl || design?.stripeUrl) && (
+              {(design?.bookingToken || design?.stripeUrl) && (
                 <div className="sticky top-24 rounded-xl border-2 border-cta-primary/30 bg-linear-to-br from-cta-primary/5 to-cta-primary/10 p-6 shadow-lg sm:p-8">
                   <div className="mb-4 text-center sm:mb-6">
                     <h3 className="mb-2 text-xl font-black uppercase tracking-wide text-black sm:text-2xl" style={{ fontWeight: '900' }}>

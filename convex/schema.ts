@@ -219,7 +219,6 @@ export default defineSchema({
 
   portraits: defineTable({
     heroText: v.optional(v.string()), // Text displayed under name SVG in hero section
-    calUrl: v.optional(v.string()), // Deprecated - use bookingToken instead
     bookingToken: v.optional(v.string()), // Token for public booking invite
     stripeUrl: v.optional(v.string()), // Stripe payment link for portraits
     howItWorksTitle: v.optional(v.string()), // Title for "How It Works" section
@@ -257,7 +256,6 @@ export default defineSchema({
 
   design: defineTable({
     heroText: v.optional(v.string()), // Text displayed under name SVG in hero section
-    calUrl: v.optional(v.string()), // Deprecated - use bookingToken instead
     bookingToken: v.optional(v.string()), // Token for public booking invite
     stripeUrl: v.optional(v.string()), // Stripe payment link for design
     howItWorksTitle: v.optional(v.string()), // Title for "How It Works" section
@@ -341,7 +339,6 @@ export default defineSchema({
     heroText: v.optional(v.string()), // Text displayed in hero section
     contactEmail: v.optional(v.string()), // Contact email
     contactPhone: v.optional(v.string()), // Contact phone
-    calUrl: v.optional(v.string()), // Deprecated - use bookingToken instead
     bookingToken: v.optional(v.string()), // Token for public booking invite
     stripeUrl: v.optional(v.string()), // Stripe payment link
     // Value Proposition Section (sub-footer)
@@ -639,7 +636,6 @@ export default defineSchema({
     title: v.string(),
     slug: v.string(),
     heroText: v.optional(v.string()),
-    calUrl: v.optional(v.string()), // Deprecated - use bookingToken instead
     bookingToken: v.optional(v.string()), // Token for public booking invite
     stripeUrl: v.optional(v.string()),
     howItWorksTitle: v.optional(v.string()),

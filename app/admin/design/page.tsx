@@ -93,7 +93,6 @@ export default function DesignEditorPage() {
   // Design Form Data
   const [designFormData, setDesignFormData] = useState({
     heroText: "",
-    calUrl: "",
     bookingToken: "",
     stripeUrl: "",
     howItWorksTitle: "",
@@ -162,7 +161,6 @@ export default function DesignEditorPage() {
       if (needsUpdate) {
         updateDesign({
           heroText: design.heroText,
-          calUrl: design.calUrl,
           bookingToken: design.bookingToken,
           stripeUrl: design.stripeUrl,
           howItWorksTitle: howItWorksTitle,
@@ -174,7 +172,6 @@ export default function DesignEditorPage() {
 
       setDesignFormData({
         heroText: design.heroText || "",
-        calUrl: design.calUrl || "",
         bookingToken: design.bookingToken || "",
         stripeUrl: design.stripeUrl || "",
         howItWorksTitle: howItWorksTitle,
@@ -185,7 +182,6 @@ export default function DesignEditorPage() {
       // If design record doesn't exist yet, create it with default data
       updateDesign({
         heroText: "",
-        calUrl: "",
         stripeUrl: "",
         howItWorksTitle: defaultHowItWorksTitle,
         howItWorksSteps: defaultHowItWorksSteps,
@@ -195,7 +191,6 @@ export default function DesignEditorPage() {
       
       setDesignFormData({
         heroText: "",
-        calUrl: "",
         bookingToken: "",
         stripeUrl: "",
         howItWorksTitle: defaultHowItWorksTitle,
@@ -558,7 +553,6 @@ export default function DesignEditorPage() {
     try {
       await updateDesign({
         heroText: designFormData.heroText,
-        calUrl: designFormData.calUrl || undefined,
         bookingToken: designFormData.bookingToken || undefined,
         stripeUrl: designFormData.stripeUrl || undefined,
         howItWorksTitle: designFormData.howItWorksTitle || undefined,
@@ -743,24 +737,6 @@ export default function DesignEditorPage() {
                 </div>
                 <p className="mt-2 text-xs text-foreground/60">
                   Token from a public booking invite. This will open a booking modal on the design page. Click the button to choose from existing requests or create a new one.
-                </p>
-              </div>
-
-              <Separator className="bg-foreground/10" />
-
-              <div>
-                <Label htmlFor="calUrl" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                  Cal.com Booking Link (Deprecated)
-                </Label>
-                <Input
-                  id="calUrl"
-                  value={designFormData.calUrl}
-                  onChange={(e) => setDesignFormData({ ...designFormData, calUrl: e.target.value })}
-                  className="h-12 text-base border-foreground/20 focus:border-accent/50"
-                  placeholder="https://cal.com/your-username"
-                />
-                <p className="mt-2 text-xs text-foreground/60">
-                  Deprecated: Use Booking Token instead. This will open Cal.com in a new tab as a fallback.
                 </p>
               </div>
 

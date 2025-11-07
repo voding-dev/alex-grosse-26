@@ -93,7 +93,6 @@ export default function PortraitsEditorPage() {
   // Portraits Form Data
   const [portraitsFormData, setPortraitsFormData] = useState({
     heroText: "",
-    calUrl: "",
     bookingToken: "",
     stripeUrl: "",
     howItWorksTitle: "",
@@ -162,7 +161,6 @@ export default function PortraitsEditorPage() {
       if (needsUpdate) {
         updatePortraits({
           heroText: portraits.heroText,
-          calUrl: portraits.calUrl,
           bookingToken: portraits.bookingToken,
           stripeUrl: portraits.stripeUrl,
           howItWorksTitle: howItWorksTitle,
@@ -174,7 +172,6 @@ export default function PortraitsEditorPage() {
 
       setPortraitsFormData({
         heroText: portraits.heroText || "",
-        calUrl: portraits.calUrl || "",
         bookingToken: portraits.bookingToken || "",
         stripeUrl: portraits.stripeUrl || "",
         howItWorksTitle: howItWorksTitle,
@@ -185,7 +182,6 @@ export default function PortraitsEditorPage() {
       // If portraits record doesn't exist yet, create it with default data
       updatePortraits({
         heroText: "",
-        calUrl: "",
         stripeUrl: "",
         howItWorksTitle: defaultHowItWorksTitle,
         howItWorksSteps: defaultHowItWorksSteps,
@@ -195,7 +191,6 @@ export default function PortraitsEditorPage() {
       
       setPortraitsFormData({
         heroText: "",
-        calUrl: "",
         bookingToken: "",
         stripeUrl: "",
         howItWorksTitle: defaultHowItWorksTitle,
@@ -558,7 +553,6 @@ export default function PortraitsEditorPage() {
     try {
       await updatePortraits({
         heroText: portraitsFormData.heroText,
-        calUrl: portraitsFormData.calUrl || undefined,
         bookingToken: portraitsFormData.bookingToken || undefined,
         stripeUrl: portraitsFormData.stripeUrl || undefined,
         howItWorksTitle: portraitsFormData.howItWorksTitle || undefined,
@@ -743,24 +737,6 @@ export default function PortraitsEditorPage() {
                 </div>
                 <p className="mt-2 text-xs text-foreground/60">
                   Token from a public booking invite. This will open a booking modal on the portraits page. Click the button to choose from existing requests or create a new one.
-                </p>
-              </div>
-
-              <Separator className="bg-foreground/10" />
-
-              <div>
-                <Label htmlFor="calUrl" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                  Cal.com Booking Link (Deprecated)
-                </Label>
-                <Input
-                  id="calUrl"
-                  value={portraitsFormData.calUrl}
-                  onChange={(e) => setPortraitsFormData({ ...portraitsFormData, calUrl: e.target.value })}
-                  className="h-12 text-base border-foreground/20 focus:border-accent/50"
-                  placeholder="https://cal.com/your-username"
-                />
-                <p className="mt-2 text-xs text-foreground/60">
-                  Deprecated: Use Booking Token instead. This will open Cal.com in a new tab as a fallback.
                 </p>
               </div>
 

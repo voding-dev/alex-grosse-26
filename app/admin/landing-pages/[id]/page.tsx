@@ -74,7 +74,6 @@ export default function LandingPageEditorPage() {
   // Landing Page Form Data
   const [pageFormData, setPageFormData] = useState({
     heroText: "",
-    calUrl: "",
     bookingToken: "",
     stripeUrl: "",
     howItWorksTitle: "",
@@ -86,7 +85,6 @@ export default function LandingPageEditorPage() {
     if (landingPage) {
       setPageFormData({
         heroText: landingPage.heroText || "",
-        calUrl: landingPage.calUrl || "",
         bookingToken: landingPage.bookingToken || "",
         stripeUrl: landingPage.stripeUrl || "",
         howItWorksTitle: landingPage.howItWorksTitle || "",
@@ -317,7 +315,6 @@ export default function LandingPageEditorPage() {
       await updateLandingPage({
         id: landingPage._id,
         heroText: pageFormData.heroText || undefined,
-        calUrl: pageFormData.calUrl || undefined,
         bookingToken: pageFormData.bookingToken || undefined,
         stripeUrl: pageFormData.stripeUrl || undefined,
         howItWorksTitle: pageFormData.howItWorksTitle || undefined,
@@ -477,24 +474,6 @@ export default function LandingPageEditorPage() {
                 </div>
                 <p className="mt-2 text-xs text-foreground/60">
                   Token from a public booking invite. This will open a booking modal on the landing page. Click the button to choose from existing requests or create a new one.
-                </p>
-              </div>
-
-              <Separator className="bg-foreground/10" />
-
-              <div>
-                <Label htmlFor="calUrl" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                  Cal.com Booking Link (Deprecated)
-                </Label>
-                <Input
-                  id="calUrl"
-                  value={pageFormData.calUrl}
-                  onChange={(e) => setPageFormData({ ...pageFormData, calUrl: e.target.value })}
-                  className="h-12 text-base border-foreground/20 focus:border-accent/50"
-                  placeholder="https://cal.com/your-username"
-                />
-                <p className="mt-2 text-xs text-foreground/60">
-                  Deprecated: Use Booking Token instead. This will open Cal.com in a new tab as a fallback.
                 </p>
               </div>
 

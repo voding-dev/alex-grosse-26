@@ -788,7 +788,6 @@ export default function GraphicDesignerEditorPage() {
   const heroText = graphicDesigner?.heroText || "Attention is the new currency. I design what gets noticed.";
   const contactEmail = graphicDesigner?.contactEmail || "hello@iancourtright.com";
   const contactPhone = graphicDesigner?.contactPhone || "(843) 847-0793";
-  const calUrl = graphicDesigner?.calUrl || "";
   const bookingToken = graphicDesigner?.bookingToken || "";
   const stripeUrl = graphicDesigner?.stripeUrl || "";
   const valuePropositionTitle = graphicDesigner?.valuePropositionTitle || "WHY ANY OF THIS MATTERS";
@@ -873,7 +872,6 @@ export default function GraphicDesignerEditorPage() {
         heroText: graphicDesigner?.heroText || undefined,
         contactEmail: graphicDesigner?.contactEmail || undefined,
         contactPhone: graphicDesigner?.contactPhone || undefined,
-        calUrl: graphicDesigner?.calUrl || undefined,
         bookingToken: graphicDesigner?.bookingToken || undefined,
         stripeUrl: graphicDesigner?.stripeUrl || undefined,
         valuePropositionTitle: valuePropositionTitle || undefined,
@@ -1126,29 +1124,6 @@ export default function GraphicDesignerEditorPage() {
                   </div>
                   <p className="mt-2 text-xs text-foreground/60">
                     Token from a public booking invite. This will open a booking modal on the page. Click the button to choose from existing requests or create a new one.
-                  </p>
-                </div>
-
-                <Separator className="bg-foreground/10" />
-
-                <div>
-                  <Label htmlFor="graphicDesignerCalUrl" className="text-xs font-bold uppercase tracking-wider mb-2 block text-foreground/70" style={{ fontWeight: '900' }}>
-                    Cal.com Booking Link (Deprecated)
-                  </Label>
-                  <Input
-                    id="graphicDesignerCalUrl"
-                    value={calUrl}
-                    onChange={(e) => {
-                      updateGraphicDesigner({
-                        calUrl: e.target.value,
-                        email: adminEmail || undefined,
-                      });
-                    }}
-                    className="h-11 text-base border-foreground/20 focus:border-accent/50"
-                    placeholder="https://cal.com/your-username"
-                  />
-                  <p className="mt-2 text-xs text-foreground/60">
-                    Deprecated: Use Booking Token instead. This will open Cal.com in a new tab as a fallback.
                   </p>
                 </div>
 

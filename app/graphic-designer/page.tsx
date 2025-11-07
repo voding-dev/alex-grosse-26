@@ -244,16 +244,12 @@ export default function GraphicDesignerPage() {
                 <p className="text-lg font-black uppercase tracking-wide text-black sm:text-xl mb-4" style={{ fontWeight: '900' }}>
                   {graphicDesigner?.ctaTitle || "READY TO STAND OUT?"}
                 </p>
-                {(graphicDesigner?.bookingToken || graphicDesigner?.calUrl || graphicDesigner?.stripeUrl) ? (
+                {(graphicDesigner?.bookingToken || graphicDesigner?.stripeUrl) ? (
                   <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                    {(graphicDesigner.bookingToken || graphicDesigner.calUrl) && (
+                    {graphicDesigner.bookingToken && (
                       <button
                         onClick={() => {
-                          if (graphicDesigner.bookingToken) {
-                            setBookingModalOpen(true);
-                          } else if (graphicDesigner.calUrl) {
-                            window.open(graphicDesigner.calUrl as string, "_blank");
-                          }
+                          setBookingModalOpen(true);
                         }}
                         className="w-full sm:w-auto min-w-[200px] rounded-lg bg-black px-8 py-4 text-base font-black uppercase tracking-wide text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl sm:text-lg"
                         style={{ fontWeight: '900' }}

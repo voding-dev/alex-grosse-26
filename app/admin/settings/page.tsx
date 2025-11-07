@@ -213,7 +213,7 @@ export default function SettingsPage() {
                   className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors"
                 />
                 <p className="mt-2 text-sm text-foreground/60">
-                  This email is used for general support inquiries. Note: Cal.com and Stripe links are now configured per-page (Portraits and Design pages).
+                  This email is used for general support inquiries. Note: Stripe links are now configured per-page (Portraits and Design pages).
                 </p>
               </div>
             </CardContent>

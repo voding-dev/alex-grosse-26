@@ -5,7 +5,7 @@ A minimalist, fast portfolio site with booking integration and secure client del
 ## Features
 
 - **Portfolio**: Showcase photo, video, and design work with category filtering
-- **Booking**: Integrated Cal.com scheduling and Stripe payment links
+- **Booking**: Integrated internal scheduling system and Stripe payment links
 - **Client Delivery**: PIN-gated delivery portals with feedback and download capabilities
 - **Admin Dashboard**: Manage projects, assets, and deliveries
 
