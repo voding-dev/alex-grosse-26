@@ -13,7 +13,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trash2, Plus, ChevronDown, ChevronUp, Edit, Save, X } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ServicesManagerProps {
   settings: AppSettings;
@@ -25,6 +35,7 @@ function generateUUID(): string {
 }
 
 export function ServicesManager({ settings, onUpdate }: ServicesManagerProps) {
+  const { toast } = useToast();
   const [selectedBrand, setSelectedBrand] = useState<"ian-courtright" | "style-driven" | "voding">("ian-courtright");
   const [categories, setCategories] = useState<PricingCategory[]>(() => {
     return JSON.parse(JSON.stringify(settings.brandCategories[selectedBrand] || []));
@@ -39,6 +50,8 @@ export function ServicesManager({ settings, onUpdate }: ServicesManagerProps) {
     rate: 0,
     unit: "day",
   });
+  const [deleteCategoryDialog, setDeleteCategoryDialog] = useState<{ open: boolean; categoryId: string | null }>({ open: false, categoryId: null });
+  const [deleteItemDialog, setDeleteItemDialog] = useState<{ open: boolean; categoryId: string | null; itemId: string | null }>({ open: false, categoryId: null, itemId: null });
 
   const handleBrandChange = (brand: "ian-courtright" | "style-driven" | "voding") => {
     // Save current brand's categories before switching
@@ -54,12 +67,12 @@ export function ServicesManager({ settings, onUpdate }: ServicesManagerProps) {
   const handleSaveCategories = () => {
     updateBrandCategories(selectedBrand, categories);
     onUpdate();
-    toast.success(`${BRANDS[selectedBrand].name} services updated`);
+    toast({ title: "Success", description: `${BRANDS[selectedBrand].name} services updated` });
   };
 
   const handleAddCategory = () => {
     if (!newCategoryName.trim()) {
-      toast.error("Please enter a category name");
+      toast({ title: "Error", description: "Please enter a category name", variant: "destructive" });
       return;
     }
     const newCategory: PricingCategory = {
@@ -70,13 +83,18 @@ export function ServicesManager({ settings, onUpdate }: ServicesManagerProps) {
     setCategories([...categories, newCategory]);
     setNewCategoryName("");
     setExpandedCategories(new Set([...expandedCategories, newCategory.id]));
-    toast.success("Category added");
+    toast({ title: "Success", description: "Category added" });
   };
 
   const handleDeleteCategory = (categoryId: string) => {
-    if (confirm("Delete this category and all its items?")) {
-      setCategories(categories.filter((cat) => cat.id !== categoryId));
-      toast.success("Category deleted");
+    setDeleteCategoryDialog({ open: true, categoryId });
+  };
+
+  const confirmDeleteCategory = () => {
+    if (deleteCategoryDialog.categoryId) {
+      setCategories(categories.filter((cat) => cat.id !== deleteCategoryDialog.categoryId));
+      toast({ title: "Success", description: "Category deleted" });
+      setDeleteCategoryDialog({ open: false, categoryId: null });
     }
   };
 
@@ -88,7 +106,7 @@ export function ServicesManager({ settings, onUpdate }: ServicesManagerProps) {
 
   const handleAddItem = (categoryId: string) => {
     if (!newItem.name?.trim() || !newItem.rate) {
-      toast.error("Please fill in item name and rate");
+      toast({ title: "Error", description: "Please fill in item name and rate", variant: "destructive" });
       return;
     }
     const item: LineItem = {
@@ -106,7 +124,7 @@ export function ServicesManager({ settings, onUpdate }: ServicesManagerProps) {
       )
     );
     setNewItem({ name: "", description: "", rate: 0, unit: "day" });
-    toast.success("Service item added");
+    toast({ title: "Success", description: "Service item added" });
   };
 
   const handleUpdateItem = (categoryId: string, itemId: string, updates: Partial<LineItem>) => {
@@ -125,15 +143,20 @@ export function ServicesManager({ settings, onUpdate }: ServicesManagerProps) {
   };
 
   const handleDeleteItem = (categoryId: string, itemId: string) => {
-    if (confirm("Delete this service item?")) {
+    setDeleteItemDialog({ open: true, categoryId, itemId });
+  };
+
+  const confirmDeleteItem = () => {
+    if (deleteItemDialog.categoryId && deleteItemDialog.itemId) {
       setCategories(
         categories.map((cat) =>
-          cat.id === categoryId
-            ? { ...cat, items: cat.items.filter((item) => item.id !== itemId) }
+          cat.id === deleteItemDialog.categoryId
+            ? { ...cat, items: cat.items.filter((item) => item.id !== deleteItemDialog.itemId) }
             : cat
         )
       );
-      toast.success("Service item deleted");
+      toast({ title: "Success", description: "Service item deleted" });
+      setDeleteItemDialog({ open: false, categoryId: null, itemId: null });
     }
   };
 
@@ -517,6 +540,42 @@ export function ServicesManager({ settings, onUpdate }: ServicesManagerProps) {
           ))
         )}
       </div>
+
+      {/* Delete Category Dialog */}
+      <AlertDialog open={deleteCategoryDialog.open} onOpenChange={(open) => setDeleteCategoryDialog({ open, categoryId: deleteCategoryDialog.categoryId })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Category</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this category and all its items? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteCategory} className="bg-red-500 hover:bg-red-600">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Item Dialog */}
+      <AlertDialog open={deleteItemDialog.open} onOpenChange={(open) => setDeleteItemDialog({ open, categoryId: deleteItemDialog.categoryId, itemId: deleteItemDialog.itemId })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Service Item</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this service item? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteItem} className="bg-red-500 hover:bg-red-600">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

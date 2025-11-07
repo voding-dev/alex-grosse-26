@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { HeroCarouselImage } from "@/components/hero-carousel-image";
 import { Gallery } from "@/components/gallery";
+import { BookingModal } from "@/components/booking-modal";
 import Image from "next/image";
 
 export default function PortraitsPage() {
@@ -19,6 +20,7 @@ export default function PortraitsPage() {
   const portraits = useQuery(api.portraits.get);
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
   useEffect(() => {
     if (heroCarouselImages.length === 0) return;
@@ -74,7 +76,7 @@ export default function PortraitsPage() {
       </section>
 
       {/* Prominent CTA Banner Section */}
-      {(portraits?.calUrl || portraits?.stripeUrl) && (
+      {(portraits?.bookingToken || portraits?.calUrl || portraits?.stripeUrl) && (
         <section className="bg-gradient-to-br from-cta-primary via-[#1e6a8a] to-cta-primary py-12 sm:py-16 md:py-20">
           <div className="mx-auto w-full max-w-[2000px] px-4 sm:px-6 md:px-8 lg:px-16 xl:px-20 2xl:px-24">
             <div className="mx-auto max-w-4xl text-center">
@@ -82,12 +84,18 @@ export default function PortraitsPage() {
                 Ready to Book Your Session?
               </h2>
               <p className="mb-8 text-base text-white/90 font-medium sm:text-lg md:text-xl">
-                Choose how you'd like to get started—book directly through Cal.com or secure your session with a deposit.
+                Choose how you'd like to get started—book a session or secure your session with a deposit.
               </p>
               <div className="flex flex-col gap-4 sm:flex-row sm:justify-center sm:gap-6">
-                {portraits?.calUrl && (
+                {(portraits?.bookingToken || portraits?.calUrl) && (
                   <button
-                    onClick={() => window.open(portraits.calUrl as string, "_blank")}
+                    onClick={() => {
+                      if (portraits?.bookingToken) {
+                        setBookingModalOpen(true);
+                      } else if (portraits?.calUrl) {
+                        window.open(portraits.calUrl as string, "_blank");
+                      }
+                    }}
                     className="transform rounded-lg bg-white px-8 py-4 text-base font-bold uppercase tracking-wide text-cta-primary shadow-2xl transition-all hover:scale-105 hover:shadow-3xl sm:px-10 sm:py-5 sm:text-lg"
                   >
                     Book Session
@@ -196,7 +204,7 @@ export default function PortraitsPage() {
               </div>
 
               {/* Sticky CTA Box */}
-              {(portraits?.calUrl || portraits?.stripeUrl) && (
+              {(portraits?.bookingToken || portraits?.calUrl || portraits?.stripeUrl) && (
                 <div className="sticky top-24 rounded-xl border-2 border-cta-primary/30 bg-gradient-to-br from-cta-primary/5 to-cta-primary/10 p-6 shadow-lg sm:p-8">
                   <div className="mb-4 text-center sm:mb-6">
                     <h3 className="mb-2 text-xl font-black uppercase tracking-wide text-black sm:text-2xl" style={{ fontWeight: '900' }}>
@@ -207,9 +215,15 @@ export default function PortraitsPage() {
                     </p>
                   </div>
                   <div className="flex flex-col gap-3 sm:gap-4">
-                    {portraits?.calUrl && (
+                    {(portraits?.bookingToken || portraits?.calUrl) && (
                       <button
-                        onClick={() => window.open(portraits.calUrl as string, "_blank")}
+                        onClick={() => {
+                          if (portraits?.bookingToken) {
+                            setBookingModalOpen(true);
+                          } else if (portraits?.calUrl) {
+                            window.open(portraits.calUrl as string, "_blank");
+                          }
+                        }}
                         className="w-full rounded-lg bg-cta-primary px-6 py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-md transition-all hover:scale-105 hover:bg-[#1e6a8a] hover:shadow-lg sm:px-8 sm:py-4 sm:text-base"
                       >
                         Book Session
@@ -315,6 +329,15 @@ export default function PortraitsPage() {
           </div>
         </div>
       </footer>
+
+      {/* Booking Modal */}
+      {portraits?.bookingToken && (
+        <BookingModal
+          open={bookingModalOpen}
+          onOpenChange={setBookingModalOpen}
+          bookingToken={portraits.bookingToken}
+        />
+      )}
     </main>
   );
 }

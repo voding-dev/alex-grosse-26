@@ -197,6 +197,17 @@ export const createPublicInvite = mutation({
     const request = await ctx.db.get(args.requestId);
     if (!request) throw new Error("Scheduling request not found");
 
+    // Check if a public invite already exists
+    const existingInvites = await ctx.db
+      .query("schedulingInvites")
+      .withIndex("by_request", (q) => q.eq("requestId", args.requestId))
+      .collect();
+    
+    const existingPublicInvite = existingInvites.find((inv: any) => !inv.recipientEmail);
+    if (existingPublicInvite) {
+      return { inviteId: existingPublicInvite._id, token: existingPublicInvite.token };
+    }
+
     const now = Date.now();
     const token = generateToken();
     const inviteId = await ctx.db.insert("schedulingInvites", {
@@ -207,7 +218,102 @@ export const createPublicInvite = mutation({
       createdAt: now,
       updatedAt: now,
     });
-    return inviteId;
+    return { inviteId, token };
+  },
+});
+
+// Get public invite token for a request (admin)
+export const getPublicInviteToken = query({
+  args: { requestId: v.id("schedulingRequests"), email: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    if (args.email) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.email))
+        .first();
+      if (!user || user.role !== "admin") throw new Error("Unauthorized - admin access required");
+    } else {
+      await requireAdmin(ctx);
+    }
+
+    const invites = await ctx.db
+      .query("schedulingInvites")
+      .withIndex("by_request", (q) => q.eq("requestId", args.requestId))
+      .collect();
+    
+    const publicInvite = invites.find((inv: any) => !inv.recipientEmail);
+    return publicInvite ? publicInvite.token : null;
+  },
+});
+
+// Get pages using a booking token (admin)
+export const getPagesUsingToken = query({
+  args: { token: v.string(), email: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    if (args.email) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.email))
+        .first();
+      if (!user || user.role !== "admin") throw new Error("Unauthorized - admin access required");
+    } else {
+      await requireAdmin(ctx);
+    }
+
+    const pages: Array<{ type: string; id: string; title: string; slug?: string }> = [];
+
+    // Check landing pages
+    const landingPages = await ctx.db
+      .query("landingPages")
+      .collect();
+    for (const page of landingPages) {
+      if (page.bookingToken === args.token) {
+        pages.push({
+          type: "landing-page",
+          id: page._id,
+          title: page.title,
+          slug: page.slug,
+        });
+      }
+    }
+
+    // Check graphic designer
+    const graphicDesigner = await ctx.db
+      .query("graphicDesigner")
+      .first();
+    if (graphicDesigner?.bookingToken === args.token) {
+      pages.push({
+        type: "graphic-designer",
+        id: graphicDesigner._id,
+        title: "Graphic Designer",
+      });
+    }
+
+    // Check portraits
+    const portraits = await ctx.db
+      .query("portraits")
+      .first();
+    if (portraits?.bookingToken === args.token) {
+      pages.push({
+        type: "portraits",
+        id: portraits._id,
+        title: "Portraits",
+      });
+    }
+
+    // Check design
+    const design = await ctx.db
+      .query("design")
+      .first();
+    if (design?.bookingToken === args.token) {
+      pages.push({
+        type: "design",
+        id: design._id,
+        title: "Design",
+      });
+    }
+
+    return pages;
   },
 });
 

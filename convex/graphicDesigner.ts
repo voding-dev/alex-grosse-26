@@ -24,7 +24,8 @@ export const update = mutation({
     heroText: v.optional(v.string()),
     contactEmail: v.optional(v.string()),
     contactPhone: v.optional(v.string()),
-    calUrl: v.optional(v.string()), // Cal.com booking link
+    calUrl: v.optional(v.string()), // Deprecated - use bookingToken instead
+    bookingToken: v.optional(v.string()), // Token for public booking invite
     stripeUrl: v.optional(v.string()), // Stripe payment link
     // Value Proposition Section (sub-footer)
     valuePropositionTitle: v.optional(v.string()), // Title for value proposition section

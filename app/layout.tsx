@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "@/lib/convex-provider";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as SonnerToaster } from "sonner";
 import { LenisProvider } from "@/components/LenisProvider";
 
 const geistSans = Geist({
@@ -36,7 +35,6 @@ export default function RootLayout({
             {children}
           </LenisProvider>
           <Toaster />
-          <SonnerToaster />
         </ConvexClientProvider>
       </body>
     </html>

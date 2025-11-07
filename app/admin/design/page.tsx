@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { BookingSelectorModal } from "@/components/booking-selector-modal";
 
 export default function DesignEditorPage() {
   const { adminEmail, sessionToken } = useAdminAuth();
@@ -93,11 +94,13 @@ export default function DesignEditorPage() {
   const [designFormData, setDesignFormData] = useState({
     heroText: "",
     calUrl: "",
+    bookingToken: "",
     stripeUrl: "",
     howItWorksTitle: "",
     howItWorksSteps: [] as Array<{ title: string; description: string }>,
     services: [] as Array<{ title: string; description: string }>,
   });
+  const [bookingSelectorOpen, setBookingSelectorOpen] = useState(false);
   
   useEffect(() => {
     // Default "How It Works" for design page
@@ -160,6 +163,7 @@ export default function DesignEditorPage() {
         updateDesign({
           heroText: design.heroText,
           calUrl: design.calUrl,
+          bookingToken: design.bookingToken,
           stripeUrl: design.stripeUrl,
           howItWorksTitle: howItWorksTitle,
           howItWorksSteps: howItWorksSteps,
@@ -171,6 +175,7 @@ export default function DesignEditorPage() {
       setDesignFormData({
         heroText: design.heroText || "",
         calUrl: design.calUrl || "",
+        bookingToken: design.bookingToken || "",
         stripeUrl: design.stripeUrl || "",
         howItWorksTitle: howItWorksTitle,
         howItWorksSteps: howItWorksSteps,
@@ -553,6 +558,7 @@ export default function DesignEditorPage() {
       await updateDesign({
         heroText: designFormData.heroText,
         calUrl: designFormData.calUrl || undefined,
+        bookingToken: designFormData.bookingToken || undefined,
         stripeUrl: designFormData.stripeUrl || undefined,
         howItWorksTitle: designFormData.howItWorksTitle || undefined,
         howItWorksSteps: designFormData.howItWorksSteps.length > 0 ? designFormData.howItWorksSteps : undefined,
@@ -715,8 +721,35 @@ export default function DesignEditorPage() {
             </CardHeader>
             <CardContent className="space-y-8">
               <div>
+                <Label htmlFor="bookingToken" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Booking Token
+                </Label>
+                <div className="space-y-3">
+                  {designFormData.bookingToken && (
+                    <div className="p-3 rounded-md border border-foreground/20 bg-foreground/5">
+                      <p className="text-xs text-foreground/60 mb-1">Current Token:</p>
+                      <p className="text-sm font-mono break-all">{designFormData.bookingToken}</p>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={() => setBookingSelectorOpen(true)}
+                    className="font-black uppercase tracking-wider w-full sm:w-auto"
+                    style={{ fontWeight: '900' }}
+                  >
+                    {designFormData.bookingToken ? "Change Booking Request" : "Select or Create Booking Request"}
+                  </Button>
+                </div>
+                <p className="mt-2 text-xs text-foreground/60">
+                  Token from a public booking invite. This will open a booking modal on the design page. Click the button to choose from existing requests or create a new one.
+                </p>
+              </div>
+
+              <Separator className="bg-foreground/10" />
+
+              <div>
                 <Label htmlFor="calUrl" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                  Cal.com Booking Link
+                  Cal.com Booking Link (Deprecated)
                 </Label>
                 <Input
                   id="calUrl"
@@ -726,7 +759,7 @@ export default function DesignEditorPage() {
                   placeholder="https://cal.com/your-username"
                 />
                 <p className="mt-2 text-xs text-foreground/60">
-                  URL for Cal.com booking. This will appear as a "Book Session" button on the design page.
+                  Deprecated: Use Booking Token instead. This will open Cal.com in a new tab as a fallback.
                 </p>
               </div>
 
@@ -1501,6 +1534,15 @@ export default function DesignEditorPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Booking Selector Modal */}
+      <BookingSelectorModal
+        open={bookingSelectorOpen}
+        onOpenChange={setBookingSelectorOpen}
+        onSelect={(token) => {
+          setDesignFormData({ ...designFormData, bookingToken: token });
+        }}
+      />
     </div>
   );
 }

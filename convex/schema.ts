@@ -219,7 +219,8 @@ export default defineSchema({
 
   portraits: defineTable({
     heroText: v.optional(v.string()), // Text displayed under name SVG in hero section
-    calUrl: v.optional(v.string()), // Cal.com booking link for portraits
+    calUrl: v.optional(v.string()), // Deprecated - use bookingToken instead
+    bookingToken: v.optional(v.string()), // Token for public booking invite
     stripeUrl: v.optional(v.string()), // Stripe payment link for portraits
     howItWorksTitle: v.optional(v.string()), // Title for "How It Works" section
     howItWorksSteps: v.optional(v.array(v.object({
@@ -256,7 +257,8 @@ export default defineSchema({
 
   design: defineTable({
     heroText: v.optional(v.string()), // Text displayed under name SVG in hero section
-    calUrl: v.optional(v.string()), // Cal.com booking link for design
+    calUrl: v.optional(v.string()), // Deprecated - use bookingToken instead
+    bookingToken: v.optional(v.string()), // Token for public booking invite
     stripeUrl: v.optional(v.string()), // Stripe payment link for design
     howItWorksTitle: v.optional(v.string()), // Title for "How It Works" section
     howItWorksSteps: v.optional(v.array(v.object({
@@ -339,7 +341,8 @@ export default defineSchema({
     heroText: v.optional(v.string()), // Text displayed in hero section
     contactEmail: v.optional(v.string()), // Contact email
     contactPhone: v.optional(v.string()), // Contact phone
-    calUrl: v.optional(v.string()), // Cal.com booking link
+    calUrl: v.optional(v.string()), // Deprecated - use bookingToken instead
+    bookingToken: v.optional(v.string()), // Token for public booking invite
     stripeUrl: v.optional(v.string()), // Stripe payment link
     // Value Proposition Section (sub-footer)
     valuePropositionTitle: v.optional(v.string()), // Title for value proposition section
@@ -636,7 +639,8 @@ export default defineSchema({
     title: v.string(),
     slug: v.string(),
     heroText: v.optional(v.string()),
-    calUrl: v.optional(v.string()),
+    calUrl: v.optional(v.string()), // Deprecated - use bookingToken instead
+    bookingToken: v.optional(v.string()), // Token for public booking invite
     stripeUrl: v.optional(v.string()),
     howItWorksTitle: v.optional(v.string()),
     howItWorksSteps: v.optional(v.array(v.object({
@@ -794,5 +798,20 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_created_at", ["createdAt"]),
+
+  // Notes - quick capture and storage system
+  notes: defineTable({
+    title: v.string(),
+    content: v.string(), // Note content (plain text or markdown)
+    tags: v.array(v.string()), // Array of tag strings
+    folder: v.optional(v.string()), // Optional folder name
+    isPinned: v.optional(v.boolean()), // Pin important notes
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_updated", ["updatedAt"])
+    .index("by_folder", ["folder"])
+    .index("by_tags", ["tags"])
+    .index("by_pinned", ["isPinned"]),
 });
 

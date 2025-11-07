@@ -85,44 +85,62 @@ async function ensureAdminAuth(ctx: any) {
 export const getCurrentUser = query({
   args: { sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    if (!args.sessionToken) {
+    try {
+      if (!args.sessionToken) {
+        console.log("[getCurrentUser] No session token provided");
+        return null;
+      }
+
+      // Find session
+      const session = await ctx.db
+        .query("adminSessions")
+        .withIndex("by_token", (q: any) => q.eq("token", args.sessionToken!))
+        .first();
+
+      if (!session) {
+        console.log("[getCurrentUser] No session found for token");
+        return null;
+      }
+
+      // Check if session is expired (don't delete in query, just return null)
+      if (session.expiresAt < Date.now()) {
+        console.log("[getCurrentUser] Session expired");
+        return null;
+      }
+
+      // Verify email is allowed
+      let isAllowed = false;
+      try {
+        isAllowed = await isAllowedAdminEmail(ctx, session.email);
+      } catch (error: any) {
+        console.error("[getCurrentUser] Error checking allowed email:", error);
+        return null;
+      }
+      
+      if (!isAllowed) {
+        console.log("[getCurrentUser] Email not allowed:", session.email);
+        return null;
+      }
+
+      // Get user record
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", session.email))
+        .first();
+
+      // Return user only if it exists and is admin
+      if (user && user.role === "admin") {
+        console.log("[getCurrentUser] User found:", user.email);
+        return user;
+      }
+
+      console.log("[getCurrentUser] User not found or not admin");
+      return null;
+    } catch (error: any) {
+      console.error("[getCurrentUser] Error in query:", error);
+      // Return null on error instead of throwing to prevent hanging
       return null;
     }
-
-    // Find session
-    const session = await ctx.db
-      .query("adminSessions")
-      .withIndex("by_token", (q: any) => q.eq("token", args.sessionToken!))
-      .first();
-
-    if (!session) {
-      return null;
-    }
-
-    // Check if session is expired (don't delete in query, just return null)
-    if (session.expiresAt < Date.now()) {
-      return null;
-    }
-
-    // Verify email is allowed
-    const isAllowed = await isAllowedAdminEmail(ctx, session.email);
-    
-    if (!isAllowed) {
-      return null;
-    }
-
-    // Get user record
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q: any) => q.eq("email", session.email))
-      .first();
-
-    // Return user only if it exists and is admin
-    if (user && user.role === "admin") {
-      return user;
-    }
-
-    return null;
   },
 });
 

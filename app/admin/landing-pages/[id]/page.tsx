@@ -19,6 +19,7 @@ import { X, ChevronUp, ChevronDown, Upload, Eye } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { BookingSelectorModal } from "@/components/booking-selector-modal";
 
 export default function LandingPageEditorPage() {
   const params = useParams();
@@ -68,11 +69,13 @@ export default function LandingPageEditorPage() {
   
   const [uploading, setUploading] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [bookingSelectorOpen, setBookingSelectorOpen] = useState(false);
   
   // Landing Page Form Data
   const [pageFormData, setPageFormData] = useState({
     heroText: "",
     calUrl: "",
+    bookingToken: "",
     stripeUrl: "",
     howItWorksTitle: "",
     howItWorksSteps: [] as Array<{ title: string; description: string }>,
@@ -84,6 +87,7 @@ export default function LandingPageEditorPage() {
       setPageFormData({
         heroText: landingPage.heroText || "",
         calUrl: landingPage.calUrl || "",
+        bookingToken: landingPage.bookingToken || "",
         stripeUrl: landingPage.stripeUrl || "",
         howItWorksTitle: landingPage.howItWorksTitle || "",
         howItWorksSteps: landingPage.howItWorksSteps || [],
@@ -314,6 +318,7 @@ export default function LandingPageEditorPage() {
         id: landingPage._id,
         heroText: pageFormData.heroText || undefined,
         calUrl: pageFormData.calUrl || undefined,
+        bookingToken: pageFormData.bookingToken || undefined,
         stripeUrl: pageFormData.stripeUrl || undefined,
         howItWorksTitle: pageFormData.howItWorksTitle || undefined,
         howItWorksSteps: pageFormData.howItWorksSteps.length > 0 ? pageFormData.howItWorksSteps : undefined,
@@ -451,8 +456,35 @@ export default function LandingPageEditorPage() {
             </CardHeader>
             <CardContent className="space-y-8">
               <div>
+                <Label htmlFor="bookingToken" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Booking Token
+                </Label>
+                <div className="space-y-3">
+                  {pageFormData.bookingToken && (
+                    <div className="p-3 rounded-md border border-foreground/20 bg-foreground/5">
+                      <p className="text-xs text-foreground/60 mb-1">Current Token:</p>
+                      <p className="text-sm font-mono break-all">{pageFormData.bookingToken}</p>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={() => setBookingSelectorOpen(true)}
+                    className="font-black uppercase tracking-wider w-full sm:w-auto"
+                    style={{ fontWeight: '900' }}
+                  >
+                    {pageFormData.bookingToken ? "Change Booking Request" : "Select or Create Booking Request"}
+                  </Button>
+                </div>
+                <p className="mt-2 text-xs text-foreground/60">
+                  Token from a public booking invite. This will open a booking modal on the landing page. Click the button to choose from existing requests or create a new one.
+                </p>
+              </div>
+
+              <Separator className="bg-foreground/10" />
+
+              <div>
                 <Label htmlFor="calUrl" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                  Cal.com Booking Link
+                  Cal.com Booking Link (Deprecated)
                 </Label>
                 <Input
                   id="calUrl"
@@ -462,7 +494,7 @@ export default function LandingPageEditorPage() {
                   placeholder="https://cal.com/your-username"
                 />
                 <p className="mt-2 text-xs text-foreground/60">
-                  URL for Cal.com booking. This will appear as a "Book Session" button on the design page.
+                  Deprecated: Use Booking Token instead. This will open Cal.com in a new tab as a fallback.
                 </p>
               </div>
 
@@ -938,6 +970,15 @@ export default function LandingPageEditorPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Booking Selector Modal */}
+      <BookingSelectorModal
+        open={bookingSelectorOpen}
+        onOpenChange={setBookingSelectorOpen}
+        onSelect={(token) => {
+          setPageFormData({ ...pageFormData, bookingToken: token });
+        }}
+      />
     </div>
   );
 }

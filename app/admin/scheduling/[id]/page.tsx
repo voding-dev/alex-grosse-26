@@ -13,6 +13,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { PagesUsingRequest } from "@/components/pages-using-token";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function SchedulingRequestDetailPage() {
   const params = useParams<{ id: string }>();
@@ -39,6 +50,9 @@ export default function SchedulingRequestDetailPage() {
   const [editSlotEnd, setEditSlotEnd] = useState('');
   const [addSlotStart, setAddSlotStart] = useState('');
   const [addSlotEnd, setAddSlotEnd] = useState('');
+  const [deleteRequestDialog, setDeleteRequestDialog] = useState(false);
+  const [cancelBookingDialog, setCancelBookingDialog] = useState<{ open: boolean; slotId: string | null }>({ open: false, slotId: null });
+  const [deleteSlotDialog, setDeleteSlotDialog] = useState<{ open: boolean; slotId: string | null }>({ open: false, slotId: null });
 
   const copy = async (text: string) => {
     try {
@@ -64,6 +78,12 @@ export default function SchedulingRequestDetailPage() {
   const invites = data?.invites || [];
   const bookedSlots = slots.filter((s: any) => s.status === "booked");
   const availableSlots = slots.filter((s: any) => s.status === "available");
+  
+  // Get public invite token to check if it exists
+  const publicToken = useQuery(
+    api.scheduling.getPublicInviteToken,
+    request?._id && adminEmail ? { requestId: request._id, email: adminEmail } : "skip"
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 space-y-8 sm:space-y-12">
@@ -98,16 +118,9 @@ export default function SchedulingRequestDetailPage() {
               <Button 
                 variant="outline" 
                 className="font-black uppercase tracking-wider text-red-500 border-red-500/50 hover:bg-red-500 hover:text-black transition-colors"
-                onClick={async () => {
+                onClick={() => {
                   if (!request?._id) return;
-                  if (!confirm('Delete this booking request? This removes all slots and invites.')) return;
-                  try {
-                    await removeRequest({ id: request._id, email: adminEmail || undefined });
-                    toast({ title: 'Deleted', description: 'Booking request removed successfully' });
-                    window.location.href = '/admin/scheduling';
-                  } catch (e: any) {
-                    toast({ title: 'Error', description: e.message || 'Failed to delete', variant: 'destructive' });
-                  }
+                  setDeleteRequestDialog(true);
                 }}
                 style={{ fontWeight: '900' }}
               >
@@ -188,6 +201,29 @@ export default function SchedulingRequestDetailPage() {
           </Card>
         )}
       </div>
+
+      {/* Pages Using This Request */}
+      {request && (
+        <Card className="border border-foreground/20 hover:border-accent/50 transition-all">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+              Used On Pages
+            </CardTitle>
+            <CardDescription className="text-base mt-1">
+              Pages that are using this booking request
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {publicToken ? (
+              <PagesUsingRequest requestId={request._id} adminEmail={adminEmail} />
+            ) : (
+              <p className="text-sm text-foreground/60">
+                No public invite token found. Create a shareable link to use this request on pages.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Edit Form */}
       {isEditing && request && (
@@ -494,14 +530,8 @@ export default function SchedulingRequestDetailPage() {
                           variant="ghost"
                           size="sm"
                           className="h-6 px-2 text-xs font-bold uppercase tracking-wider text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                          onClick={async () => {
-                            if (!confirm('Cancel this booking? The slot will become available again.')) return;
-                            try {
-                              await cancelBooking({ slotId: s._id, email: adminEmail || undefined });
-                              toast({ title: 'Booking cancelled', description: 'Slot is now available' });
-                            } catch (e: any) {
-                              toast({ title: 'Error', description: e.message || 'Failed to cancel booking', variant: 'destructive' });
-                            }
+                          onClick={() => {
+                            setCancelBookingDialog({ open: true, slotId: s._id });
                           }}
                         >
                           Cancel Booking
@@ -570,14 +600,8 @@ export default function SchedulingRequestDetailPage() {
                                     variant="ghost"
                                     size="sm"
                                     className="h-8 px-3 text-xs font-bold uppercase tracking-wider text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                                    onClick={async () => {
-                                      if (!confirm('Delete this time slot?')) return;
-                                      try {
-                                        await removeSlot({ id: s._id, email: adminEmail || undefined });
-                                        toast({ title: 'Deleted', description: 'Time slot removed' });
-                                      } catch (e: any) {
-                                        toast({ title: 'Error', description: e.message || 'Failed to delete slot', variant: 'destructive' });
-                                      }
+                                    onClick={() => {
+                                      setDeleteSlotDialog({ open: true, slotId: s._id });
                                     }}
                                   >
                                     <Trash2 className="h-3 w-3" />
@@ -770,6 +794,96 @@ export default function SchedulingRequestDetailPage() {
           </Card>
         </div>
       )}
+
+      {/* Delete Request Dialog */}
+      <AlertDialog open={deleteRequestDialog} onOpenChange={setDeleteRequestDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Booking Request</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this booking request? This will remove all slots and invites. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!request?._id) return;
+                try {
+                  await removeRequest({ id: request._id, email: adminEmail || undefined });
+                  toast({ title: 'Deleted', description: 'Booking request removed successfully' });
+                  window.location.href = '/admin/scheduling';
+                } catch (e: any) {
+                  toast({ title: 'Error', description: e.message || 'Failed to delete', variant: 'destructive' });
+                }
+              }}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Booking Dialog */}
+      <AlertDialog open={cancelBookingDialog.open} onOpenChange={(open) => setCancelBookingDialog({ open, slotId: cancelBookingDialog.slotId })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this booking? The slot will become available again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!cancelBookingDialog.slotId) return;
+                try {
+                  await cancelBooking({ slotId: cancelBookingDialog.slotId, email: adminEmail || undefined });
+                  toast({ title: 'Booking cancelled', description: 'Slot is now available' });
+                  setCancelBookingDialog({ open: false, slotId: null });
+                } catch (e: any) {
+                  toast({ title: 'Error', description: e.message || 'Failed to cancel booking', variant: 'destructive' });
+                }
+              }}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Cancel Booking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Slot Dialog */}
+      <AlertDialog open={deleteSlotDialog.open} onOpenChange={(open) => setDeleteSlotDialog({ open, slotId: deleteSlotDialog.slotId })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Time Slot</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this time slot? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!deleteSlotDialog.slotId) return;
+                try {
+                  await removeSlot({ id: deleteSlotDialog.slotId, email: adminEmail || undefined });
+                  toast({ title: 'Deleted', description: 'Time slot removed' });
+                  setDeleteSlotDialog({ open: false, slotId: null });
+                } catch (e: any) {
+                  toast({ title: 'Error', description: e.message || 'Failed to delete slot', variant: 'destructive' });
+                }
+              }}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

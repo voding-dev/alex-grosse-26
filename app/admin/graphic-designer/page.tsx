@@ -21,6 +21,7 @@ import { X, ChevronUp, ChevronDown, Upload, Eye, ArrowLeft, Type, Mail, Phone, M
 import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { BookingSelectorModal } from "@/components/booking-selector-modal";
 
 interface Category {
   id: string;
@@ -410,6 +411,7 @@ export default function GraphicDesignerEditorPage() {
   
   const [uploading, setUploading] = useState(false);
   const [uploadingGalleries, setUploadingGalleries] = useState<Record<string, boolean>>({});
+  const [bookingSelectorOpen, setBookingSelectorOpen] = useState(false);
   
   // Categories state
   const [categories, setCategories] = useState<Category[]>([]);
@@ -787,6 +789,7 @@ export default function GraphicDesignerEditorPage() {
   const contactEmail = graphicDesigner?.contactEmail || "hello@iancourtright.com";
   const contactPhone = graphicDesigner?.contactPhone || "(843) 847-0793";
   const calUrl = graphicDesigner?.calUrl || "";
+  const bookingToken = graphicDesigner?.bookingToken || "";
   const stripeUrl = graphicDesigner?.stripeUrl || "";
   const valuePropositionTitle = graphicDesigner?.valuePropositionTitle || "WHY ANY OF THIS MATTERS";
   const valuePropositionDescription = graphicDesigner?.valuePropositionDescription || "Your brand competes for attention every second. Generic design gets ignored. Work that stops traffic gets remembered—and gets results.";
@@ -871,6 +874,7 @@ export default function GraphicDesignerEditorPage() {
         contactEmail: graphicDesigner?.contactEmail || undefined,
         contactPhone: graphicDesigner?.contactPhone || undefined,
         calUrl: graphicDesigner?.calUrl || undefined,
+        bookingToken: graphicDesigner?.bookingToken || undefined,
         stripeUrl: graphicDesigner?.stripeUrl || undefined,
         valuePropositionTitle: valuePropositionTitle || undefined,
         valuePropositionDescription: valuePropositionDescription || undefined,
@@ -1101,8 +1105,35 @@ export default function GraphicDesignerEditorPage() {
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
                 <div>
+                  <Label htmlFor="graphicDesignerBookingToken" className="text-xs font-bold uppercase tracking-wider mb-2 block text-foreground/70" style={{ fontWeight: '900' }}>
+                    Booking Token
+                  </Label>
+                  <div className="space-y-3">
+                    {bookingToken && (
+                      <div className="p-3 rounded-md border border-foreground/20 bg-foreground/5">
+                        <p className="text-xs text-foreground/60 mb-1">Current Token:</p>
+                        <p className="text-xs font-mono break-all">{bookingToken}</p>
+                      </div>
+                    )}
+                    <Button
+                      type="button"
+                      onClick={() => setBookingSelectorOpen(true)}
+                      className="font-black uppercase tracking-wider w-full sm:w-auto"
+                      style={{ fontWeight: '900' }}
+                    >
+                      {bookingToken ? "Change Booking Request" : "Select or Create Booking Request"}
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-xs text-foreground/60">
+                    Token from a public booking invite. This will open a booking modal on the page. Click the button to choose from existing requests or create a new one.
+                  </p>
+                </div>
+
+                <Separator className="bg-foreground/10" />
+
+                <div>
                   <Label htmlFor="graphicDesignerCalUrl" className="text-xs font-bold uppercase tracking-wider mb-2 block text-foreground/70" style={{ fontWeight: '900' }}>
-                    Cal.com Booking Link
+                    Cal.com Booking Link (Deprecated)
                   </Label>
                   <Input
                     id="graphicDesignerCalUrl"
@@ -1117,7 +1148,7 @@ export default function GraphicDesignerEditorPage() {
                     placeholder="https://cal.com/your-username"
                   />
                   <p className="mt-2 text-xs text-foreground/60">
-                    URL for Cal.com booking. This will appear as a "Book Session" button on the page.
+                    Deprecated: Use Booking Token instead. This will open Cal.com in a new tab as a fallback.
                   </p>
                 </div>
 
@@ -1650,6 +1681,18 @@ export default function GraphicDesignerEditorPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Booking Selector Modal */}
+      <BookingSelectorModal
+        open={bookingSelectorOpen}
+        onOpenChange={setBookingSelectorOpen}
+        onSelect={(token) => {
+          updateGraphicDesigner({
+            bookingToken: token,
+            email: adminEmail || undefined,
+          });
+        }}
+      />
     </div>
   );
 }

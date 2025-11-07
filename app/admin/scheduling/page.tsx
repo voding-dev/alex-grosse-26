@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { resolveBranding } from "@/lib/brand-presets";
 import { Plus, Calendar, Clock, Users } from "lucide-react";
+import { PagesUsingRequest } from "@/components/pages-using-token";
 
 export default function SchedulingPage() {
   const { adminEmail } = useAdminAuth();
@@ -161,6 +162,7 @@ export default function SchedulingPage() {
                             {req.recipientEmails.length} recipient{req.recipientEmails.length !== 1 ? 's' : ''}
                           </div>
                         </div>
+                        <PagesUsingRequest requestId={req._id} adminEmail={adminEmail} />
                         {brand.logoUrl && (
                           <div className="absolute bottom-6 right-6 sm:bottom-8 sm:right-8">
                             <Image
@@ -242,6 +244,7 @@ export default function SchedulingPage() {
                             {req.durationMinutes} min
                           </div>
                         </div>
+                        <PagesUsingRequest requestId={req._id} adminEmail={adminEmail} />
                         {brand.logoUrl && (
                           <div className="absolute bottom-6 right-6 sm:bottom-8 sm:right-8">
                             <Image

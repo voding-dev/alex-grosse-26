@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { FloatingNotesButton } from "@/components/notes/floating-notes-button";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isChecking, isAuthenticated, sessionToken } = useAdminAuth();
@@ -1018,6 +1019,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         )}
       </nav>
       <main className="bg-background">{children}</main>
+      
+      {/* Floating Notes Button */}
+      <FloatingNotesButton />
       
       {/* Click outside to close dropdowns */}
       {(clientsOpen || businessOpen || mediaOpen || websiteOpen || profileOpen) && (

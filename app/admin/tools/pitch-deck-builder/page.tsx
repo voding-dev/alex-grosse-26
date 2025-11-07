@@ -29,6 +29,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, X, Image as ImageIcon, Check, Plus, Trash2, Save } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const tabs = [
   { id: "cover", label: "Cover" },
@@ -65,10 +76,12 @@ type PitchDeck = {
 
 export default function PitchDeckBuilderPage() {
   const { sessionToken } = useAdminAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("cover");
   const [currentDeckId, setCurrentDeckId] = useState<Id<"pitchDecks"> | null>(null);
   const [newDeckDialogOpen, setNewDeckDialogOpen] = useState(false);
   const [newDeckTitle, setNewDeckTitle] = useState("");
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; deckId: Id<"pitchDecks"> | null }>({ open: false, deckId: null });
 
   const [title, setTitle] = useState("");
   const [coverDescription, setCoverDescription] = useState("");
@@ -236,21 +249,21 @@ export default function PitchDeckBuilderPage() {
         coverMediaUrls: coverMediaUrls.filter(Boolean),
         imageryMediaUrls: imageryMediaUrls.filter(Boolean),
       });
-      alert("Deck saved successfully");
+      toast({ title: "Success", description: "Deck saved successfully" });
     } catch (error) {
       console.error("Failed to save deck:", error);
-      alert("Failed to save deck");
+      toast({ title: "Error", description: "Failed to save deck", variant: "destructive" });
     }
   };
 
   const createNewDeck = async () => {
     if (!newDeckTitle.trim()) {
-      alert("Please enter a deck title");
+      toast({ title: "Error", description: "Please enter a deck title", variant: "destructive" });
       return;
     }
     
     if (!sessionToken) {
-      alert("Not authenticated");
+      toast({ title: "Error", description: "Not authenticated", variant: "destructive" });
       return;
     }
     
@@ -273,25 +286,31 @@ export default function PitchDeckBuilderPage() {
       setImageryMediaUrls(Array.from({ length: 6 }).map(() => ""));
       setNewDeckTitle("");
       setNewDeckDialogOpen(false);
+      toast({ title: "Success", description: "Deck created successfully" });
     } catch (error) {
       console.error("Failed to create deck:", error);
-      alert("Failed to create deck");
+      toast({ title: "Error", description: "Failed to create deck", variant: "destructive" });
     }
   };
 
-  const handleDeleteDeck = async (id: Id<"pitchDecks">) => {
-    if (!confirm("Are you sure you want to delete this deck?")) return;
-    
-    if (!sessionToken) {
-      alert("Not authenticated");
+  const handleDeleteDeck = (id: Id<"pitchDecks">) => {
+    setDeleteDialog({ open: true, deckId: id });
+  };
+
+  const confirmDeleteDeck = async () => {
+    if (!deleteDialog.deckId || !sessionToken) {
+      if (!sessionToken) {
+        toast({ title: "Error", description: "Not authenticated", variant: "destructive" });
+      }
+      setDeleteDialog({ open: false, deckId: null });
       return;
     }
     
     try {
-      await removeDeck({ sessionToken, id });
+      await removeDeck({ sessionToken, id: deleteDialog.deckId });
       
-      if (currentDeckId === id) {
-        const remainingDecks = decks.filter((d) => d._id !== id);
+      if (currentDeckId === deleteDialog.deckId) {
+        const remainingDecks = decks.filter((d) => d._id !== deleteDialog.deckId);
         if (remainingDecks.length > 0) {
           loadDeck(remainingDecks[0]._id);
         } else {
@@ -309,9 +328,11 @@ export default function PitchDeckBuilderPage() {
           setImageryMediaUrls(Array.from({ length: 6 }).map(() => ""));
         }
       }
+      toast({ title: "Success", description: "Deck deleted successfully" });
+      setDeleteDialog({ open: false, deckId: null });
     } catch (error) {
       console.error("Failed to delete deck:", error);
-      alert("Failed to delete deck");
+      toast({ title: "Error", description: "Failed to delete deck", variant: "destructive" });
     }
   };
 
@@ -395,7 +416,7 @@ export default function PitchDeckBuilderPage() {
     const base64 = typeof window === "undefined" ? Buffer.from(json, "utf-8").toString("base64") : btoa(unescape(encodeURIComponent(json)));
     const url = `${window.location.origin}/pitch-decks/pitch-deck-builder?data=${encodeURIComponent(base64)}`;
     await navigator.clipboard.writeText(url);
-    alert("Share link copied to clipboard");
+    toast({ title: "Success", description: "Share link copied to clipboard" });
   };
 
   return (
@@ -824,6 +845,27 @@ export default function PitchDeckBuilderPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Deck Dialog */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, deckId: deleteDialog.deckId })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Pitch Deck</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this pitch deck? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteDeck}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

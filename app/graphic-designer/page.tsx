@@ -7,6 +7,7 @@ import { Nav } from "@/components/nav";
 import { HeroCarouselImage } from "@/components/hero-carousel-image";
 import { PortraitsGalleryImage } from "@/components/portraits-gallery-image";
 import { Lightbox } from "@/components/lightbox";
+import { BookingModal } from "@/components/booking-modal";
 import { Mail, Phone } from "lucide-react";
 import Image from "next/image";
 
@@ -21,6 +22,7 @@ export default function GraphicDesignerPage() {
   const allCategoryGalleries = useQuery(api.graphicDesignerCategoryGallery.list) || [];
   
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
   
   // Lightbox state
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -242,11 +244,17 @@ export default function GraphicDesignerPage() {
                 <p className="text-lg font-black uppercase tracking-wide text-black sm:text-xl mb-4" style={{ fontWeight: '900' }}>
                   {graphicDesigner?.ctaTitle || "READY TO STAND OUT?"}
                 </p>
-                {(graphicDesigner?.calUrl || graphicDesigner?.stripeUrl) ? (
+                {(graphicDesigner?.bookingToken || graphicDesigner?.calUrl || graphicDesigner?.stripeUrl) ? (
                   <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                    {graphicDesigner.calUrl && (
+                    {(graphicDesigner.bookingToken || graphicDesigner.calUrl) && (
                       <button
-                        onClick={() => window.open(graphicDesigner.calUrl as string, "_blank")}
+                        onClick={() => {
+                          if (graphicDesigner.bookingToken) {
+                            setBookingModalOpen(true);
+                          } else if (graphicDesigner.calUrl) {
+                            window.open(graphicDesigner.calUrl as string, "_blank");
+                          }
+                        }}
                         className="w-full sm:w-auto min-w-[200px] rounded-lg bg-black px-8 py-4 text-base font-black uppercase tracking-wide text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl sm:text-lg"
                         style={{ fontWeight: '900' }}
                       >
@@ -318,6 +326,15 @@ export default function GraphicDesignerPage() {
           onClose={() => setLightboxOpen(false)}
           onNext={handleLightboxNext}
           onPrev={handleLightboxPrev}
+        />
+      )}
+
+      {/* Booking Modal */}
+      {graphicDesigner?.bookingToken && (
+        <BookingModal
+          open={bookingModalOpen}
+          onOpenChange={setBookingModalOpen}
+          bookingToken={graphicDesigner.bookingToken}
         />
       )}
     </>

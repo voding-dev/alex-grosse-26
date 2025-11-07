@@ -59,6 +59,20 @@ export function useAdminAuth() {
   // isChecking is true until initialized
   const isChecking = !isInitialized;
 
+  // Log query state and catch errors
+  useEffect(() => {
+    if (isInitialized && sessionToken) {
+      // Log when query state changes
+      if (user === undefined) {
+        console.log("[useAdminAuth] Query is loading...");
+      } else if (user === null) {
+        console.log("[useAdminAuth] Query returned null (no user found)");
+      } else {
+        console.log("[useAdminAuth] Query returned user:", user.email);
+      }
+    }
+  }, [user, isInitialized, sessionToken]);
+
   // Only log when state actually changes, not on every render
   useEffect(() => {
     if (isInitialized) {

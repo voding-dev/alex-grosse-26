@@ -19,7 +19,8 @@ export const get = query({
 export const update = mutation({
   args: {
     heroText: v.optional(v.string()), // Text displayed under name SVG in hero section
-    calUrl: v.optional(v.string()), // Cal.com booking link
+    calUrl: v.optional(v.string()), // Deprecated - use bookingToken instead
+    bookingToken: v.optional(v.string()), // Token for public booking invite
     stripeUrl: v.optional(v.string()), // Stripe payment link
     howItWorksTitle: v.optional(v.string()), // Title for "How It Works" section
     howItWorksSteps: v.optional(v.array(v.object({

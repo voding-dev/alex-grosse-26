@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { BookingSelectorModal } from "@/components/booking-selector-modal";
 
 export default function PortraitsEditorPage() {
   const { adminEmail, sessionToken } = useAdminAuth();
@@ -93,11 +94,13 @@ export default function PortraitsEditorPage() {
   const [portraitsFormData, setPortraitsFormData] = useState({
     heroText: "",
     calUrl: "",
+    bookingToken: "",
     stripeUrl: "",
     howItWorksTitle: "",
     howItWorksSteps: [] as Array<{ title: string; description: string }>,
     services: [] as Array<{ title: string; description: string }>,
   });
+  const [bookingSelectorOpen, setBookingSelectorOpen] = useState(false);
   
   useEffect(() => {
     // Default "How It Works" for portraits page
@@ -160,6 +163,7 @@ export default function PortraitsEditorPage() {
         updatePortraits({
           heroText: portraits.heroText,
           calUrl: portraits.calUrl,
+          bookingToken: portraits.bookingToken,
           stripeUrl: portraits.stripeUrl,
           howItWorksTitle: howItWorksTitle,
           howItWorksSteps: howItWorksSteps,
@@ -171,6 +175,7 @@ export default function PortraitsEditorPage() {
       setPortraitsFormData({
         heroText: portraits.heroText || "",
         calUrl: portraits.calUrl || "",
+        bookingToken: portraits.bookingToken || "",
         stripeUrl: portraits.stripeUrl || "",
         howItWorksTitle: howItWorksTitle,
         howItWorksSteps: howItWorksSteps,
@@ -553,6 +558,7 @@ export default function PortraitsEditorPage() {
       await updatePortraits({
         heroText: portraitsFormData.heroText,
         calUrl: portraitsFormData.calUrl || undefined,
+        bookingToken: portraitsFormData.bookingToken || undefined,
         stripeUrl: portraitsFormData.stripeUrl || undefined,
         howItWorksTitle: portraitsFormData.howItWorksTitle || undefined,
         howItWorksSteps: portraitsFormData.howItWorksSteps.length > 0 ? portraitsFormData.howItWorksSteps : undefined,
@@ -715,8 +721,35 @@ export default function PortraitsEditorPage() {
             </CardHeader>
             <CardContent className="space-y-8">
               <div>
+                <Label htmlFor="bookingToken" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Booking Token
+                </Label>
+                <div className="space-y-3">
+                  {portraitsFormData.bookingToken && (
+                    <div className="p-3 rounded-md border border-foreground/20 bg-foreground/5">
+                      <p className="text-xs text-foreground/60 mb-1">Current Token:</p>
+                      <p className="text-sm font-mono break-all">{portraitsFormData.bookingToken}</p>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={() => setBookingSelectorOpen(true)}
+                    className="font-black uppercase tracking-wider w-full sm:w-auto"
+                    style={{ fontWeight: '900' }}
+                  >
+                    {portraitsFormData.bookingToken ? "Change Booking Request" : "Select or Create Booking Request"}
+                  </Button>
+                </div>
+                <p className="mt-2 text-xs text-foreground/60">
+                  Token from a public booking invite. This will open a booking modal on the portraits page. Click the button to choose from existing requests or create a new one.
+                </p>
+              </div>
+
+              <Separator className="bg-foreground/10" />
+
+              <div>
                 <Label htmlFor="calUrl" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                  Cal.com Booking Link
+                  Cal.com Booking Link (Deprecated)
                 </Label>
                 <Input
                   id="calUrl"
@@ -726,7 +759,7 @@ export default function PortraitsEditorPage() {
                   placeholder="https://cal.com/your-username"
                 />
                 <p className="mt-2 text-xs text-foreground/60">
-                  URL for Cal.com booking. This will appear as a "Book Session" button on the portraits page.
+                  Deprecated: Use Booking Token instead. This will open Cal.com in a new tab as a fallback.
                 </p>
               </div>
 
@@ -1501,6 +1534,15 @@ export default function PortraitsEditorPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Booking Selector Modal */}
+      <BookingSelectorModal
+        open={bookingSelectorOpen}
+        onOpenChange={setBookingSelectorOpen}
+        onSelect={(token) => {
+          setPortraitsFormData({ ...portraitsFormData, bookingToken: token });
+        }}
+      />
     </div>
   );
 }

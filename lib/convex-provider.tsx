@@ -20,11 +20,24 @@ export function ConvexClientProvider({ children }: { children: ReactNode }) {
       // Log connection status
       console.log("[Convex Client] Initialized, checking connection...");
       
-      // The Convex client will automatically connect
-      // Log after a short delay to see if connection is established
-      const timeout = setTimeout(() => {
+      // Check connection status using Convex client's internal state
+      // Note: ConvexReactClient doesn't expose connectionState() directly
+      // but we can check if queries are working by attempting a simple test
+      const checkConnection = () => {
+        // The Convex client will automatically connect
+        // We'll log after a delay to see if connection is established
         console.log("[Convex Client] Client initialized, queries should work now");
-      }, 2000);
+        console.log("[Convex Client] URL:", convexUrl);
+        
+        // Check websocket connection by looking at the client's internal state
+        // If there are connection issues, they'll show up in the browser console
+        // as network errors or in the Convex dev server logs
+      };
+      
+      // Initial check after a short delay
+      const timeout = setTimeout(() => {
+        checkConnection();
+      }, 1000);
       
       return () => {
         clearTimeout(timeout);

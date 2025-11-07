@@ -15,6 +15,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import QRCodeLib from "qrcode";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Get public URL for QR code redirects (always publicly accessible)
 function getConvexRedirectUrl(): string {
@@ -82,6 +92,7 @@ export default function QRCodesPage() {
   const createQRCode = useMutation(api.qr_codes.create);
   const updateQRCode = useMutation(api.qr_codes.update);
   const deleteQRCodeMutation = useMutation(api.qr_codes.remove);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; qrCodeId: string | null }>({ open: false, qrCodeId: null });
 
   const generateQRCode = async (type: "static" | "dynamic") => {
     const { label, content, destinationUrl } = formData;
@@ -224,18 +235,23 @@ export default function QRCodesPage() {
     }
   };
 
-  const deleteQRCode = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this QR code?")) return;
+  const deleteQRCode = (id: string) => {
+    setDeleteDialog({ open: true, qrCodeId: id });
+  };
+
+  const confirmDeleteQRCode = async () => {
+    if (!deleteDialog.qrCodeId) return;
     
     try {
       await deleteQRCodeMutation({ 
-        id: id as any,
+        id: deleteDialog.qrCodeId as any,
         email: adminEmail || undefined,
       });
       toast({
         title: "Success",
         description: "QR code deleted successfully",
       });
+      setDeleteDialog({ open: false, qrCodeId: null });
     } catch (error) {
       console.error("Error deleting QR code:", error);
       toast({
@@ -469,6 +485,27 @@ export default function QRCodesPage() {
           ))}
         </div>
       )}
+
+      {/* Delete QR Code Dialog */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, qrCodeId: deleteDialog.qrCodeId })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete QR Code</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this QR code? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteQRCode}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

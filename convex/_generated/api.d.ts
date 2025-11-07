@@ -33,6 +33,7 @@ import type * as landingPageHeroCarousel from "../landingPageHeroCarousel.js";
 import type * as landingPages from "../landingPages.js";
 import type * as mediaLibrary from "../mediaLibrary.js";
 import type * as mediaLibraryHelpers from "../mediaLibraryHelpers.js";
+import type * as notes from "../notes.js";
 import type * as pitchDecks from "../pitchDecks.js";
 import type * as portfolio from "../portfolio.js";
 import type * as portraits from "../portraits.js";
@@ -87,6 +88,7 @@ declare const fullApi: ApiFromModules<{
   landingPages: typeof landingPages;
   mediaLibrary: typeof mediaLibrary;
   mediaLibraryHelpers: typeof mediaLibraryHelpers;
+  notes: typeof notes;
   pitchDecks: typeof pitchDecks;
   portfolio: typeof portfolio;
   portraits: typeof portraits;

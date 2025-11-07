@@ -43,6 +43,7 @@ export const create = mutation({
     slug: v.string(),
     heroText: v.optional(v.string()),
     calUrl: v.optional(v.string()),
+    bookingToken: v.optional(v.string()),
     stripeUrl: v.optional(v.string()),
     howItWorksTitle: v.optional(v.string()),
     howItWorksSteps: v.optional(v.array(v.object({
@@ -100,6 +101,7 @@ export const update = mutation({
     slug: v.optional(v.string()),
     heroText: v.optional(v.string()),
     calUrl: v.optional(v.string()),
+    bookingToken: v.optional(v.string()),
     stripeUrl: v.optional(v.string()),
     howItWorksTitle: v.optional(v.string()),
     howItWorksSteps: v.optional(v.array(v.object({

@@ -32,6 +32,16 @@ import {
 } from "@/components/ui/popover";
 import { useToast } from "@/components/ui/use-toast";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Upload,
   Search,
   Folder,
@@ -93,6 +103,7 @@ export default function MediaLibraryPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [compressingItemId, setCompressingItemId] = useState<Id<"mediaLibrary"> | null>(null);
   const [selectedMedia, setSelectedMedia] = useState<Set<string>>(new Set());
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; mediaId: Id<"mediaLibrary"> | null }>({ open: false, mediaId: null });
   
   // Filters
   const [typeFilter, setTypeFilter] = useState<"all" | "image" | "video">("all");
@@ -392,15 +403,20 @@ export default function MediaLibraryPage() {
     }
   };
 
-  const handleDelete = async (id: Id<"mediaLibrary">) => {
-    if (!confirm("Are you sure you want to delete this media item?")) return;
+  const handleDelete = (id: Id<"mediaLibrary">) => {
+    setDeleteDialog({ open: true, mediaId: id });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteDialog.mediaId) return;
 
     try {
-      await deleteMedia({ sessionToken: sessionToken || undefined, id });
+      await deleteMedia({ sessionToken: sessionToken || undefined, id: deleteDialog.mediaId });
       toast({
         title: "Deleted",
         description: "Media item deleted successfully",
       });
+      setDeleteDialog({ open: false, mediaId: null });
     } catch (error) {
       console.error("Delete error:", error);
       toast({
@@ -1505,6 +1521,27 @@ export default function MediaLibraryPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Media Dialog */}
+        <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, mediaId: deleteDialog.mediaId })}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Media Item</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this media item? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                className="bg-red-500 hover:bg-red-600"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
