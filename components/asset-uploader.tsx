@@ -66,7 +66,6 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
   const generateUploadUrl = useMutation(api.storageMutations.generateUploadUrl);
   const createAsset = useMutation(api.assets.create);
   const checkDuplicateMutation = useMutation(api.mediaLibrary.checkDuplicateMutation);
-  const getMediaQuery = useQuery(api.mediaLibrary.get, undefined);
   const createMedia = useMutation(api.mediaLibrary.create);
   const addDisplayLocation = useMutation(api.mediaLibrary.addDisplayLocation);
   
