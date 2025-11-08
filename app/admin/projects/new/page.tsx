@@ -33,10 +33,10 @@ export default function NewProjectPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.title || !formData.slug || !formData.clientName) {
+    if (!formData.title || !formData.slug) {
       toast({
         title: "Error",
-        description: "Please fill in title, slug, and client name.",
+        description: "Please fill in title and slug.",
         variant: "destructive",
       });
       return;
@@ -162,14 +162,13 @@ export default function NewProjectPage() {
 
             <div>
               <Label htmlFor="clientName" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                Client Name *
+                Client Name
               </Label>
               <Input
                 id="clientName"
                 value={formData.clientName}
                 onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
                 placeholder="Client Name"
-                required
                 className="h-12 text-base"
               />
             </div>
