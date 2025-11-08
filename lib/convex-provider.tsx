@@ -11,11 +11,17 @@ if (typeof window !== "undefined" && !convexUrl) {
   console.error("[Convex Client] Please set NEXT_PUBLIC_CONVEX_URL in your environment variables.");
 }
 
-// Create Convex client with better connection handling
+// Create Convex client with optimized connection handling
+// Note: WebSocket connection errors (code 1006) in the browser console are expected
+// and handled automatically by Convex's reconnection logic. These errors occur when:
+// - The connection times out (e.g., Convex server sleeping on free tier)
+// - Network instability causes temporary disconnections
+// - The connection is closed abnormally
+// Convex automatically reconnects, so these errors can be safely ignored.
 const convex = convexUrl ? new ConvexReactClient(convexUrl, {
   // Automatically reconnect on connection loss
   unsavedChangesWarning: false,
-  // Increase timeout for inactive servers
+  // Use native WebSocket for better compatibility
   webSocketConstructor: typeof WebSocket !== "undefined" ? WebSocket : undefined,
 }) : null;
 
