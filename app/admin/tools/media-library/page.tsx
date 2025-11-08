@@ -54,8 +54,6 @@ import {
   Video,
   Loader2,
   Filter,
-  Grid,
-  List,
   Minimize2,
   Download,
   CheckCircle,
@@ -65,6 +63,7 @@ import { MediaThumbnail } from "@/components/media-thumbnail";
 import { uploadImageToMediaLibrary } from "@/lib/upload-utils";
 import { compressImage } from "@/lib/image-compression";
 import { Checkbox } from "@/components/ui/checkbox";
+import JSZip from "jszip";
 
 type MediaItem = {
   _id: Id<"mediaLibrary">;
@@ -100,10 +99,20 @@ export default function MediaLibraryPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [compressingItemId, setCompressingItemId] = useState<Id<"mediaLibrary"> | null>(null);
   const [selectedMedia, setSelectedMedia] = useState<Set<string>>(new Set());
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; mediaId: Id<"mediaLibrary"> | null }>({ open: false, mediaId: null });
+  
+  // Bulk operations
+  const [bulkFolderDialogOpen, setBulkFolderDialogOpen] = useState(false);
+  const [bulkTagDialogOpen, setBulkTagDialogOpen] = useState(false);
+  const [bulkFolderValue, setBulkFolderValue] = useState<string>("");
+  const [bulkTagValue, setBulkTagValue] = useState<string>("");
+  const [bulkTagInput, setBulkTagInput] = useState<string>(""); // Current input text for bulk tags
+  const [bulkTagsArray, setBulkTagsArray] = useState<string[]>([]); // Array of tags for visual display in bulk dialog
+  const [bulkTagMode, setBulkTagMode] = useState<"add" | "remove" | "replace">("add");
+  const [bulkFolderSuggestionsOpen, setBulkFolderSuggestionsOpen] = useState(false);
+  const [bulkTagSuggestionsOpen, setBulkTagSuggestionsOpen] = useState(false);
   
   // Filters
   const [typeFilter, setTypeFilter] = useState<"all" | "image" | "video">("all");
@@ -114,6 +123,8 @@ export default function MediaLibraryPage() {
   // Edit dialog
   const [editingItem, setEditingItem] = useState<MediaItem | null>(null);
   const [editTags, setEditTags] = useState<string>("");
+  const [editTagsArray, setEditTagsArray] = useState<string[]>([]); // Array of tags for visual display
+  const [editTagInput, setEditTagInput] = useState<string>(""); // Current input text for edit tags
   const [editFolder, setEditFolder] = useState<string>("");
   const [editFilename, setEditFilename] = useState<string>("");
   const [editAlt, setEditAlt] = useState<string>("");
@@ -358,7 +369,10 @@ export default function MediaLibraryPage() {
 
   const handleEdit = (item: MediaItem) => {
     setEditingItem(item);
-    setEditTags(item.tags.join(", "));
+    const tagsArray = item.tags || [];
+    setEditTagsArray(tagsArray);
+    setEditTags(tagsArray.join(", "));
+    setEditTagInput("");
     setEditFolder(item.folder || "");
     setEditFilename(item.filename || "");
     setEditAlt(item.alt || "");
@@ -372,10 +386,8 @@ export default function MediaLibraryPage() {
   const handleSaveEdit = async () => {
     if (!editingItem) return;
 
-    const tagsArray = editTags
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
+    // Use the tags array directly, ensuring they're valid
+    const tagsArray = editTagsArray.filter((t) => t.trim().length > 0 && isValidTag(t));
 
     try {
       await updateMedia({
@@ -722,21 +734,251 @@ export default function MediaLibraryPage() {
     if (!media || media.length === 0) return;
     
     toast({
-      title: "Download started",
-      description: `Downloading all ${media.length} files...`,
+      title: "Creating ZIP file",
+      description: `Preparing ${media.length} file(s) for download...`,
     });
 
-    // Download each file
-    for (const item of media) {
-      await handleDownload(item._id.toString());
-      // Small delay between downloads to avoid overwhelming the browser
-      await new Promise(resolve => setTimeout(resolve, 100));
+    try {
+      const zip = new JSZip();
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Fetch all files and add them to the zip
+      for (const item of media) {
+        try {
+          // Get signed download URL
+          const url = await getSignedDownloadUrl({ storageKey: item.storageKey });
+          if (!url) {
+            errorCount++;
+            continue;
+          }
+
+          // Fetch the file
+          const response = await fetch(url);
+          if (!response.ok) {
+            errorCount++;
+            continue;
+          }
+
+          const blob = await response.blob();
+          
+          // Use the original filename, or generate one if missing
+          const filename = item.filename || `file_${item._id.toString()}.${item.type === "image" ? "jpg" : "mp4"}`;
+          
+          // Add file to zip
+          zip.file(filename, blob);
+          successCount++;
+        } catch (error) {
+          console.error(`Error adding ${item.filename} to zip:`, error);
+          errorCount++;
+        }
+      }
+
+      if (successCount === 0) {
+        toast({
+          title: "Error",
+          description: "Failed to prepare files for download.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Generate zip file
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      
+      // Create download link
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(zipBlob);
+      const date = new Date().toISOString().split('T')[0];
+      link.download = `media_library_${date}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the object URL
+      URL.revokeObjectURL(link.href);
+
+      toast({
+        title: "Download started",
+        description: `ZIP file with ${successCount} file(s) is downloading${errorCount > 0 ? ` (${errorCount} failed)` : ''}.`,
+      });
+    } catch (error) {
+      console.error("Error creating ZIP file:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create ZIP file.",
+        variant: "destructive",
+      });
     }
+  };
 
-    toast({
-      title: "Download complete",
-      description: `Downloaded all ${media.length} files.`,
-    });
+  // Bulk folder operations
+  const handleBulkMoveToFolder = async () => {
+    if (selectedMedia.size === 0) return;
+    
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const mediaId of selectedMedia) {
+        try {
+          const item = media?.find((m) => m._id.toString() === mediaId);
+          if (!item || item._id.toString().startsWith("asset_")) {
+            errorCount++;
+            continue;
+          }
+          
+          await updateMedia({
+            sessionToken: sessionToken || undefined,
+            id: item._id as Id<"mediaLibrary">,
+            folder: bulkFolderValue || undefined,
+          });
+          
+          successCount++;
+        } catch (error) {
+          console.error(`Error updating folder for ${mediaId}:`, error);
+          errorCount++;
+        }
+      }
+      
+      if (successCount > 0) {
+        toast({
+          title: "Folder updated",
+          description: `${successCount} item${successCount !== 1 ? 's' : ''} moved to folder${bulkFolderValue ? ` "${bulkFolderValue}"` : ' (removed from folder)'}${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
+        });
+        setSelectedMedia(new Set());
+        setBulkFolderDialogOpen(false);
+        setBulkFolderValue("");
+      } else {
+        toast({
+          title: "Failed to update folders",
+          description: "All items failed to update. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update folders.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Helper function to normalize tags (trim and lowercase for comparison)
+  const normalizeTag = (tag: string): string => tag.trim().toLowerCase();
+  
+  // Helper function to validate a tag (no commas, not empty)
+  const isValidTag = (tag: string): boolean => {
+    const trimmed = tag.trim();
+    return trimmed.length > 0 && !trimmed.includes(",");
+  };
+  
+  // Helper function to parse tags from comma-separated string
+  const parseTags = (tagString: string): string[] => {
+    if (!tagString || tagString.trim().length === 0) return [];
+    
+    return tagString
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0 && isValidTag(t))
+      .filter((t, index, self) => {
+        // Remove duplicates (case-insensitive)
+        return self.findIndex((tag) => normalizeTag(tag) === normalizeTag(t)) === index;
+      });
+  };
+
+  // Bulk tag operations
+  const handleBulkUpdateTags = async () => {
+    if (selectedMedia.size === 0) return;
+    
+    const tagsToProcess = bulkTagsArray.filter((t) => t.trim().length > 0 && isValidTag(t));
+    
+    if (bulkTagMode === "replace" && tagsToProcess.length === 0) {
+      toast({
+        title: "Invalid input",
+        description: "Please provide at least one tag when replacing tags.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (bulkTagMode === "remove" && tagsToProcess.length === 0) {
+      toast({
+        title: "Invalid input",
+        description: "Please provide at least one tag to remove.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const mediaId of selectedMedia) {
+        try {
+          const item = media?.find((m) => m._id.toString() === mediaId);
+          if (!item || item._id.toString().startsWith("asset_")) {
+            errorCount++;
+            continue;
+          }
+          
+          let newTags: string[];
+          const existingTags = (item.tags || []).filter((t) => t.trim().length > 0);
+          
+          if (bulkTagMode === "add") {
+            // Add tags (merge with existing, avoid duplicates case-insensitively)
+            const existingTagsLower = new Set(existingTags.map(normalizeTag));
+            const tagsToAdd = tagsToProcess.filter((tag) => !existingTagsLower.has(normalizeTag(tag)));
+            newTags = [...existingTags, ...tagsToAdd];
+          } else if (bulkTagMode === "remove") {
+            // Remove tags (case-insensitive)
+            const tagsToRemoveLower = new Set(tagsToProcess.map(normalizeTag));
+            newTags = existingTags.filter((tag) => !tagsToRemoveLower.has(normalizeTag(tag)));
+          } else {
+            // Replace tags
+            newTags = tagsToProcess;
+          }
+          
+          await updateMedia({
+            sessionToken: sessionToken || undefined,
+            id: item._id as Id<"mediaLibrary">,
+            tags: newTags,
+          });
+          
+          successCount++;
+        } catch (error) {
+          console.error(`Error updating tags for ${mediaId}:`, error);
+          errorCount++;
+        }
+      }
+      
+      if (successCount > 0) {
+        const actionText = bulkTagMode === "add" ? "added to" : bulkTagMode === "remove" ? "removed from" : "replaced with";
+        toast({
+          title: "Tags updated",
+          description: `Tags ${actionText} ${successCount} item${successCount !== 1 ? 's' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
+        });
+        setSelectedMedia(new Set());
+        setBulkTagDialogOpen(false);
+        setBulkTagValue("");
+        setBulkTagInput("");
+        setBulkTagsArray([]);
+      } else {
+        toast({
+          title: "Failed to update tags",
+          description: "All items failed to update. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update tags.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -751,18 +993,26 @@ export default function MediaLibraryPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button
-              variant={includeAssets ? "default" : "outline"}
-              onClick={() => setIncludeAssets(!includeAssets)}
-            >
-              {includeAssets ? "Show All Site Media" : "Show Media Library Only"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
-            >
-              {viewMode === "grid" ? <List className="h-4 w-4" /> : <Grid className="h-4 w-4" />}
-            </Button>
+            {selectedMedia.size > 0 && (
+              <Button 
+                onClick={handleDownloadSelected} 
+                className="font-black uppercase tracking-wider bg-background text-foreground border-2 border-foreground/30 hover:bg-foreground hover:text-background shadow-lg transition-all hover:scale-105"
+                style={{ fontWeight: '900' }}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download Selected ({selectedMedia.size})
+              </Button>
+            )}
+            {media && media.length > 0 && (
+              <Button 
+                onClick={handleDownloadAll} 
+                className="font-black uppercase tracking-wider bg-background text-foreground border-2 border-foreground/30 hover:bg-foreground hover:text-background shadow-lg transition-all hover:scale-105"
+                style={{ fontWeight: '900' }}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download All
+              </Button>
+            )}
           </div>
         </div>
 
@@ -792,25 +1042,360 @@ export default function MediaLibraryPage() {
           </div>
           
           {selectedMedia.size > 0 && (
-            <Button 
-              onClick={handleDownloadSelected} 
-              className="font-black uppercase tracking-wider bg-background text-foreground border-2 border-foreground/30 hover:bg-foreground hover:text-background shadow-lg transition-all hover:scale-105"
-              style={{ fontWeight: '900' }}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download Selected ({selectedMedia.size})
-            </Button>
-          )}
+            <>
+              <Popover open={bulkFolderDialogOpen} onOpenChange={setBulkFolderDialogOpen}>
+                <PopoverTrigger asChild>
+                  <Button 
+                    className="font-black uppercase tracking-wider bg-background text-foreground border-2 border-foreground/30 hover:bg-foreground hover:text-background shadow-lg transition-all hover:scale-105"
+                    style={{ fontWeight: '900' }}
+                  >
+                    <Folder className="mr-2 h-4 w-4" />
+                    Move to Folder ({selectedMedia.size})
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="start">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-semibold">Move to Folder</Label>
+                      <p className="text-xs text-foreground/60 mt-1 mb-3">
+                        Move {selectedMedia.size} selected item{selectedMedia.size !== 1 ? 's' : ''} to a folder. Leave empty to remove from folder.
+                      </p>
+                      <div className="mt-2 space-y-2">
+                        {/* Display folder as chip if set */}
+                        {bulkFolderValue && bulkFolderValue.trim().length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            <Badge
+                              variant="outline"
+                              className="flex items-center gap-1 px-2 py-1 text-xs"
+                            >
+                              <Folder className="h-3 w-3" />
+                              {bulkFolderValue}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setBulkFolderValue("");
+                                }}
+                                className="ml-1 hover:text-destructive"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          </div>
+                        )}
+                        {/* Input field */}
+                        <div className="relative">
+                          <Input
+                            value={bulkFolderValue}
+                            onChange={(e) => {
+                              setBulkFolderValue(e.target.value);
+                              if (e.target.value.length > 0 || (folders && folders.length > 0)) {
+                                setBulkFolderSuggestionsOpen(true);
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === ",") {
+                                e.preventDefault();
+                                const trimmedInput = bulkFolderValue.trim();
+                                if (trimmedInput.length > 0) {
+                                  setBulkFolderValue(trimmedInput);
+                                  setBulkFolderSuggestionsOpen(false);
+                                }
+                              }
+                            }}
+                            onFocus={() => {
+                              if (folders && folders.length > 0) {
+                                setBulkFolderSuggestionsOpen(true);
+                              }
+                            }}
+                            onBlur={() => {
+                              setTimeout(() => setBulkFolderSuggestionsOpen(false), 200);
+                            }}
+                            placeholder={bulkFolderValue ? "Change folder..." : "Folder name"}
+                            className="w-full"
+                          />
+                          {bulkFolderSuggestionsOpen && folders && folders.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 bg-background border border-foreground/10 rounded-md shadow-lg max-h-60 overflow-auto">
+                              {(() => {
+                                const filteredFolders = folders
+                                  .filter((folder) =>
+                                    bulkFolderValue.length === 0 ||
+                                    folder.toLowerCase().includes(bulkFolderValue.toLowerCase())
+                                  )
+                                  .slice(0, 10);
 
-          {media && media.length > 0 && (
-            <Button 
-              onClick={handleDownloadAll} 
-              className="font-black uppercase tracking-wider bg-background text-foreground border-2 border-foreground/30 hover:bg-foreground hover:text-background shadow-lg transition-all hover:scale-105"
-              style={{ fontWeight: '900' }}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download All
-            </Button>
+                                if (filteredFolders.length === 0 && bulkFolderValue.length === 0) {
+                                  return (
+                                    <div className="px-3 py-2 text-sm text-foreground/60">
+                                      No available folders
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <>
+                                    {filteredFolders.map((folder) => (
+                                      <div
+                                        key={folder}
+                                        className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm"
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          setBulkFolderValue(folder);
+                                          setBulkFolderSuggestionsOpen(false);
+                                        }}
+                                      >
+                                        <Folder className="h-3 w-3 inline mr-2" />
+                                        {folder}
+                                      </div>
+                                    ))}
+                                    {bulkFolderValue.length > 0 && 
+                                     !folders.some(f => f.toLowerCase() === bulkFolderValue.toLowerCase()) && (
+                                      <div
+                                        className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm border-t border-foreground/10"
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          setBulkFolderValue(bulkFolderValue.trim());
+                                          setBulkFolderSuggestionsOpen(false);
+                                        }}
+                                      >
+                                        <Plus className="h-3 w-3 inline mr-2" />
+                                        Create "{bulkFolderValue.trim()}"
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs text-foreground/60 mt-2">
+                        Type folder name and press enter or comma to set it. Click the X to remove.
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setBulkFolderDialogOpen(false);
+                          setBulkFolderValue("");
+                        }}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleBulkMoveToFolder}
+                        className="flex-1"
+                      >
+                        Move
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <Popover open={bulkTagDialogOpen} onOpenChange={setBulkTagDialogOpen}>
+                <PopoverTrigger asChild>
+                  <Button 
+                    className="font-black uppercase tracking-wider bg-background text-foreground border-2 border-foreground/30 hover:bg-foreground hover:text-background shadow-lg transition-all hover:scale-105"
+                    style={{ fontWeight: '900' }}
+                  >
+                    <Tag className="mr-2 h-4 w-4" />
+                    Tag ({selectedMedia.size})
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="start">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-semibold">Tag Mode</Label>
+                      <Select value={bulkTagMode} onValueChange={(v) => setBulkTagMode(v as "add" | "remove" | "replace")}>
+                        <SelectTrigger className="w-full mt-2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="add">Add Tags (merge with existing)</SelectItem>
+                          <SelectItem value="remove">Remove Tags</SelectItem>
+                          <SelectItem value="replace">Replace All Tags</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-foreground/60 mt-2">
+                        {bulkTagMode === "add" && "Add tags to existing tags (no duplicates)"}
+                        {bulkTagMode === "remove" && "Remove specified tags from items"}
+                        {bulkTagMode === "replace" && "Replace all existing tags with new tags"}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold">Tags</Label>
+                      <div className="mt-2 space-y-2">
+                        {/* Display tags as chips */}
+                        {bulkTagsArray.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {bulkTagsArray.map((tag, index) => (
+                              <Badge
+                                key={`${tag}-${index}`}
+                                variant="outline"
+                                className="flex items-center gap-1 px-2 py-1 text-xs"
+                              >
+                                <Tag className="h-3 w-3" />
+                                {tag}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setBulkTagsArray(bulkTagsArray.filter((_, i) => i !== index));
+                                  }}
+                                  className="ml-1 hover:text-destructive"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        {/* Input field */}
+                        <div className="relative">
+                          <Input
+                            value={bulkTagInput}
+                            onChange={(e) => {
+                              setBulkTagInput(e.target.value);
+                              if (e.target.value.length > 0 || (tags && tags.length > 0)) {
+                                setBulkTagSuggestionsOpen(true);
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === ",") {
+                                e.preventDefault();
+                                const trimmedInput = bulkTagInput.trim();
+                                if (trimmedInput.length > 0 && isValidTag(trimmedInput)) {
+                                  const currentTagsLower = new Set(bulkTagsArray.map(normalizeTag));
+                                  if (!currentTagsLower.has(normalizeTag(trimmedInput))) {
+                                    setBulkTagsArray([...bulkTagsArray, trimmedInput]);
+                                    setBulkTagInput("");
+                                    setBulkTagSuggestionsOpen(false);
+                                  } else {
+                                    setBulkTagInput("");
+                                  }
+                                }
+                              } else if (e.key === "Backspace" && bulkTagInput === "" && bulkTagsArray.length > 0) {
+                                // Remove last tag on backspace when input is empty
+                                setBulkTagsArray(bulkTagsArray.slice(0, -1));
+                              }
+                            }}
+                            onFocus={() => {
+                              if (tags && tags.length > 0) {
+                                setBulkTagSuggestionsOpen(true);
+                              }
+                            }}
+                            onBlur={() => {
+                              setTimeout(() => setBulkTagSuggestionsOpen(false), 200);
+                            }}
+                            placeholder={bulkTagsArray.length === 0 ? "Type tag and press comma or enter..." : "Add another tag..."}
+                            className="w-full"
+                          />
+                          {bulkTagSuggestionsOpen && tags && tags.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 bg-background border border-foreground/10 rounded-md shadow-lg max-h-60 overflow-auto">
+                              {(() => {
+                                const currentTagsLower = new Set(bulkTagsArray.map(normalizeTag));
+                                const filteredTags = tags
+                                  .filter((tag) => 
+                                    bulkTagInput.length === 0 || 
+                                    tag.toLowerCase().includes(bulkTagInput.toLowerCase())
+                                  )
+                                  .filter((tag) => !currentTagsLower.has(normalizeTag(tag)))
+                                  .slice(0, 10);
+                                
+                                if (filteredTags.length === 0 && bulkTagInput.length === 0) {
+                                  return (
+                                    <div className="px-3 py-2 text-sm text-foreground/60">
+                                      No available tags
+                                    </div>
+                                  );
+                                }
+                                
+                                return (
+                                  <>
+                                    {filteredTags.map((tag) => (
+                                      <div
+                                        key={tag}
+                                        className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm"
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          const currentTagsLower = new Set(bulkTagsArray.map(normalizeTag));
+                                          
+                                          // Only add if not already present (case-insensitive)
+                                          if (!currentTagsLower.has(normalizeTag(tag))) {
+                                            setBulkTagsArray([...bulkTagsArray, tag]);
+                                            setBulkTagInput("");
+                                          }
+                                          setBulkTagSuggestionsOpen(false);
+                                        }}
+                                      >
+                                        <Tag className="h-3 w-3 inline mr-2" />
+                                        {tag}
+                                      </div>
+                                    ))}
+                                    {bulkTagInput.trim().length > 0 && 
+                                     !tags.some(t => normalizeTag(t) === normalizeTag(bulkTagInput)) && (
+                                      <div
+                                        className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm border-t border-foreground/10"
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          const trimmedInput = bulkTagInput.trim();
+                                          if (trimmedInput.length > 0 && isValidTag(trimmedInput)) {
+                                            const currentTagsLower = new Set(bulkTagsArray.map(normalizeTag));
+                                            if (!currentTagsLower.has(normalizeTag(trimmedInput))) {
+                                              setBulkTagsArray([...bulkTagsArray, trimmedInput]);
+                                              setBulkTagInput("");
+                                            }
+                                          }
+                                          setBulkTagSuggestionsOpen(false);
+                                        }}
+                                      >
+                                        <Plus className="h-3 w-3 inline mr-2" />
+                                        Create "{bulkTagInput.trim()}"
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs text-foreground/60 mt-2">
+                        Type a tag and press comma or enter to add it. Tags are case-insensitive and duplicates are automatically removed. Press backspace when input is empty to remove the last tag.
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setBulkTagDialogOpen(false);
+                          setBulkTagValue("");
+                          setBulkTagInput("");
+                          setBulkTagsArray([]);
+                        }}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleBulkUpdateTags}
+                        className="flex-1"
+                      >
+                        {bulkTagMode === "add" && "Add Tags"}
+                        {bulkTagMode === "remove" && "Remove Tags"}
+                        {bulkTagMode === "replace" && "Replace Tags"}
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+            </>
           )}
         </div>
 
@@ -1003,11 +1588,7 @@ export default function MediaLibraryPage() {
           </Card>
         ) : media && media.length > 0 ? (
           <div
-            className={
-              viewMode === "grid"
-                ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
-                : "space-y-4"
-            }
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
           >
             {media.map((item) => {
               const isSelected = selectedMedia.has(item._id.toString());
@@ -1181,271 +1762,278 @@ export default function MediaLibraryPage() {
                 </p>
               </div>
               <div>
-                <Label>Tags</Label>
-                <div className="relative">
-                  <Input
-                    value={editTags}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      const lastCommaIndex = value.lastIndexOf(",");
-                      const currentTag = lastCommaIndex >= 0 
-                        ? value.substring(lastCommaIndex + 1).trim()
-                        : value.trim();
-                      
-                      // Check if a comma was just typed (detect when user types a comma)
-                      const lastChar = value[value.length - 1];
-                      const prevLastChar = editTags[editTags.length - 1];
-                      if (lastChar === "," && prevLastChar !== "," && lastCommaIndex >= 0) {
-                        // User just typed a comma - extract and add the tag before it
-                        const beforeComma = value.substring(0, lastCommaIndex).trim();
-                        const tagToAdd = beforeComma.split(",").pop()?.trim() || "";
-                        
-                        if (tagToAdd.length > 0) {
-                          // Add the tag before the comma
-                          const existingTags = editTags.split(",").map(t => t.trim()).filter(t => t.length > 0);
-                          if (!existingTags.includes(tagToAdd)) {
-                            // Add the tag and format properly
-                            const newTags = existingTags.length > 0 
-                              ? [...existingTags, tagToAdd].join(", ") + ", "
-                              : tagToAdd + ", ";
-                            setEditTags(newTags);
-                            setTagInputValue("");
-                            setTagSuggestionsOpen(false);
-                            return;
-                          } else {
-                            // Tag already exists, just format properly
-                            const newTags = existingTags.join(", ") + ", ";
-                            setEditTags(newTags);
-                            setTagInputValue("");
-                            setTagSuggestionsOpen(false);
-                            return;
-                          }
-                        } else {
-                          // Just a comma with no tag before it, keep the comma for formatting
-                          setEditTags(value);
-                          setTagInputValue("");
-                          setTagSuggestionsOpen(false);
-                          return;
-                        }
-                      }
-                      
-                      setEditTags(value);
-                      setTagInputValue(currentTag);
-                      // Show suggestions if there's text or if there are tags available
-                      if (currentTag.length > 0 || (tags && tags.length > 0)) {
-                        setTagSuggestionsOpen(true);
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const lastCommaIndex = editTags.lastIndexOf(",");
-                        const currentTag = lastCommaIndex >= 0 
-                          ? editTags.substring(lastCommaIndex + 1).trim()
-                          : editTags.trim();
-                        
-                        if (currentTag.length > 0) {
-                          const existingTags = editTags.split(",").map(t => t.trim()).filter(t => t.length > 0);
-                          if (!existingTags.includes(currentTag)) {
-                            // Add the tag
-                            const newTags = existingTags.length > 0 
-                              ? [...existingTags, currentTag].join(", ") + ", "
-                              : currentTag + ", ";
-                            setEditTags(newTags);
-                            setTagInputValue("");
-                            setTagSuggestionsOpen(false);
-                          } else {
-                            // Tag already exists, just format properly and clear current tag
-                            const newTags = existingTags.join(", ") + ", ";
-                            setEditTags(newTags);
-                            setTagInputValue("");
-                            setTagSuggestionsOpen(false);
-                          }
-                        }
-                      }
-                    }}
-                    onFocus={() => {
-                      const lastCommaIndex = editTags.lastIndexOf(",");
-                      const currentTag = lastCommaIndex >= 0 
-                        ? editTags.substring(lastCommaIndex + 1).trim()
-                        : editTags.trim();
-                      setTagInputValue(currentTag);
-                      // Show suggestions if there's any text or if there are existing tags to choose from
-                      if (tags && tags.length > 0) {
-                        setTagSuggestionsOpen(true);
-                      }
-                    }}
-                    onBlur={() => {
-                      // Delay closing to allow clicking on suggestions
-                      setTimeout(() => setTagSuggestionsOpen(false), 200);
-                    }}
-                    placeholder="tag1, tag2, tag3"
-                  />
-                  {tagSuggestionsOpen && tags && tags.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-background border border-foreground/10 rounded-md shadow-lg max-h-60 overflow-auto">
-                      {(() => {
-                        const existingTags = editTags.split(",").map(t => t.trim()).filter(t => t.length > 0);
-                        const filteredTags = tags
-                          .filter((tag) => 
-                            tagInputValue.length === 0 || 
-                            tag.toLowerCase().includes(tagInputValue.toLowerCase())
-                          )
-                          .filter((tag) => !existingTags.includes(tag))
-                          .slice(0, 10);
-                        
-                        if (filteredTags.length === 0 && tagInputValue.length === 0) {
-                          return (
-                            <div className="px-3 py-2 text-sm text-foreground/60">
-                              No available tags
-                            </div>
-                          );
-                        }
-                        
-                        return (
-                          <>
-                            {filteredTags.map((tag) => (
-                              <div
-                                key={tag}
-                                className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm"
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  const lastCommaIndex = editTags.lastIndexOf(",");
-                                  if (lastCommaIndex >= 0) {
-                                    // Replace the text after the last comma
-                                    const before = editTags.substring(0, lastCommaIndex + 1);
-                                    setEditTags((before + " " + tag).trim() + ", ");
-                                  } else if (editTags.trim().length > 0) {
-                                    // Add to existing tags
-                                    setEditTags(editTags.trim() + ", " + tag + ", ");
-                                  } else {
-                                    // First tag
-                                    setEditTags(tag + ", ");
-                                  }
-                                  setTagInputValue("");
-                                  setTagSuggestionsOpen(false);
-                                }}
-                              >
-                                <Tag className="h-3 w-3 inline mr-2" />
-                                {tag}
-                              </div>
-                            ))}
-                            {tagInputValue.length > 0 && 
-                             !tags.some(t => t.toLowerCase() === tagInputValue.toLowerCase()) && (
-                              <div
-                                className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm border-t border-foreground/10"
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  const lastCommaIndex = editTags.lastIndexOf(",");
-                                  if (lastCommaIndex >= 0) {
-                                    const before = editTags.substring(0, lastCommaIndex + 1);
-                                    setEditTags((before + " " + tagInputValue).trim() + ", ");
-                                  } else if (editTags.trim().length > 0) {
-                                    setEditTags(editTags.trim() + ", " + tagInputValue + ", ");
-                                  } else {
-                                    setEditTags(tagInputValue + ", ");
-                                  }
-                                  setTagInputValue("");
-                                  setTagSuggestionsOpen(false);
-                                }}
-                              >
-                                <Plus className="h-3 w-3 inline mr-2" />
-                                Create "{tagInputValue}"
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
+                <Label className="text-sm font-semibold">Tags</Label>
+                <div className="mt-2 space-y-2">
+                  {/* Display tags as chips */}
+                  {editTagsArray.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {editTagsArray.map((tag, index) => (
+                        <Badge
+                          key={`${tag}-${index}`}
+                          variant="outline"
+                          className="flex items-center gap-1 px-2 py-1 text-xs"
+                        >
+                          <Tag className="h-3 w-3" />
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newTags = editTagsArray.filter((_, i) => i !== index);
+                              setEditTagsArray(newTags);
+                              setEditTags(newTags.join(", "));
+                            }}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
                     </div>
                   )}
+                  {/* Input field */}
+                  <div className="relative">
+                    <Input
+                      value={editTagInput}
+                      onChange={(e) => {
+                        setEditTagInput(e.target.value);
+                        if (e.target.value.length > 0 || (tags && tags.length > 0)) {
+                          setTagSuggestionsOpen(true);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === ",") {
+                          e.preventDefault();
+                          const trimmedInput = editTagInput.trim();
+                          if (trimmedInput.length > 0 && isValidTag(trimmedInput)) {
+                            const currentTagsLower = new Set(editTagsArray.map(normalizeTag));
+                            if (!currentTagsLower.has(normalizeTag(trimmedInput))) {
+                              const newTags = [...editTagsArray, trimmedInput];
+                              setEditTagsArray(newTags);
+                              setEditTags(newTags.join(", "));
+                              setEditTagInput("");
+                              setTagSuggestionsOpen(false);
+                            } else {
+                              setEditTagInput("");
+                            }
+                          }
+                        } else if (e.key === "Backspace" && editTagInput === "" && editTagsArray.length > 0) {
+                          // Remove last tag on backspace when input is empty
+                          const newTags = editTagsArray.slice(0, -1);
+                          setEditTagsArray(newTags);
+                          setEditTags(newTags.join(", "));
+                        }
+                      }}
+                      onFocus={() => {
+                        if (tags && tags.length > 0) {
+                          setTagSuggestionsOpen(true);
+                        }
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => setTagSuggestionsOpen(false), 200);
+                      }}
+                      placeholder={editTagsArray.length === 0 ? "Type tag and press comma or enter..." : "Add another tag..."}
+                      className="w-full"
+                    />
+                    {tagSuggestionsOpen && tags && tags.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-background border border-foreground/10 rounded-md shadow-lg max-h-60 overflow-auto">
+                        {(() => {
+                          const currentTagsLower = new Set(editTagsArray.map(normalizeTag));
+                          const filteredTags = tags
+                            .filter((tag) => 
+                              editTagInput.length === 0 || 
+                              tag.toLowerCase().includes(editTagInput.toLowerCase())
+                            )
+                            .filter((tag) => !currentTagsLower.has(normalizeTag(tag)))
+                            .slice(0, 10);
+                          
+                          if (filteredTags.length === 0 && editTagInput.length === 0) {
+                            return (
+                              <div className="px-3 py-2 text-sm text-foreground/60">
+                                No available tags
+                              </div>
+                            );
+                          }
+                          
+                          return (
+                            <>
+                              {filteredTags.map((tag) => (
+                                <div
+                                  key={tag}
+                                  className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    const currentTagsLower = new Set(editTagsArray.map(normalizeTag));
+                                    
+                                    // Only add if not already present (case-insensitive)
+                                    if (!currentTagsLower.has(normalizeTag(tag))) {
+                                      const newTags = [...editTagsArray, tag];
+                                      setEditTagsArray(newTags);
+                                      setEditTags(newTags.join(", "));
+                                      setEditTagInput("");
+                                    }
+                                    setTagSuggestionsOpen(false);
+                                  }}
+                                >
+                                  <Tag className="h-3 w-3 inline mr-2" />
+                                  {tag}
+                                </div>
+                              ))}
+                              {editTagInput.trim().length > 0 && 
+                               !tags.some(t => normalizeTag(t) === normalizeTag(editTagInput)) && (
+                                <div
+                                  className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm border-t border-foreground/10"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    const trimmedInput = editTagInput.trim();
+                                    if (trimmedInput.length > 0 && isValidTag(trimmedInput)) {
+                                      const currentTagsLower = new Set(editTagsArray.map(normalizeTag));
+                                      if (!currentTagsLower.has(normalizeTag(trimmedInput))) {
+                                        const newTags = [...editTagsArray, trimmedInput];
+                                        setEditTagsArray(newTags);
+                                        setEditTags(newTags.join(", "));
+                                        setEditTagInput("");
+                                      }
+                                    }
+                                    setTagSuggestionsOpen(false);
+                                  }}
+                                >
+                                  <Plus className="h-3 w-3 inline mr-2" />
+                                  Create "{editTagInput.trim()}"
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-foreground/60 mt-1">
-                  Type to search existing tags or create new ones
+                <p className="text-xs text-foreground/60 mt-2">
+                  Type a tag and press comma or enter to add it. Tags are case-insensitive and duplicates are automatically removed. Press backspace when input is empty to remove the last tag.
                 </p>
               </div>
               <div>
-                <Label>Folder</Label>
-                <div className="relative">
-                  <Input
-                    value={editFolder}
-                    onChange={(e) => {
-                      setEditFolder(e.target.value);
-                      setFolderInputValue(e.target.value);
-                      // Show suggestions if there's text or if there are folders available
-                      if (e.target.value.length > 0 || (folders && folders.length > 0)) {
-                        setFolderSuggestionsOpen(true);
-                      }
-                    }}
-                    onFocus={() => {
-                      setFolderInputValue(editFolder);
-                      // Show suggestions if there are existing folders to choose from
-                      if (folders && folders.length > 0) {
-                        setFolderSuggestionsOpen(true);
-                      }
-                    }}
-                    onBlur={() => {
-                      // Delay closing to allow clicking on suggestions
-                      setTimeout(() => setFolderSuggestionsOpen(false), 200);
-                    }}
-                    placeholder="Folder name"
-                  />
-                  {folderSuggestionsOpen && folders && folders.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-background border border-foreground/10 rounded-md shadow-lg max-h-60 overflow-auto">
-                      {(() => {
-                        const filteredFolders = folders
-                          .filter((folder) => 
-                            folderInputValue.length === 0 || 
-                            folder.toLowerCase().includes(folderInputValue.toLowerCase())
-                          )
-                          .slice(0, 10);
-                        
-                        if (filteredFolders.length === 0 && folderInputValue.length === 0) {
-                          return (
-                            <div className="px-3 py-2 text-sm text-foreground/60">
-                              No available folders
-                            </div>
-                          );
-                        }
-                        
-                        return (
-                          <>
-                            {filteredFolders.map((folder) => (
-                              <div
-                                key={folder}
-                                className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm"
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  setEditFolder(folder);
-                                  setFolderInputValue("");
-                                  setFolderSuggestionsOpen(false);
-                                }}
-                              >
-                                <Folder className="h-3 w-3 inline mr-2" />
-                                {folder}
-                              </div>
-                            ))}
-                            {folderInputValue.length > 0 && 
-                             !folders.some(f => f.toLowerCase() === folderInputValue.toLowerCase()) && (
-                              <div
-                                className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm border-t border-foreground/10"
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  setEditFolder(folderInputValue);
-                                  setFolderInputValue("");
-                                  setFolderSuggestionsOpen(false);
-                                }}
-                              >
-                                <Plus className="h-3 w-3 inline mr-2" />
-                                Create "{folderInputValue}"
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
+                <Label className="text-sm font-semibold">Folder</Label>
+                <div className="mt-2 space-y-2">
+                  {/* Display folder as chip if set */}
+                  {editFolder && editFolder.trim().length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      <Badge
+                        variant="outline"
+                        className="flex items-center gap-1 px-2 py-1 text-xs"
+                      >
+                        <Folder className="h-3 w-3" />
+                        {editFolder}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditFolder("");
+                            setFolderInputValue("");
+                          }}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
                     </div>
                   )}
+                  {/* Input field */}
+                  <div className="relative">
+                    <Input
+                      value={editFolder}
+                      onChange={(e) => {
+                        setEditFolder(e.target.value);
+                        setFolderInputValue(e.target.value);
+                        // Show suggestions if there's text or if there are folders available
+                        if (e.target.value.length > 0 || (folders && folders.length > 0)) {
+                          setFolderSuggestionsOpen(true);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === ",") {
+                          e.preventDefault();
+                          const trimmedInput = editFolder.trim();
+                          if (trimmedInput.length > 0) {
+                            setEditFolder(trimmedInput);
+                            setFolderInputValue(trimmedInput);
+                            setFolderSuggestionsOpen(false);
+                          }
+                        }
+                      }}
+                      onFocus={() => {
+                        setFolderInputValue(editFolder);
+                        // Show suggestions if there are existing folders to choose from
+                        if (folders && folders.length > 0) {
+                          setFolderSuggestionsOpen(true);
+                        }
+                      }}
+                      onBlur={() => {
+                        // Delay closing to allow clicking on suggestions
+                        setTimeout(() => setFolderSuggestionsOpen(false), 200);
+                      }}
+                      placeholder={editFolder ? "Change folder..." : "Folder name"}
+                      className="w-full"
+                    />
+                    {folderSuggestionsOpen && folders && folders.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-background border border-foreground/10 rounded-md shadow-lg max-h-60 overflow-auto">
+                        {(() => {
+                          const filteredFolders = folders
+                            .filter((folder) => 
+                              folderInputValue.length === 0 || 
+                              folder.toLowerCase().includes(folderInputValue.toLowerCase())
+                            )
+                            .slice(0, 10);
+                          
+                          if (filteredFolders.length === 0 && folderInputValue.length === 0) {
+                            return (
+                              <div className="px-3 py-2 text-sm text-foreground/60">
+                                No available folders
+                              </div>
+                            );
+                          }
+                          
+                          return (
+                            <>
+                              {filteredFolders.map((folder) => (
+                                <div
+                                  key={folder}
+                                  className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setEditFolder(folder);
+                                    setFolderInputValue(folder);
+                                    setFolderSuggestionsOpen(false);
+                                  }}
+                                >
+                                  <Folder className="h-3 w-3 inline mr-2" />
+                                  {folder}
+                                </div>
+                              ))}
+                              {folderInputValue.length > 0 && 
+                               !folders.some(f => f.toLowerCase() === folderInputValue.toLowerCase()) && (
+                                <div
+                                  className="px-3 py-2 cursor-pointer hover:bg-foreground/10 text-sm border-t border-foreground/10"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    const trimmedInput = folderInputValue.trim();
+                                    setEditFolder(trimmedInput);
+                                    setFolderInputValue(trimmedInput);
+                                    setFolderSuggestionsOpen(false);
+                                  }}
+                                >
+                                  <Plus className="h-3 w-3 inline mr-2" />
+                                  Create "{folderInputValue.trim()}"
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-foreground/60 mt-1">
-                  Type to search existing folders or create a new one
+                <p className="text-xs text-foreground/60 mt-2">
+                  Type folder name and press enter or comma to set it. Click the X to remove.
                 </p>
               </div>
               <div>
@@ -1542,6 +2130,7 @@ export default function MediaLibraryPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
       </div>
     </div>
   );

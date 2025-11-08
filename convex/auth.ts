@@ -591,9 +591,9 @@ export const checkAdminAuthStatus = query({
       .withIndex("by_key", (q: any) => q.eq("key", "allowedAdminEmails"))
       .first();
     
-    // Test email check
-    const testEmail = "iancourtright@gmail.com";
-    const isAllowed = await isAllowedAdminEmail(ctx, testEmail);
+    // Get primary email dynamically (no hardcoded values)
+    const primaryEmail = await getPrimaryAdminEmail(ctx);
+    const testEmailAllowed = primaryEmail ? await isAllowedAdminEmail(ctx, primaryEmail) : false;
     
     return {
       hasAdminAuth: !!adminAuth,
@@ -603,8 +603,8 @@ export const checkAdminAuthStatus = query({
       allowedEmails: allowedEmailsSetting?.value || [],
       adminAuthPrimaryEmail: adminAuth?.primaryEmail || null,
       adminAuthAllowedEmails: adminAuth?.allowedEmails || [],
-      testEmailAllowed: isAllowed,
-      testEmail: testEmail,
+      testEmailAllowed: testEmailAllowed,
+      primaryEmailConfigured: !!primaryEmail,
     };
   },
 });

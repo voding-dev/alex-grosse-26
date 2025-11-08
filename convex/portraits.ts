@@ -59,11 +59,22 @@ export const update = mutation({
     const now = Date.now();
 
     if (existing) {
-      // Update existing record
-      await ctx.db.patch(existing._id, {
-        ...updates,
-        updatedAt: now,
-      });
+      // Check if calUrl exists (legacy field from cal.com integration)
+      if ("calUrl" in existing) {
+        // Remove calUrl field by replacing the entire document
+        const { calUrl, _id, _creationTime, ...cleanExisting } = existing as any;
+        await ctx.db.replace(existing._id, {
+          ...cleanExisting,
+          ...updates,
+          updatedAt: now,
+        });
+      } else {
+        // Update existing record normally
+        await ctx.db.patch(existing._id, {
+          ...updates,
+          updatedAt: now,
+        });
+      }
       return existing._id;
     } else {
       // Create new record

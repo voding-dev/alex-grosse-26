@@ -187,3 +187,83 @@ export const removeCalUrl = mutation({
   },
 });
 
+// ONE-TIME MIGRATION: Remove calUrl from design, graphicDesigner, and portraits documents (no auth required)
+// This is a one-time migration to clean up legacy calUrl fields.
+// DELETE THIS MUTATION AFTER RUNNING IT ONCE.
+export const migrateRemoveCalUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    let totalCleanedCount = 0;
+    const results: { table: string; cleanedCount: number }[] = [];
+
+    // Clean up design table
+    const designRecords = await ctx.db
+      .query("design")
+      .collect();
+
+    let designCleanedCount = 0;
+    for (const record of designRecords) {
+      if ("calUrl" in record) {
+        const { calUrl, _id, _creationTime, ...cleanRecord } = record as any;
+        await ctx.db.replace(record._id, {
+          ...cleanRecord,
+          updatedAt: Date.now(),
+        });
+        designCleanedCount++;
+      }
+    }
+    if (designCleanedCount > 0) {
+      results.push({ table: "design", cleanedCount: designCleanedCount });
+      totalCleanedCount += designCleanedCount;
+    }
+
+    // Clean up graphicDesigner table
+    const graphicDesignerRecords = await ctx.db
+      .query("graphicDesigner")
+      .collect();
+
+    let graphicDesignerCleanedCount = 0;
+    for (const record of graphicDesignerRecords) {
+      if ("calUrl" in record) {
+        const { calUrl, _id, _creationTime, ...cleanRecord } = record as any;
+        await ctx.db.replace(record._id, {
+          ...cleanRecord,
+          updatedAt: Date.now(),
+        });
+        graphicDesignerCleanedCount++;
+      }
+    }
+    if (graphicDesignerCleanedCount > 0) {
+      results.push({ table: "graphicDesigner", cleanedCount: graphicDesignerCleanedCount });
+      totalCleanedCount += graphicDesignerCleanedCount;
+    }
+
+    // Clean up portraits table
+    const portraitsRecords = await ctx.db
+      .query("portraits")
+      .collect();
+
+    let portraitsCleanedCount = 0;
+    for (const record of portraitsRecords) {
+      if ("calUrl" in record) {
+        const { calUrl, _id, _creationTime, ...cleanRecord } = record as any;
+        await ctx.db.replace(record._id, {
+          ...cleanRecord,
+          updatedAt: Date.now(),
+        });
+        portraitsCleanedCount++;
+      }
+    }
+    if (portraitsCleanedCount > 0) {
+      results.push({ table: "portraits", cleanedCount: portraitsCleanedCount });
+      totalCleanedCount += portraitsCleanedCount;
+    }
+
+    return { 
+      totalCleanedCount, 
+      results,
+      message: "Migration complete. Please delete this mutation after verifying cleanup." 
+    };
+  },
+});
+

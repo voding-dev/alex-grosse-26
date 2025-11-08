@@ -42,7 +42,11 @@ export default function SettingsPage() {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const isPrimaryEmail = adminEmail === "iancourtright@gmail.com";
+  // Get primary email from settings dynamically (no hardcoded values)
+  const primaryAdminEmail = settings?.primaryAdminEmail as string | undefined;
+  const isPrimaryEmail = adminEmail && primaryAdminEmail 
+    ? adminEmail.toLowerCase() === primaryAdminEmail.toLowerCase() 
+    : false;
 
   // Sync formData when settings load or change
   useEffect(() => {

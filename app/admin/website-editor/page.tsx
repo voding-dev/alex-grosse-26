@@ -406,12 +406,24 @@ export default function WebsiteEditorPage() {
       });
       return;
     }
-    const newOrder = [...portfolioItems];
-    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-    await reorderPortfolioItems({
-      ids: newOrder.map((item) => item._id),
-      email: adminEmail,
-    });
+    try {
+      const newOrder = [...portfolioItems];
+      [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+      await reorderPortfolioItems({
+        ids: newOrder.map((item) => item._id),
+        email: adminEmail,
+      });
+      toast({
+        title: "Order updated",
+        description: "Portfolio item order has been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update portfolio order.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleMovePortfolioDown = async (index: number) => {
@@ -424,12 +436,24 @@ export default function WebsiteEditorPage() {
       });
       return;
     }
-    const newOrder = [...portfolioItems];
-    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-    await reorderPortfolioItems({
-      ids: newOrder.map((item) => item._id),
-      email: adminEmail,
-    });
+    try {
+      const newOrder = [...portfolioItems];
+      [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+      await reorderPortfolioItems({
+        ids: newOrder.map((item) => item._id),
+        email: adminEmail,
+      });
+      toast({
+        title: "Order updated",
+        description: "Portfolio item order has been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update portfolio order.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Projects reorder handlers
@@ -443,12 +467,24 @@ export default function WebsiteEditorPage() {
       });
       return;
     }
-    const newOrder = [...projectsForProjectsSection];
-    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-    await reorderProjects({
-      ids: newOrder.map((project) => project._id),
-      email: adminEmail,
-    });
+    try {
+      const newOrder = [...projectsForProjectsSection];
+      [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+      await reorderProjects({
+        ids: newOrder.map((project) => project._id),
+        email: adminEmail,
+      });
+      toast({
+        title: "Order updated",
+        description: "Project order has been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update project order.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleMoveProjectDown = async (index: number) => {
@@ -461,12 +497,24 @@ export default function WebsiteEditorPage() {
       });
       return;
     }
-    const newOrder = [...projectsForProjectsSection];
-    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-    await reorderProjects({
-      ids: newOrder.map((project) => project._id),
-      email: adminEmail,
-    });
+    try {
+      const newOrder = [...projectsForProjectsSection];
+      [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+      await reorderProjects({
+        ids: newOrder.map((project) => project._id),
+        email: adminEmail,
+      });
+      toast({
+        title: "Order updated",
+        description: "Project order has been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update project order.",
+        variant: "destructive",
+      });
+    }
   };
   
   // Homepage Contact handlers

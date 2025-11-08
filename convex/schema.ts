@@ -14,7 +14,7 @@ export default defineSchema({
 
   adminAuth: defineTable({
     passwordHash: v.string(), // bcrypt hash of admin password
-    primaryEmail: v.string(), // Email for password resets (iancourtright@gmail.com)
+    primaryEmail: v.string(), // Email for password resets (configured via settings or environment)
     allowedEmails: v.array(v.string()), // Array of allowed emails
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -221,6 +221,7 @@ export default defineSchema({
     heroText: v.optional(v.string()), // Text displayed under name SVG in hero section
     bookingToken: v.optional(v.string()), // Token for public booking invite
     stripeUrl: v.optional(v.string()), // Stripe payment link for portraits
+    calUrl: v.optional(v.string()), // TEMPORARY: Legacy field from cal.com integration - will be removed after cleanup
     howItWorksTitle: v.optional(v.string()), // Title for "How It Works" section
     howItWorksSteps: v.optional(v.array(v.object({
       title: v.string(),
@@ -258,6 +259,7 @@ export default defineSchema({
     heroText: v.optional(v.string()), // Text displayed under name SVG in hero section
     bookingToken: v.optional(v.string()), // Token for public booking invite
     stripeUrl: v.optional(v.string()), // Stripe payment link for design
+    calUrl: v.optional(v.string()), // TEMPORARY: Legacy field from cal.com integration - will be removed after cleanup
     howItWorksTitle: v.optional(v.string()), // Title for "How It Works" section
     howItWorksSteps: v.optional(v.array(v.object({
       title: v.string(),
@@ -341,6 +343,7 @@ export default defineSchema({
     contactPhone: v.optional(v.string()), // Contact phone
     bookingToken: v.optional(v.string()), // Token for public booking invite
     stripeUrl: v.optional(v.string()), // Stripe payment link
+    calUrl: v.optional(v.string()), // TEMPORARY: Legacy field from cal.com integration - will be removed after cleanup
     // Value Proposition Section (sub-footer)
     valuePropositionTitle: v.optional(v.string()), // Title for value proposition section
     valuePropositionDescription: v.optional(v.string()), // Description paragraph for value proposition section
