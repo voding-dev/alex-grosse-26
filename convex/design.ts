@@ -59,11 +59,22 @@ export const update = mutation({
     const now = Date.now();
 
     if (existing) {
-      // Update existing record
-      await ctx.db.patch(existing._id, {
-        ...updates,
-        updatedAt: now,
-      });
+      // Check if calUrl exists (legacy field from cal.com integration)
+      if ("calUrl" in existing) {
+        // Remove calUrl field by replacing the entire document
+        const { calUrl, _id, _creationTime, ...cleanExisting } = existing as any;
+        await ctx.db.replace(existing._id, {
+          ...cleanExisting,
+          ...updates,
+          updatedAt: now,
+        });
+      } else {
+        // Update existing record normally
+        await ctx.db.patch(existing._id, {
+          ...updates,
+          updatedAt: now,
+        });
+      }
       return existing._id;
     } else {
       // Create new record
@@ -126,6 +137,53 @@ export const deleteAll = mutation({
     }
 
     return { deletedCount: designRecords.length };
+  },
+});
+
+// Cleanup: Remove calUrl field from design documents (legacy field from cal.com integration)
+export const removeCalUrl = mutation({
+  args: {
+    email: v.optional(v.string()), // Dev mode: email for admin check
+  },
+  handler: async (ctx, args) => {
+    const { email: adminEmail } = args;
+
+    // Development mode: check admin by email
+    if (adminEmail) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", adminEmail))
+        .first();
+
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized - admin access required");
+      }
+    } else {
+      // Production mode: use requireAdmin
+      await requireAdmin(ctx);
+    }
+
+    // Get all design records
+    const designRecords = await ctx.db
+      .query("design")
+      .collect();
+
+    let cleanedCount = 0;
+
+    // Remove calUrl field from each record if it exists
+    for (const record of designRecords) {
+      if ("calUrl" in record) {
+        // Create a new object without calUrl and system fields
+        const { calUrl, _id, _creationTime, ...cleanRecord } = record as any;
+        await ctx.db.replace(record._id, {
+          ...cleanRecord,
+          updatedAt: Date.now(),
+        });
+        cleanedCount++;
+      }
+    }
+
+    return { cleanedCount };
   },
 });
 
