@@ -32,10 +32,12 @@ export function ProjectCover({ projectId, coverAssetId, className = "", isPortfo
   // Determine which asset to use
   let assetToUse = coverAsset;
   if (!assetToUse && assets && assets.length > 0) {
-    // Find first image or video asset
-    assetToUse = assets.find(asset => asset.type === "image") || 
-                 assets.find(asset => asset.type === "video") || 
-                 assets[0];
+    // Filter to only images and videos (same as carousel)
+    const mediaAssets = assets.filter(asset => 
+      asset.type === "image" || (asset.type === "video" && asset.videoUrl)
+    );
+    // Use the first media asset (maintains sortOrder from gallery)
+    assetToUse = mediaAssets.length > 0 ? mediaAssets[0] : assets[0];
   }
 
   // Get URL for preview or storage key (skip for external videos)
