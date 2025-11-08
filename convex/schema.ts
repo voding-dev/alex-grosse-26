@@ -32,7 +32,7 @@ export default defineSchema({
   projects: defineTable({
     title: v.string(),
     slug: v.string(),
-    clientName: v.string(),
+    clientName: v.optional(v.string()),
     categories: v.array(v.union(v.literal("photo"), v.literal("video"), v.literal("design"), v.literal("mixed"))),
     status: v.union(
       v.literal("draft"),

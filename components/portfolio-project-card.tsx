@@ -9,7 +9,7 @@ interface PortfolioProjectCardProps {
   id: string;
   slug: string;
   title: string;
-  clientName: string;
+  clientName?: string;
   isPortfolio: boolean;
 }
 
@@ -40,7 +40,7 @@ export function PortfolioProjectCard({ id, slug, title, clientName, isPortfolio 
       <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
         <div className="text-center text-white">
           <h3 className="text-lg font-medium">{title}</h3>
-          <p className="text-sm text-white/80">{clientName}</p>
+          {clientName && <p className="text-sm text-white/80">{clientName}</p>}
         </div>
       </div>
     </Link>
