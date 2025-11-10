@@ -39,6 +39,17 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [showQuickTip, setShowQuickTip] = useState(true);
   const [pinErrorOpen, setPinErrorOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect if device is mobile/touch
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile('ontouchstart' in window || window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const delivery = useQuery(api.deliveries.getBySlug, { slug });
   const verifyPin = useMutation(api.deliveries.verifyPin);
@@ -556,9 +567,17 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
                 <p className="text-sm font-black uppercase tracking-wider text-foreground mb-1" style={{ fontWeight: '900' }}>
                   Quick Tip
                 </p>
-                <p className="text-xs text-foreground/70 leading-relaxed">
-                  Hover over any file to approve, download, or leave feedback. Click any file to view it full screen.
-                </p>
+                <div className="text-xs text-foreground/70 leading-relaxed">
+                  {isMobile ? (
+                    <p>
+                      <strong className="font-black">Mobile:</strong> Tap any file once to see feedback and download buttons. Tap again to view full screen.
+                    </p>
+                  ) : (
+                    <p>
+                      <strong className="font-black">Desktop:</strong> Hover over any file to see feedback and download buttons. Click to view full screen.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -615,10 +634,11 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
 
         {/* Interaction Hints */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
+          {/* Desktop: Hover hint */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-accent/30 bg-accent/5 backdrop-blur-sm cursor-help">
+                <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl border border-accent/30 bg-accent/5 backdrop-blur-sm cursor-help">
                   <MousePointer2 className="h-4 w-4 text-accent" />
                   <span className="text-xs font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
                     Hover for actions
@@ -632,6 +652,25 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          {/* Mobile: Tap hint */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex md:hidden items-center gap-2 px-4 py-2 rounded-xl border border-accent/30 bg-accent/5 backdrop-blur-sm cursor-help">
+                  <MousePointerClick className="h-4 w-4 text-accent" />
+                  <span className="text-xs font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                    Tap for actions
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-xs leading-relaxed">
+                  Tap any file once to see feedback and download buttons. Tap again to view full screen.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           
           <TooltipProvider>
             <Tooltip>
@@ -639,13 +678,16 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
                 <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-accent/30 bg-accent/5 backdrop-blur-sm cursor-help">
                   <MousePointerClick className="h-4 w-4 text-accent" />
                   <span className="text-xs font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
-                    Click to enlarge
+                    {isMobile ? 'Tap to enlarge' : 'Click to enlarge'}
                   </span>
                 </div>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
                 <p className="text-xs leading-relaxed">
-                  Click any file to open it in full screen for detailed review.
+                  {isMobile 
+                    ? 'Tap any file again (after seeing buttons) to open it in full screen for detailed review.'
+                    : 'Click any file to open it in full screen for detailed review.'
+                  }
                 </p>
               </TooltipContent>
             </Tooltip>

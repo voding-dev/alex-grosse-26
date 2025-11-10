@@ -7,14 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import Link from "next/link";
-import { Package, Info, Image as ImageIcon, Video, FileText, Check, Upload } from "lucide-react";
+import { Package, Info, Upload, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AssetUploader } from "@/components/asset-uploader";
+import { AssetThumbnail } from "@/components/asset-thumbnail";
 import { Id } from "@/convex/_generated/dataModel";
 
 export default function NewDeliveryPage() {
@@ -30,25 +31,20 @@ export default function NewDeliveryPage() {
     pin: "",
     expiresAt: "",
     notesPublic: "",
-    selectedAssetIds: [] as string[],
   });
 
   const [requirePin, setRequirePin] = useState(false);
-
-  // Get uploaded assets for this delivery (will be populated after delivery is created)
-  // For now, we'll use a state to track uploaded asset IDs before delivery creation
-  const [uploadedAssetIds, setUploadedAssetIds] = useState<string[]>([]);
 
   // Calculate default expiration (30 days from now)
   const defaultExpirationDate = new Date();
   defaultExpirationDate.setDate(defaultExpirationDate.getDate() + 30);
   const defaultExpirationString = defaultExpirationDate.toISOString().split('T')[0];
 
-  // Get only delivery assets to select from (filter out portfolio/project assets)
-  const allAssets = useQuery(api.assets.list, { uploadType: "delivery" });
-
-  // Filter to show recently uploaded assets or allow filtering
-  const recentAssets = allAssets?.slice(0, 100) || []; // Show recent assets
+  // Get delivery assets that don't have a deliveryId yet (unassigned delivery assets)
+  const allDeliveryAssets = useQuery(api.assets.list, { uploadType: "delivery" });
+  const assets = allDeliveryAssets?.filter(asset => !asset.deliveryId) || [];
+  const deleteAsset = useMutation(api.assets.remove);
+  const reorderAssets = useMutation(api.assets.reorder);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +72,9 @@ export default function NewDeliveryPage() {
         ? new Date(formData.expiresAt).getTime()
         : undefined;
 
+      // Get all asset IDs for unassigned delivery assets
+      const assetIds = assets.map(a => a._id);
+      
       const deliveryId = await createDelivery({
         title: formData.title,
         clientName: formData.clientName,
@@ -84,19 +83,18 @@ export default function NewDeliveryPage() {
         expiresAt,
         watermark: true,
         allowZip: true,
-        allowedAssetIds: (formData.selectedAssetIds as any[]) || [],
+        allowedAssetIds: assetIds,
         notesPublic: formData.notesPublic || undefined,
         email: adminEmail || undefined,
       });
 
-      const deliveryUrl = `${window.location.origin}/dl/${formData.slug}`;
-
       toast({
         title: "Delivery portal created!",
-        description: "Copy the link and PIN to send to your client.",
+        description: "You can now manage assets in the edit page.",
       });
 
-      router.push(`/admin/deliveries?created=${formData.slug}`);
+      // Redirect to edit page to manage assets
+      router.push(`/admin/deliveries/${deliveryId}`);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -106,48 +104,6 @@ export default function NewDeliveryPage() {
     }
   };
 
-  const toggleAsset = (assetId: string) => {
-    if (formData.selectedAssetIds.includes(assetId)) {
-      setFormData({
-        ...formData,
-        selectedAssetIds: formData.selectedAssetIds.filter((id) => id !== assetId),
-      });
-    } else {
-      setFormData({
-        ...formData,
-        selectedAssetIds: [...formData.selectedAssetIds, assetId],
-      });
-    }
-  };
-
-  const selectAllAssets = () => {
-    if (recentAssets) {
-      setFormData({
-        ...formData,
-        selectedAssetIds: recentAssets.map((a) => a._id),
-      });
-    }
-  };
-
-  const deselectAllAssets = () => {
-    setFormData({
-      ...formData,
-      selectedAssetIds: [],
-    });
-  };
-
-  const getAssetIcon = (type: string) => {
-    switch (type) {
-      case "image":
-        return <ImageIcon className="h-4 w-4" />;
-      case "video":
-        return <Video className="h-4 w-4" />;
-      case "pdf":
-        return <FileText className="h-4 w-4" />;
-      default:
-        return <FileText className="h-4 w-4" />;
-    }
-  };
 
   const handleUploadComplete = () => {
     // Refresh assets list after upload
@@ -170,39 +126,56 @@ export default function NewDeliveryPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Info Banner */}
-        <Card className="border border-accent/30 bg-accent/5">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex items-start gap-3">
-              <Info className="h-5 w-5 mt-0.5 text-accent flex-shrink-0" />
-              <div className="text-sm text-foreground/80 leading-relaxed">
-                <p className="font-black uppercase tracking-wider mb-3 text-foreground" style={{ fontWeight: '900' }}>
-                  How this works:
-                </p>
-                <ol className="ml-4 list-decimal space-y-2">
-                  <li>Enter delivery details (title, client name, slug, PIN)</li>
-                  <li>Upload assets directly or select from existing assets</li>
-                  <li>Choose which assets to include in the delivery</li>
-                  <li>Copy the link and PIN to send to your client via email</li>
-                  <li>Client enters PIN to view, download, and provide feedback</li>
-                </ol>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="details" className="space-y-8">
+        <TabsList className="grid w-full grid-cols-2 max-w-md bg-foreground/5 border border-foreground/20 rounded-lg p-1.5 h-auto items-center gap-1">
+          <TabsTrigger 
+            value="details" 
+            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+          >
+            Details
+          </TabsTrigger>
+          <TabsTrigger 
+            value="assets" 
+            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+          >
+            Assets ({assets?.length || 0})
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Step 1: Delivery Details */}
-        <Card className="border border-foreground/20">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
-              Step 1: Delivery Details
-            </CardTitle>
-            <CardDescription className="text-base">
-              Enter the basic information for this delivery portal
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+        <TabsContent value="details">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Info Banner */}
+            <Card className="border border-accent/30 bg-accent/5">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-start gap-3">
+                  <Info className="h-5 w-5 mt-0.5 text-accent flex-shrink-0" />
+                  <div className="text-sm text-foreground/80 leading-relaxed">
+                    <p className="font-black uppercase tracking-wider mb-3 text-foreground" style={{ fontWeight: '900' }}>
+                      How this works:
+                    </p>
+                    <ol className="ml-4 list-decimal space-y-2">
+                      <li>Enter delivery details (title, client name, slug, PIN)</li>
+                      <li>Upload assets directly or select from existing assets</li>
+                      <li>Choose which assets to include in the delivery</li>
+                      <li>Copy the link and PIN to send to your client via email</li>
+                      <li>Client enters PIN to view, download, and provide feedback</li>
+                    </ol>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Delivery Details */}
+            <Card className="border border-foreground/20">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                  Delivery Details
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Enter the basic information for this delivery portal
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
             <div>
               <Label htmlFor="title" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
                 Delivery Title *
@@ -315,128 +288,183 @@ export default function NewDeliveryPage() {
           </CardContent>
         </Card>
 
-        {/* Step 2: Upload Assets */}
-        <Card className="border border-foreground/20">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
-              Step 2: Upload Assets
-            </CardTitle>
-            <CardDescription className="text-base">
-              Upload files for this delivery (you can also select from existing assets below)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AssetUploader 
-              uploadType="delivery"
-              onUploadComplete={handleUploadComplete}
-            />
-            <p className="mt-4 text-xs text-foreground/60">
-              Note: After uploading, refresh the page or wait a moment, then select the uploaded assets below.
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Step 3: Select Assets */}
-        <Card className="border border-foreground/20">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
-              Step 3: Select Assets
-            </CardTitle>
-            <CardDescription className="text-base">
-              Choose which files to include in the delivery portal
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={selectAllAssets}
-                  className="font-bold uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
-                >
-                  Select All
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={deselectAllAssets}
-                  className="font-bold uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
-                >
-                  Deselect All
-                </Button>
-              </div>
-              <span className="text-sm text-foreground/60 font-bold uppercase tracking-wider sm:ml-auto">
-                {formData.selectedAssetIds.length} selected
-              </span>
-            </div>
-
-            {recentAssets && recentAssets.length > 0 ? (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {recentAssets.map((asset) => (
-                  <div
-                    key={asset._id}
-                    onClick={() => toggleAsset(asset._id)}
-                    className={`flex items-center gap-3 rounded-lg border p-4 cursor-pointer transition-all ${
-                      formData.selectedAssetIds.includes(asset._id)
-                        ? "border-accent bg-accent/10"
-                        : "border-foreground/10 hover:bg-foreground/5 hover:border-accent/30"
-                    }`}
-                  >
-                    <div className={`flex h-6 w-6 items-center justify-center rounded border-2 ${
-                      formData.selectedAssetIds.includes(asset._id)
-                        ? "border-accent bg-accent"
-                        : "border-foreground/20"
-                    }`}>
-                      {formData.selectedAssetIds.includes(asset._id) && (
-                        <Check className="h-4 w-4 text-background" />
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="text-accent">
-                        {getAssetIcon(asset.type)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold">{asset.filename}</p>
-                        <p className="text-xs text-foreground/60">
-                          {asset.type} • {asset.size ? `${(asset.size / 1024 / 1024).toFixed(2)} MB` : "Unknown size"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-foreground/60">No assets available. Upload assets using the uploader above.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Submit */}
-        {formData.selectedAssetIds.length > 0 && (
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button 
-              type="submit" 
-              className="w-full sm:flex-1 font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
-              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
-            >
-              <Package className="mr-2 h-4 w-4" />
-              Create Delivery Portal
-            </Button>
-            <Link href="/admin/deliveries" className="w-full sm:w-auto">
+            {/* Submit */}
+            <div className="flex flex-col sm:flex-row gap-4">
               <Button 
-                type="button" 
-                variant="outline"
-                className="w-full sm:w-auto font-bold uppercase tracking-wider hover:bg-foreground/10 transition-colors"
+                type="submit" 
+                className="w-full sm:flex-1 font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+                style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
               >
-                Cancel
+                <Package className="mr-2 h-4 w-4" />
+                Create Delivery Portal
               </Button>
-            </Link>
+              <Link href="/admin/deliveries" className="w-full sm:w-auto">
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  className="w-full sm:w-auto font-bold uppercase tracking-wider hover:bg-foreground/10 transition-colors"
+                >
+                  Cancel
+                </Button>
+              </Link>
+            </div>
+          </form>
+        </TabsContent>
+
+        <TabsContent value="assets" className="space-y-8">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-foreground mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+              Assets
+            </h2>
+            <p className="text-foreground/70 text-base sm:text-lg mb-8">
+              Upload assets for this delivery. All uploaded assets will be included in the delivery portal.
+            </p>
           </div>
-        )}
-      </form>
+
+          {/* Asset Uploader */}
+          <Card className="border border-foreground/20">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                Upload Assets
+              </CardTitle>
+              <CardDescription className="text-base">
+                Upload images, videos, or PDFs for this delivery
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AssetUploader 
+                uploadType="delivery"
+                onUploadComplete={handleUploadComplete}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Asset List */}
+          {assets && assets.length > 0 && (
+            <Card className="border border-foreground/20">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                  Assets ({assets.length})
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Manage uploaded assets. These will be included in the delivery portal.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {assets.map((asset, index) => (
+                    <div key={asset._id} className="relative group">
+                      <div className="aspect-square rounded-lg border-2 border-foreground/20 overflow-hidden">
+                        <AssetThumbnail
+                          asset={asset}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs font-medium truncate">{asset.filename}</p>
+                        <div className="flex items-center gap-2">
+                          {index > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                const newOrder = [...assets];
+                                [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+                                try {
+                                  await reorderAssets({
+                                    assetIds: newOrder.map(a => a._id),
+                                    email: adminEmail || undefined,
+                                  });
+                                  router.refresh();
+                                } catch (error: any) {
+                                  toast({
+                                    title: "Error",
+                                    description: error.message || "Failed to reorder.",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                              className="text-xs h-6 px-2"
+                            >
+                              <ChevronUp className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {index < assets.length - 1 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                const newOrder = [...assets];
+                                [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+                                try {
+                                  await reorderAssets({
+                                    assetIds: newOrder.map(a => a._id),
+                                    email: adminEmail || undefined,
+                                  });
+                                  router.refresh();
+                                } catch (error: any) {
+                                  toast({
+                                    title: "Error",
+                                    description: error.message || "Failed to reorder.",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                              className="text-xs h-6 px-2"
+                            >
+                              <ChevronDown className="h-3 w-3" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                await deleteAsset({
+                                  id: asset._id,
+                                  email: adminEmail || undefined,
+                                });
+                                toast({
+                                  title: "Asset deleted",
+                                  description: "Asset has been removed.",
+                                });
+                                router.refresh();
+                              } catch (error: any) {
+                                toast({
+                                  title: "Error",
+                                  description: error.message || "Failed to delete asset.",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                            className="text-xs h-6 px-2 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {(!assets || assets.length === 0) && (
+            <Card className="border border-foreground/20">
+              <CardContent className="py-16 text-center">
+                <Upload className="mx-auto h-16 w-16 text-foreground/40 mb-6" />
+                <p className="mb-4 text-xl font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                  No assets yet
+                </p>
+                <p className="text-sm text-foreground/70">
+                  Upload assets using the uploader above
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,6 +41,38 @@ export function DeliveryGrid({
   showFeedbackStatus = false,
 }: DeliveryGridProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [touchedId, setTouchedId] = useState<string | null>(null);
+
+  // Close buttons when clicking outside on mobile
+  useEffect(() => {
+    if (!touchedId) return;
+
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement;
+      // Don't close if clicking on buttons or within the card
+      if (
+        target.closest('[data-feedback-button]') || 
+        target.closest('[data-download-button]') || 
+        target.closest('.group') ||
+        target.tagName === 'BUTTON'
+      ) {
+        return;
+      }
+      setTouchedId(null);
+    };
+
+    // Use a small delay to avoid closing immediately after opening
+    const timeout = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside, true);
+      document.addEventListener('touchstart', handleClickOutside, true);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeout);
+      document.removeEventListener('click', handleClickOutside, true);
+      document.removeEventListener('touchstart', handleClickOutside, true);
+    };
+  }, [touchedId]);
 
   const handleItemClick = (index: number, e: React.MouseEvent) => {
     // If checkbox clicked, don't open lightbox
@@ -63,6 +95,7 @@ export function DeliveryGrid({
       {items.map((item, index) => {
         const isSelected = selectable && selectedIds?.has(item.id);
         const isHovered = hoveredId === item.id;
+        const isTouched = touchedId === item.id;
 
         return (
           <Card
@@ -70,9 +103,33 @@ export function DeliveryGrid({
             className={`group relative overflow-hidden cursor-pointer rounded-xl border-2 bg-background shadow-lg hover:shadow-xl transition-all ${
               isSelected ? "ring-2 ring-accent border-accent shadow-accent/20" : "border-foreground/20 hover:border-foreground/40"
             }`}
-            onMouseEnter={() => setHoveredId(item.id)}
-            onMouseLeave={() => setHoveredId(null)}
-            onClick={(e) => handleItemClick(index, e)}
+            onMouseEnter={() => {
+              setHoveredId(item.id);
+              setTouchedId(null); // Clear touch state on hover
+            }}
+            onMouseLeave={() => {
+              setHoveredId(null);
+            }}
+            onTouchStart={(e) => {
+              // Show buttons on touch (mobile)
+              if (touchedId !== item.id) {
+                setTouchedId(item.id);
+              }
+            }}
+            onClick={(e) => {
+              // If buttons are showing, clicking again opens lightbox
+              if (touchedId === item.id) {
+                setTouchedId(null);
+                handleItemClick(index, e);
+              } else if (!isHovered) {
+                // On mobile, first tap shows buttons
+                setTouchedId(item.id);
+                e.stopPropagation();
+              } else {
+                // On desktop with hover, click opens lightbox
+                handleItemClick(index, e);
+              }
+            }}
           >
             <div className="aspect-square relative bg-foreground/5">
               <StorageImage
@@ -99,9 +156,9 @@ export function DeliveryGrid({
                 </div>
               )}
               
-              {/* Overlay on hover */}
-              {isHovered && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 transition-opacity">
+              {/* Overlay on hover (desktop) or tap (mobile) */}
+              {(isHovered || isTouched) && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 transition-opacity md:group-hover:flex">
                   {showFeedbackStatus && item.hasFeedback ? (
                     <Button
                       data-feedback-button

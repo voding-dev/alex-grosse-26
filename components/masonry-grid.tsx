@@ -36,6 +36,7 @@ export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onTog
   const [columnCount, setColumnCount] = useState(3);
   const [itemHeights, setItemHeights] = useState<Map<number, number>>(new Map());
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [touchedId, setTouchedId] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -155,6 +156,36 @@ export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onTog
   // Memoize column distribution to recalculate when heights or column count changes
   const columns = useMemo(() => distributeItems(), [items, columnCount, itemHeights]);
 
+  // Close buttons when clicking outside on mobile
+  useEffect(() => {
+    if (!touchedId) return;
+
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement;
+      // Don't close if clicking on buttons, within the item, or on feedback/download buttons
+      if (
+        target.closest('.masonry-item') || 
+        target.closest('button') ||
+        target.tagName === 'BUTTON'
+      ) {
+        return;
+      }
+      setTouchedId(null);
+    };
+
+    // Use a small delay to avoid closing immediately after opening
+    const timeout = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside, true);
+      document.addEventListener('touchstart', handleClickOutside, true);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeout);
+      document.removeEventListener('click', handleClickOutside, true);
+      document.removeEventListener('touchstart', handleClickOutside, true);
+    };
+  }, [touchedId]);
+
   return (
     <>
       <div 
@@ -173,9 +204,33 @@ export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onTog
                   ref={(el) => {
                     if (el) itemRefs.current.set(item.id, el);
                   }}
-                  onClick={(e) => handleItemClick(index, e)}
-                  onMouseEnter={() => setHoveredId(item.id)}
-                  onMouseLeave={() => setHoveredId(null)}
+                  onClick={(e) => {
+                    // If buttons are showing, clicking again opens lightbox
+                    if (touchedId === item.id) {
+                      setTouchedId(null);
+                      handleItemClick(index, e);
+                    } else if (!hoveredId) {
+                      // On mobile, first tap shows buttons
+                      setTouchedId(item.id);
+                      e.stopPropagation();
+                    } else {
+                      // On desktop with hover, click opens lightbox
+                      handleItemClick(index, e);
+                    }
+                  }}
+                  onMouseEnter={() => {
+                    setHoveredId(item.id);
+                    setTouchedId(null); // Clear touch state on hover
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredId(null);
+                  }}
+                  onTouchStart={(e) => {
+                    // Show buttons on touch (mobile)
+                    if (touchedId !== item.id) {
+                      setTouchedId(item.id);
+                    }
+                  }}
                   className={`group relative cursor-pointer overflow-hidden bg-foreground/5 transition-all masonry-item rounded-xl border-2 border-foreground/20 hover:border-accent/40 shadow-lg hover:shadow-xl ${
                     isSelected ? "ring-2 ring-accent border-accent shadow-accent/20" : ""
                   }`}
@@ -217,9 +272,9 @@ export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onTog
                 </div>
               )}
 
-              {/* Action buttons on hover */}
-              {(hoveredId === item.id && (onFeedbackClick || onDownloadClick)) && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 transition-opacity">
+              {/* Action buttons on hover (desktop) or tap (mobile) */}
+              {((hoveredId === item.id || touchedId === item.id) && (onFeedbackClick || onDownloadClick)) && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 transition-opacity md:group-hover:flex">
                   {onFeedbackClick && (
                     <button
                       onClick={(e) => {
