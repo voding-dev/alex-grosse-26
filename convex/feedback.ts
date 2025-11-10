@@ -36,7 +36,7 @@ export const getUnreadFeedbackCount = query({
 
 // Query to get recent feedback for admin dashboard
 export const getRecentFeedback = query({
-  args: { email: v.optional(v.string()), limit: v.optional(v.number()) },
+  args: { email: v.optional(v.string()), limit: v.optional(v.number()), includeArchived: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
     // Admin check
     if (args.email) {
@@ -51,11 +51,20 @@ export const getRecentFeedback = query({
     }
 
     const limit = args.limit || 10;
+    const includeArchived = args.includeArchived ?? false;
     
-    const feedback = await ctx.db
+    let feedback = await ctx.db
       .query("feedback")
       .order("desc")
-      .take(limit);
+      .take(limit * 2); // Get more to filter
+
+    // Filter out archived if not including them
+    if (!includeArchived) {
+      feedback = feedback.filter((f) => !f.archived);
+    }
+
+    // Take only the limit after filtering
+    feedback = feedback.slice(0, limit);
 
     // Enrich with delivery info (no longer need project info)
     const enrichedFeedback = await Promise.all(
@@ -100,5 +109,131 @@ export const create = mutation({
       author: "client", // Required by schema
       createdAt: Date.now(),
     });
+  },
+});
+
+// Mutation to mark feedback as complete
+export const markComplete = mutation({
+  args: {
+    id: v.id("feedback"),
+    email: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Admin check
+    if (args.email) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.email!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized");
+      }
+    }
+
+    const feedback = await ctx.db.get(args.id);
+    if (!feedback) {
+      throw new Error("Feedback not found");
+    }
+
+    await ctx.db.patch(args.id, {
+      completedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+// Mutation to archive feedback
+export const archive = mutation({
+  args: {
+    id: v.id("feedback"),
+    email: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Admin check
+    if (args.email) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.email!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized");
+      }
+    }
+
+    const feedback = await ctx.db.get(args.id);
+    if (!feedback) {
+      throw new Error("Feedback not found");
+    }
+
+    await ctx.db.patch(args.id, {
+      archived: true,
+    });
+
+    return { success: true };
+  },
+});
+
+// Mutation to unarchive feedback
+export const unarchive = mutation({
+  args: {
+    id: v.id("feedback"),
+    email: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Admin check
+    if (args.email) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.email!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized");
+      }
+    }
+
+    const feedback = await ctx.db.get(args.id);
+    if (!feedback) {
+      throw new Error("Feedback not found");
+    }
+
+    await ctx.db.patch(args.id, {
+      archived: false,
+    });
+
+    return { success: true };
+  },
+});
+
+// Mutation to delete feedback
+export const remove = mutation({
+  args: {
+    id: v.id("feedback"),
+    email: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Admin check
+    if (args.email) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.email!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized");
+      }
+    }
+
+    const feedback = await ctx.db.get(args.id);
+    if (!feedback) {
+      throw new Error("Feedback not found");
+    }
+
+    await ctx.db.delete(args.id);
+
+    return { success: true };
   },
 });

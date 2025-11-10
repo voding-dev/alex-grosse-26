@@ -112,10 +112,13 @@ export default defineSchema({
     author: v.literal("client"),
     body: v.string(),
     decision: v.optional(v.union(v.literal("approve"), v.literal("changes"), v.literal("reject"))),
+    completedAt: v.optional(v.number()), // When feedback was marked as complete
+    archived: v.optional(v.boolean()), // Whether feedback is archived
     createdAt: v.number(),
   })
     .index("by_delivery", ["deliveryId"])
-    .index("by_asset", ["assetId"]),
+    .index("by_asset", ["assetId"])
+    .index("by_archived", ["archived"]),
 
   events: defineTable({
     deliveryId: v.id("deliveries"),

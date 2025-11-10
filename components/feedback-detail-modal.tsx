@@ -5,8 +5,9 @@ import { StorageImage } from "@/components/storage-image";
 import { Id } from "@/convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Image as ImageIcon, FileText, Video, Calendar, MessageSquare } from "lucide-react";
+import { Image as ImageIcon, FileText, Video, Calendar, MessageSquare, CheckCircle2, Archive, ArchiveRestore, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 
 interface FeedbackDetailModalProps {
@@ -16,13 +17,19 @@ interface FeedbackDetailModalProps {
     assetId?: Id<"assets">;
     body: string;
     decision?: "approve" | "reject" | "changes" | null;
+    completedAt?: number;
+    archived?: boolean;
     createdAt: number;
   };
   isOpen: boolean;
   onClose: () => void;
+  onMarkComplete?: () => void;
+  onArchive?: () => void;
+  onDelete?: () => void;
+  isArchived?: boolean;
 }
 
-export function FeedbackDetailModal({ feedback, isOpen, onClose }: FeedbackDetailModalProps) {
+export function FeedbackDetailModal({ feedback, isOpen, onClose, onMarkComplete, onArchive, onDelete, isArchived }: FeedbackDetailModalProps) {
   const asset = useQuery(
     api.assets.get,
     feedback.assetId ? { id: feedback.assetId } : ("skip" as const)
@@ -107,6 +114,16 @@ export function FeedbackDetailModal({ feedback, isOpen, onClose }: FeedbackDetai
           <div className="space-y-3">
             <div className="flex items-center gap-3 flex-wrap">
               {getDecisionBadge(feedback.decision)}
+              {feedback.completedAt && (
+                <Badge className="bg-green-500/20 text-green-600 border-green-500/30 font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                  COMPLETE
+                </Badge>
+              )}
+              {feedback.archived && (
+                <Badge className="bg-foreground/20 text-foreground/60 border-foreground/30 font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                  ARCHIVED
+                </Badge>
+              )}
               <Badge variant="outline" className="font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
                 {feedback.assetId ? "PER-ASSET" : "PROJECT"}
               </Badge>
@@ -127,6 +144,57 @@ export function FeedbackDetailModal({ feedback, isOpen, onClose }: FeedbackDetai
                 {feedback.body}
               </p>
             </div>
+
+            {/* Action Buttons */}
+            {(onMarkComplete || onArchive || onDelete) && (
+              <div className="flex items-center gap-3 pt-4 border-t border-foreground/10">
+                {onMarkComplete && !feedback.completedAt && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onMarkComplete}
+                    className="font-black uppercase tracking-wider hover:bg-green-500/10 hover:border-green-500/30 hover:text-green-600"
+                    style={{ fontWeight: '900' }}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Mark Complete
+                  </Button>
+                )}
+                {onArchive && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onArchive}
+                    className="font-black uppercase tracking-wider hover:bg-accent/10 hover:border-accent/30 hover:text-accent"
+                    style={{ fontWeight: '900' }}
+                  >
+                    {isArchived ? (
+                      <>
+                        <ArchiveRestore className="mr-2 h-4 w-4" />
+                        Unarchive
+                      </>
+                    ) : (
+                      <>
+                        <Archive className="mr-2 h-4 w-4" />
+                        Archive
+                      </>
+                    )}
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onDelete}
+                    className="font-black uppercase tracking-wider hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-600 text-red-500"
+                    style={{ fontWeight: '900' }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>
