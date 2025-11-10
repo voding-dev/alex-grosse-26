@@ -422,21 +422,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         Scheduling
                       </Link>
                       <Link
-                        href="/admin/scheduling/bookings"
-                        onClick={(e) => {
-                          setTimeout(() => setBusinessOpen(false), 0);
-                        }}
-                        className={cn(
-                          "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
-                          isActive("/admin/scheduling/bookings")
-                            ? "text-accent bg-accent/10 shadow-sm"
-                            : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
-                        )}
-                      >
-                        <Calendar className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/scheduling/bookings") && "text-accent")} />
-                        All Bookings
-                      </Link>
-                      <Link
                         href="/admin/email-marketing"
                         onClick={(e) => {
                           setTimeout(() => setBusinessOpen(false), 0);
@@ -860,22 +845,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     >
                       <Calendar className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/scheduling") && "text-accent")} />
                       Scheduling
-                    </Link>
-                    <Link
-                      href="/admin/scheduling/bookings"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
-                      }}
-                      className={cn(
-                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
-                        isActive("/admin/scheduling/bookings")
-                          ? "text-accent bg-accent/10 shadow-sm"
-                          : "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
-                      )}
-                    >
-                      <Calendar className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/scheduling/bookings") && "text-accent")} />
-                      All Bookings
                     </Link>
                     <Link
                       href="/admin/email-marketing"

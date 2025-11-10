@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { Eye, EyeOff, Key, Mail, Package, Bell, Settings as SettingsIcon, Save, Clock, Calendar, ChevronDown, ChevronUp } from "lucide-react";
+import { Eye, EyeOff, Key, Mail, Package, Bell, Settings as SettingsIcon, Save, Clock, Calendar, ChevronDown, ChevronUp, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { CustomTimePicker } from "@/components/ui/custom-time-picker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -42,6 +42,8 @@ export default function SettingsPage() {
     bookingConfirmationEmail: true,
     bookingReminderEmail: false,
     bookingReminderHours: 24,
+    resendApiKey: "",
+    emailDomain: "",
   });
 
   // Availability state
@@ -88,6 +90,8 @@ export default function SettingsPage() {
         bookingConfirmationEmail: settings.bookingConfirmationEmail !== false, // Default to true
         bookingReminderEmail: settings.bookingReminderEmail === true, // Default to false
         bookingReminderHours: settings.bookingReminderHours || 24,
+        resendApiKey: settings.resendApiKey || "",
+        emailDomain: settings.emailDomain || "",
       });
       
       // Load availability from settings
@@ -143,6 +147,8 @@ export default function SettingsPage() {
         setSetting({ key: "bookingConfirmationEmail", value: formData.bookingConfirmationEmail, sessionToken }),
         setSetting({ key: "bookingReminderEmail", value: formData.bookingReminderEmail, sessionToken }),
         setSetting({ key: "bookingReminderHours", value: formData.bookingReminderHours, sessionToken }),
+        setSetting({ key: "resendApiKey", value: formData.resendApiKey || "", sessionToken }),
+        setSetting({ key: "emailDomain", value: formData.emailDomain || "", sessionToken }),
       ]);
 
       toast({
@@ -246,13 +252,20 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 max-w-md bg-foreground/5 border border-foreground/20 rounded-lg p-1.5 h-auto items-center gap-1">
+        <TabsList className="grid w-full grid-cols-3 max-w-2xl bg-foreground/5 border border-foreground/20 rounded-lg p-1.5 h-auto items-center gap-1">
           <TabsTrigger 
             value="general" 
             className="font-black uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
             style={{ fontWeight: '900' }}
           >
             General
+          </TabsTrigger>
+          <TabsTrigger 
+            value="email" 
+            className="font-black uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            style={{ fontWeight: '900' }}
+          >
+            Email
           </TabsTrigger>
           <TabsTrigger 
             value="availability" 
@@ -429,93 +442,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Booking Email Automation */}
-        <Card className="group relative overflow-hidden border border-foreground/10 hover:border-accent/30 transition-all duration-300 hover:shadow-lg hover:shadow-accent/10 bg-gradient-to-br from-background to-foreground/5">
-          <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          <CardHeader className="pb-4 relative z-10">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-foreground/10 group-hover:bg-accent/20 transition-colors">
-                <Calendar className="h-5 w-5 text-foreground/60 group-hover:text-accent transition-colors" />
-              </div>
-              <div>
-                <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
-                  Booking Email Automation
-                </CardTitle>
-                <CardDescription className="text-base mt-1">Automate email marketing and notifications for bookings</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6 relative z-10">
-            <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 transition-colors">
-              <div className="flex-1">
-                <Label htmlFor="autoAddBookingContacts" className="text-sm font-black uppercase tracking-wider mb-2 block cursor-pointer" style={{ fontWeight: '900' }}>
-                  Auto-Add Booking Contacts
-                </Label>
-                <p className="text-sm text-foreground/60">
-                  Automatically add booking email addresses to your email marketing contacts list. Contacts will be tagged with "booking" and the scheduler ID.
-                </p>
-              </div>
-              <Checkbox
-                id="autoAddBookingContacts"
-                checked={formData.autoAddBookingContacts}
-                onCheckedChange={(checked) => setFormData({ ...formData, autoAddBookingContacts: checked === true })}
-                className="mt-1"
-              />
-            </div>
-            <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 transition-colors">
-              <div className="flex-1">
-                <Label htmlFor="bookingConfirmationEmail" className="text-sm font-black uppercase tracking-wider mb-2 block cursor-pointer" style={{ fontWeight: '900' }}>
-                  Send Confirmation Emails
-                </Label>
-                <p className="text-sm text-foreground/60">
-                  Automatically send confirmation emails when bookings are made. Includes booking details and date/time.
-                </p>
-              </div>
-              <Checkbox
-                id="bookingConfirmationEmail"
-                checked={formData.bookingConfirmationEmail}
-                onCheckedChange={(checked) => setFormData({ ...formData, bookingConfirmationEmail: checked === true })}
-                className="mt-1"
-              />
-            </div>
-            <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 transition-colors">
-              <div className="flex-1">
-                <Label htmlFor="bookingReminderEmail" className="text-sm font-black uppercase tracking-wider mb-2 block cursor-pointer" style={{ fontWeight: '900' }}>
-                  Send Reminder Emails
-                </Label>
-                <p className="text-sm text-foreground/60">
-                  Automatically send reminder emails before bookings. Helps reduce no-shows.
-                </p>
-              </div>
-              <Checkbox
-                id="bookingReminderEmail"
-                checked={formData.bookingReminderEmail}
-                onCheckedChange={(checked) => setFormData({ ...formData, bookingReminderEmail: checked === true })}
-                className="mt-1"
-              />
-            </div>
-            {formData.bookingReminderEmail && (
-              <div className="p-4 rounded-lg border border-foreground/10 bg-foreground/5">
-                <Label htmlFor="bookingReminderHours" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                  Reminder Timing (Hours Before Booking)
-                </Label>
-                <Input
-                  id="bookingReminderHours"
-                  type="number"
-                  min={1}
-                  max={168}
-                  value={formData.bookingReminderHours}
-                  onChange={(e) => setFormData({ ...formData, bookingReminderHours: parseInt(e.target.value) || 24 })}
-                  className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors max-w-xs"
-                />
-                <p className="mt-2 text-sm text-foreground/60">
-                  How many hours before the booking to send the reminder email (default: 24 hours).
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Password Reset Section - Only for primary email */}
         {isPrimaryEmail && (
           <Card className="group relative overflow-hidden border border-foreground/10 hover:border-accent/30 transition-all duration-300 hover:shadow-lg hover:shadow-accent/10 bg-gradient-to-br from-background to-foreground/5">
@@ -635,6 +561,92 @@ export default function SettingsPage() {
           </Card>
         )}
 
+          {/* Email Marketing Settings */}
+          <Card className="group relative overflow-hidden border border-foreground/10 hover:border-accent/30 transition-all duration-300 hover:shadow-lg hover:shadow-accent/10 bg-gradient-to-br from-background to-foreground/5">
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="pb-4 relative z-10">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-lg bg-foreground/10 group-hover:bg-accent/20 transition-colors">
+                  <Send className="h-5 w-5 text-foreground/60 group-hover:text-accent transition-colors" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                    Email Marketing Configuration
+                  </CardTitle>
+                  <CardDescription className="text-base mt-1">Configure Resend API and email domain for sending emails</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 relative z-10">
+              <div>
+                <Label htmlFor="resendApiKey" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Resend API Key <span className="text-accent">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="resendApiKey"
+                    type="password"
+                    value={formData.resendApiKey}
+                    onChange={(e) => setFormData({ ...formData, resendApiKey: e.target.value })}
+                    placeholder="re_xxxxxxxxxxxxx"
+                    className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const input = document.getElementById("resendApiKey") as HTMLInputElement;
+                      if (input) {
+                        input.type = input.type === "password" ? "text" : "password";
+                      }
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/60 hover:text-foreground transition-colors"
+                  >
+                    <Eye className="h-5 w-5" />
+                  </button>
+                </div>
+                <p className="mt-2 text-sm text-foreground/60">
+                  Your Resend API key. Get it from your <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Resend dashboard</a>.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="emailDomain" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Email Domain
+                </Label>
+                <Input
+                  id="emailDomain"
+                  type="text"
+                  value={formData.emailDomain}
+                  onChange={(e) => setFormData({ ...formData, emailDomain: e.target.value })}
+                  placeholder="example.com"
+                  className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors"
+                />
+                <p className="mt-2 text-sm text-foreground/60">
+                  Your verified email domain in Resend (e.g., example.com). If not set, defaults to onboarding.resend.dev.
+                </p>
+              </div>
+              <div className="p-4 rounded-lg border border-foreground/10 bg-foreground/5">
+                <p className="text-sm font-bold uppercase tracking-wider text-foreground/70 mb-2">Webhook Configuration</p>
+                <p className="text-sm text-foreground/60 mb-2">
+                  Configure your Resend webhook to track email opens and clicks:
+                </p>
+                <div className="space-y-2 text-xs text-foreground/60 font-mono bg-foreground/10 p-3 rounded border border-foreground/10">
+                  <p><strong>Webhook URL:</strong></p>
+                  <p className="break-all">{typeof window !== "undefined" ? window.location.origin : ""}/api/email/webhook</p>
+                  <p className="mt-2"><strong>Events to subscribe:</strong></p>
+                  <ul className="list-disc list-inside ml-2 space-y-1">
+                    <li>email.sent</li>
+                    <li>email.delivered</li>
+                    <li>email.opened</li>
+                    <li>email.clicked</li>
+                    <li>email.bounced</li>
+                    <li>email.complained</li>
+                    <li>email.unsubscribed</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Save Button */}
           <div className="flex justify-end pt-4">
             <Button 
@@ -645,6 +657,195 @@ export default function SettingsPage() {
             >
               <Save className="h-4 w-4" />
               {isSaving ? "Saving..." : "Save All Settings"}
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* Email Tab */}
+        <TabsContent value="email" className="space-y-6">
+          {/* Booking Email Automation */}
+          <Card className="group relative overflow-hidden border border-foreground/10 hover:border-accent/30 transition-all duration-300 hover:shadow-lg hover:shadow-accent/10 bg-gradient-to-br from-background to-foreground/5">
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="pb-4 relative z-10">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-lg bg-foreground/10 group-hover:bg-accent/20 transition-colors">
+                  <Calendar className="h-5 w-5 text-foreground/60 group-hover:text-accent transition-colors" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                    Booking Email Automation
+                  </CardTitle>
+                  <CardDescription className="text-base mt-1">Automate email marketing and notifications for bookings</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 relative z-10">
+              <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 transition-colors">
+                <div className="flex-1">
+                  <Label htmlFor="autoAddBookingContacts" className="text-sm font-black uppercase tracking-wider mb-2 block cursor-pointer" style={{ fontWeight: '900' }}>
+                    Auto-Add Booking Contacts
+                  </Label>
+                  <p className="text-sm text-foreground/60">
+                    Automatically add booking email addresses to your email marketing contacts list. Contacts will be tagged with "booking" and the scheduler ID.
+                  </p>
+                </div>
+                <Checkbox
+                  id="autoAddBookingContacts"
+                  checked={formData.autoAddBookingContacts}
+                  onCheckedChange={(checked) => setFormData({ ...formData, autoAddBookingContacts: checked === true })}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 transition-colors">
+                <div className="flex-1">
+                  <Label htmlFor="bookingConfirmationEmail" className="text-sm font-black uppercase tracking-wider mb-2 block cursor-pointer" style={{ fontWeight: '900' }}>
+                    Send Confirmation Emails
+                  </Label>
+                  <p className="text-sm text-foreground/60">
+                    Automatically send confirmation emails when bookings are made. Includes booking details and date/time.
+                  </p>
+                </div>
+                <Checkbox
+                  id="bookingConfirmationEmail"
+                  checked={formData.bookingConfirmationEmail}
+                  onCheckedChange={(checked) => setFormData({ ...formData, bookingConfirmationEmail: checked === true })}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 transition-colors">
+                <div className="flex-1">
+                  <Label htmlFor="bookingReminderEmail" className="text-sm font-black uppercase tracking-wider mb-2 block cursor-pointer" style={{ fontWeight: '900' }}>
+                    Send Reminder Emails
+                  </Label>
+                  <p className="text-sm text-foreground/60">
+                    Automatically send reminder emails before bookings. Helps reduce no-shows.
+                  </p>
+                </div>
+                <Checkbox
+                  id="bookingReminderEmail"
+                  checked={formData.bookingReminderEmail}
+                  onCheckedChange={(checked) => setFormData({ ...formData, bookingReminderEmail: checked === true })}
+                  className="mt-1"
+                />
+              </div>
+              {formData.bookingReminderEmail && (
+                <div className="p-4 rounded-lg border border-foreground/10 bg-foreground/5">
+                  <Label htmlFor="bookingReminderHours" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                    Reminder Timing (Hours Before Booking)
+                  </Label>
+                  <Input
+                    id="bookingReminderHours"
+                    type="number"
+                    min={1}
+                    max={168}
+                    value={formData.bookingReminderHours}
+                    onChange={(e) => setFormData({ ...formData, bookingReminderHours: parseInt(e.target.value) || 24 })}
+                    className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors max-w-xs"
+                  />
+                  <p className="mt-2 text-sm text-foreground/60">
+                    How many hours before the booking to send the reminder email (default: 24 hours).
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Email Marketing Configuration */}
+          <Card className="group relative overflow-hidden border border-foreground/10 hover:border-accent/30 transition-all duration-300 hover:shadow-lg hover:shadow-accent/10 bg-gradient-to-br from-background to-foreground/5">
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="pb-4 relative z-10">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-lg bg-foreground/10 group-hover:bg-accent/20 transition-colors">
+                  <Send className="h-5 w-5 text-foreground/60 group-hover:text-accent transition-colors" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                    Email Marketing Configuration
+                  </CardTitle>
+                  <CardDescription className="text-base mt-1">Configure Resend API and email domain for sending emails</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 relative z-10">
+              <div>
+                <Label htmlFor="resendApiKey" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Resend API Key <span className="text-accent">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="resendApiKey"
+                    type="password"
+                    value={formData.resendApiKey}
+                    onChange={(e) => setFormData({ ...formData, resendApiKey: e.target.value })}
+                    placeholder="re_xxxxxxxxxxxxx"
+                    className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const input = document.getElementById("resendApiKey") as HTMLInputElement;
+                      if (input) {
+                        input.type = input.type === "password" ? "text" : "password";
+                      }
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/60 hover:text-foreground transition-colors"
+                  >
+                    <Eye className="h-5 w-5" />
+                  </button>
+                </div>
+                <p className="mt-2 text-sm text-foreground/60">
+                  Your Resend API key. Get it from your <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Resend dashboard</a>.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="emailDomain" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Email Domain
+                </Label>
+                <Input
+                  id="emailDomain"
+                  type="text"
+                  value={formData.emailDomain}
+                  onChange={(e) => setFormData({ ...formData, emailDomain: e.target.value })}
+                  placeholder="example.com"
+                  className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors"
+                />
+                <p className="mt-2 text-sm text-foreground/60">
+                  Your verified email domain in Resend (e.g., example.com). If not set, defaults to onboarding.resend.dev.
+                </p>
+              </div>
+              <div className="p-4 rounded-lg border border-foreground/10 bg-foreground/5">
+                <p className="text-sm font-bold uppercase tracking-wider text-foreground/70 mb-2">Webhook Configuration</p>
+                <p className="text-sm text-foreground/60 mb-2">
+                  Configure your Resend webhook to track email opens and clicks:
+                </p>
+                <div className="space-y-2 text-xs text-foreground/60 font-mono bg-foreground/10 p-3 rounded border border-foreground/10">
+                  <p><strong>Webhook URL:</strong></p>
+                  <p className="break-all">{typeof window !== "undefined" ? window.location.origin : ""}/api/email/webhook</p>
+                  <p className="mt-2"><strong>Events to subscribe:</strong></p>
+                  <ul className="list-disc list-inside ml-2 space-y-1">
+                    <li>email.sent</li>
+                    <li>email.delivered</li>
+                    <li>email.opened</li>
+                    <li>email.clicked</li>
+                    <li>email.bounced</li>
+                    <li>email.complained</li>
+                    <li>email.unsubscribed</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Save Button */}
+          <div className="flex justify-end pt-4">
+            <Button 
+              onClick={handleSave} 
+              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors flex items-center gap-2"
+              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              disabled={isSaving}
+            >
+              <Save className="h-4 w-4" />
+              {isSaving ? "Saving..." : "Save Email Settings"}
             </Button>
           </div>
         </TabsContent>

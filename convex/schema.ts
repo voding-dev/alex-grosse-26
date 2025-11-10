@@ -573,6 +573,8 @@ export default defineSchema({
       v.literal("campaign_opened"),
       v.literal("campaign_clicked"),
       v.literal("contact_created"),
+      v.literal("booking_created"),
+      v.literal("booking_confirmed"),
       v.literal("custom")
     ),
     entryTriggerData: v.optional(v.any()), // Trigger-specific data

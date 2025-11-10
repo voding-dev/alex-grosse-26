@@ -337,16 +337,21 @@ export default function ContactDetailPage() {
                   </p>
                 )}
               </div>
-              <div className="p-4 border border-foreground/10 rounded-lg">
+              <div className="p-4 border border-accent/30 rounded-lg bg-accent/5">
                 <div className="flex items-center gap-2 mb-2">
-                  <Eye className="h-4 w-4 text-foreground/40" />
+                  <Eye className="h-4 w-4 text-accent" />
                   <p className="text-xs font-bold uppercase tracking-wider text-foreground/60">
                     Total Opens
                   </p>
                 </div>
-                <p className="text-2xl font-black text-foreground" style={{ fontWeight: '900' }}>
+                <p className="text-2xl font-black text-accent" style={{ fontWeight: '900' }}>
                   {totalOpens}
                 </p>
+                {totalSends > 0 && (
+                  <p className="text-xs text-foreground/60 mt-1">
+                    {((totalOpens / totalSends)).toFixed(1)} opens per email
+                  </p>
+                )}
               </div>
             </div>
 

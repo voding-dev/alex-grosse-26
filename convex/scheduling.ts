@@ -518,6 +518,81 @@ export const selectSlot = mutation({
         }
       }
 
+      // Check for booking trigger campaigns
+      const bookingCreatedTrigger = await ctx.db
+        .query("settings")
+        .withIndex("by_key", (q: any) => q.eq("key", "bookingCreatedTrigger"))
+        .first();
+
+      if (bookingCreatedTrigger?.value && args.bookingEmail) {
+        const campaignId = bookingCreatedTrigger.value as any;
+        const campaign = await ctx.db.get(campaignId);
+        
+        if (campaign && campaign.status !== "cancelled") {
+          // Find or create contact
+          let contact = await ctx.db
+            .query("emailContacts")
+            .withIndex("by_email", (q: any) => q.eq("email", args.bookingEmail))
+            .first();
+
+          if (!contact) {
+            // Create contact if doesn't exist
+            const nameParts = args.bookingName?.split(" ") || [];
+            const firstName = nameParts[0] || "";
+            const lastName = nameParts.slice(1).join(" ") || undefined;
+            
+            const contactId = await ctx.db.insert("emailContacts", {
+              email: args.bookingEmail,
+              firstName: firstName || undefined,
+              lastName: lastName,
+              tags: ["booking", `scheduler-${invite.requestId}`],
+              status: "subscribed",
+              source: "booking",
+              metadata: {
+                bookingRequestId: invite.requestId,
+                firstBookingDate: slot.start,
+              },
+              createdAt: now,
+              updatedAt: now,
+            });
+            contact = await ctx.db.get(contactId);
+          }
+
+          if (contact && contact.status === "subscribed") {
+            // Send campaign to this contact (non-blocking)
+            await ctx.scheduler.runAfter(0, internal.emailMarketing.sendTriggerCampaign, {
+              campaignId,
+              contactId: contact._id,
+            });
+          }
+        }
+      }
+
+      // Check for active journeys with booking_created trigger
+      if (args.bookingEmail && contact) {
+        const activeJourneys = await ctx.db
+          .query("emailJourneys")
+          .withIndex("by_status", (q: any) => q.eq("status", "active"))
+          .collect();
+        
+        const bookingCreatedJourneys = activeJourneys.filter(
+          (j: any) => j.entryTrigger === "booking_created"
+        );
+        
+        // Enroll contact in matching journeys
+        for (const journey of bookingCreatedJourneys) {
+          await ctx.scheduler.runAfter(0, internal.emailMarketing.enrollOnTriggerInternal, {
+            journeyId: journey._id,
+            contactId: contact._id,
+            triggerData: {
+              bookingRequestId: invite.requestId,
+              slotStart: slot.start,
+              slotEnd: slot.end,
+            },
+          });
+        }
+      }
+
       // Send confirmation email if enabled
       const confirmationSetting = await ctx.db
         .query("settings")

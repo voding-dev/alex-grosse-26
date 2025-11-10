@@ -55,10 +55,62 @@ export async function POST(request: NextRequest) {
       updates.opened = true;
       updates.openedCount = (send.openedCount || 0) + 1;
       updates.lastOpenedAt = now;
+      
+      // Check for journeys with campaign_opened trigger
+      const journeys = await convex.query(api.emailMarketing.listJourneys, {});
+      const openedJourneys = journeys.filter(
+        (j: any) => j.status === "active" && j.entryTrigger === "campaign_opened"
+      );
+      
+      // Check if this campaign matches any journey's entry trigger data
+      for (const journey of openedJourneys) {
+        if (!journey.entryTriggerData || journey.entryTriggerData.campaignId === send.campaignId) {
+          // Use enrollOnTrigger mutation (public mutation for webhooks)
+          try {
+            await convex.mutation(api.emailMarketing.enrollOnTrigger, {
+              journeyId: journey._id,
+              contactId: send.contactId,
+              triggerData: {
+                campaignId: send.campaignId,
+                sendId: send._id,
+              },
+            });
+          } catch (error) {
+            // Silently fail if already enrolled or other error
+            console.log("Journey enrollment error:", error);
+          }
+        }
+      }
     } else if (type === "email.clicked") {
       updates.clicked = true;
       updates.clickedCount = (send.clickedCount || 0) + 1;
       updates.lastClickedAt = now;
+      
+      // Check for journeys with campaign_clicked trigger
+      const journeys = await convex.query(api.emailMarketing.listJourneys, {});
+      const clickedJourneys = journeys.filter(
+        (j: any) => j.status === "active" && j.entryTrigger === "campaign_clicked"
+      );
+      
+      // Check if this campaign matches any journey's entry trigger data
+      for (const journey of clickedJourneys) {
+        if (!journey.entryTriggerData || journey.entryTriggerData.campaignId === send.campaignId) {
+          // Use enrollOnTrigger mutation (public mutation for webhooks)
+          try {
+            await convex.mutation(api.emailMarketing.enrollOnTrigger, {
+              journeyId: journey._id,
+              contactId: send.contactId,
+              triggerData: {
+                campaignId: send.campaignId,
+                sendId: send._id,
+              },
+            });
+          } catch (error) {
+            // Silently fail if already enrolled or other error
+            console.log("Journey enrollment error:", error);
+          }
+        }
+      }
     } else if (type === "email.bounced") {
       updates.status = "bounced";
       updates.bounced = true;
