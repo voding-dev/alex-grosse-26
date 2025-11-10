@@ -936,8 +936,9 @@ export const sendTriggerCampaign = internalMutation({
       });
       
       // Update send record with Resend email ID
+      const resendEmailId = (result.data && 'id' in result.data) ? result.data.id : null;
       await ctx.db.patch(sendId, {
-        resendEmailId: result.id || undefined,
+        resendEmailId: resendEmailId || undefined,
         status: "sent",
         sentAt: now,
         updatedAt: now,

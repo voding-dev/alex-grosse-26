@@ -526,7 +526,7 @@ export const selectSlot = mutation({
 
       if (bookingCreatedTrigger?.value && args.bookingEmail) {
         const campaignId = bookingCreatedTrigger.value as any;
-        const campaign = await ctx.db.get(campaignId);
+        const campaign = await ctx.db.get(campaignId) as any;
         
         if (campaign && campaign.status !== "cancelled") {
           // Find or create contact
@@ -569,27 +569,35 @@ export const selectSlot = mutation({
       }
 
       // Check for active journeys with booking_created trigger
-      if (args.bookingEmail && contact) {
-        const activeJourneys = await ctx.db
-          .query("emailJourneys")
-          .withIndex("by_status", (q: any) => q.eq("status", "active"))
-          .collect();
+      if (args.bookingEmail) {
+        // Find or get contact for journey enrollment
+        let contactForJourney = await ctx.db
+          .query("emailContacts")
+          .withIndex("by_email", (q: any) => q.eq("email", args.bookingEmail))
+          .first();
         
-        const bookingCreatedJourneys = activeJourneys.filter(
-          (j: any) => j.entryTrigger === "booking_created"
-        );
-        
-        // Enroll contact in matching journeys
-        for (const journey of bookingCreatedJourneys) {
-          await ctx.scheduler.runAfter(0, internal.emailMarketing.enrollOnTriggerInternal, {
-            journeyId: journey._id,
-            contactId: contact._id,
-            triggerData: {
-              bookingRequestId: invite.requestId,
-              slotStart: slot.start,
-              slotEnd: slot.end,
-            },
-          });
+        if (contactForJourney && contactForJourney.status === "subscribed") {
+          const activeJourneys = await ctx.db
+            .query("emailJourneys")
+            .withIndex("by_status", (q: any) => q.eq("status", "active"))
+            .collect();
+          
+          const bookingCreatedJourneys = activeJourneys.filter(
+            (j: any) => j.entryTrigger === "booking_created"
+          );
+          
+          // Enroll contact in matching journeys
+          for (const journey of bookingCreatedJourneys) {
+            await ctx.scheduler.runAfter(0, internal.emailMarketing.enrollOnTriggerInternal, {
+              journeyId: journey._id,
+              contactId: contactForJourney._id,
+              triggerData: {
+                bookingRequestId: invite.requestId,
+                slotStart: slot.start,
+                slotEnd: slot.end,
+              },
+            });
+          }
         }
       }
 
