@@ -87,7 +87,10 @@ export default function AdminDashboard() {
       { href: "/admin/deliveries", label: "Portals", icon: Package, description: "Delivery portals" },
       { href: "/admin/feedback", label: "Feedback", icon: MessageSquare, description: "Client feedback" },
     ],
-    business: [
+    tools: [
+      { href: "/admin/tools/prospecting", label: "Prospecting", icon: Sparkles, description: "Import & manage prospects" },
+      { href: "/admin/tools/lead-pipeline", label: "Lead Pipeline", icon: TrendingUp, description: "Manage sales pipeline" },
+      { href: "/admin/tools/contacts", label: "Contacts", icon: Users, description: "Unified contacts database" },
       { href: "/admin/quote-calculator", label: "Quote Builder", icon: Calculator, description: "Generate quotes" },
       { href: "/admin/tools/pitch-deck-builder", label: "Pitch Deck Builder", icon: Sliders, description: "Create pitch decks" },
       { href: "/admin/scheduling", label: "Scheduling", icon: Calendar, description: "Manage calendar" },
@@ -378,14 +381,14 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Business Section */}
+          {/* Tools Section */}
           <div className="space-y-4">
             <h3 className="text-xs font-black uppercase tracking-wider text-foreground/60 mb-4 flex items-center gap-2 px-1" style={{ fontWeight: '900' }}>
               <TrendingUp className="h-3.5 w-3.5" />
-              Business
+              Tools
             </h3>
             <div className="grid grid-cols-3 gap-3">
-              {quickLinks.business.map((link) => {
+              {quickLinks.tools.map((link) => {
                 const Icon = link.icon;
                 return (
                   <Link key={link.href} href={link.href}>

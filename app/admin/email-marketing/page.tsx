@@ -83,7 +83,7 @@ export default function EmailMarketingPage() {
         firstName: contactFormData.firstName || undefined,
         lastName: contactFormData.lastName || undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
-        source: contactFormData.source || undefined,
+        source: contactFormData.source || "email_marketing",
       });
 
       toast({
@@ -178,10 +178,10 @@ export default function EmailMarketingPage() {
   const campaignsList = campaigns || [];
   const journeysList = journeys || [];
 
-  const subscribed = contactsList.filter(c => c.status === "subscribed").length;
-  const unsubscribed = contactsList.filter(c => c.status === "unsubscribed").length;
-  const bounced = contactsList.filter(c => c.status === "bounced").length;
-  const spam = contactsList.filter(c => c.status === "spam").length;
+  const subscribed = contactsList.filter(c => c.emailMarketingStatus === "subscribed").length;
+  const unsubscribed = contactsList.filter(c => c.emailMarketingStatus === "unsubscribed").length;
+  const bounced = contactsList.filter(c => c.emailMarketingStatus === "bounced").length;
+  const spam = contactsList.filter(c => c.emailMarketingStatus === "spam").length;
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
@@ -350,6 +350,11 @@ export default function EmailMarketingPage() {
                             : contact.email}
                         </p>
                         <p className="text-sm text-foreground/60">{contact.email}</p>
+                        {contact.source && (
+                          <p className="text-xs text-foreground/50 mt-1">
+                            Source: {contact.source === "lead" ? "Lead" : contact.source === "email_marketing" ? "Email Marketing" : contact.source === "manual" ? "Manual" : contact.source}
+                          </p>
+                        )}
                         {contact.tags.length > 0 && (
                           <div className="flex gap-2 mt-2">
                             {contact.tags.map((tag) => (
@@ -366,21 +371,21 @@ export default function EmailMarketingPage() {
                       <div className="text-right">
                         <span
                           className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded ${
-                            contact.status === "subscribed"
+                            contact.emailMarketingStatus === "subscribed"
                               ? "bg-accent/20 text-accent border border-accent/30"
-                              : contact.status === "unsubscribed"
+                              : contact.emailMarketingStatus === "unsubscribed"
                               ? "bg-red-500/20 text-red-500 border border-red-500/30"
-                              : contact.status === "bounced"
+                              : contact.emailMarketingStatus === "bounced"
                               ? "bg-orange-500/20 text-orange-500 border border-orange-500/30"
                               : "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30"
                           }`}
                         >
-                          {contact.status}
+                          {contact.emailMarketingStatus}
                         </span>
                       </div>
                     </div>
                   ))}
-                  <Link href="/admin/email-marketing/contacts">
+                  <Link href="/admin/tools/contacts">
                     <Button variant="outline" className="w-full font-black uppercase tracking-wider">
                       View All Contacts
                     </Button>
@@ -479,33 +484,38 @@ export default function EmailMarketingPage() {
                               ? `${contact.firstName || ""} ${contact.lastName || ""}`.trim()
                               : contact.email}
                           </p>
-                          <p className="text-sm text-foreground/60">{contact.email}</p>
-                          {contact.tags.length > 0 && (
-                            <div className="flex gap-2 mt-2">
-                              {contact.tags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="px-2 py-1 text-xs font-bold uppercase tracking-wider bg-foreground/10 text-foreground/70 rounded"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                        <p className="text-sm text-foreground/60">{contact.email}</p>
+                        {contact.source && (
+                          <p className="text-xs text-foreground/50 mt-1">
+                            Source: {contact.source === "lead" ? "Lead" : contact.source === "email_marketing" ? "Email Marketing" : contact.source === "manual" ? "Manual" : contact.source}
+                          </p>
+                        )}
+                        {contact.tags.length > 0 && (
+                          <div className="flex gap-2 mt-2">
+                            {contact.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="px-2 py-1 text-xs font-bold uppercase tracking-wider bg-foreground/10 text-foreground/70 rounded"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         </div>
                         <div className="text-right">
                           <span
                             className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded mb-2 block ${
-                              contact.status === "subscribed"
+                              contact.emailMarketingStatus === "subscribed"
                                 ? "bg-accent/20 text-accent border border-accent/30"
-                                : contact.status === "unsubscribed"
+                                : contact.emailMarketingStatus === "unsubscribed"
                                 ? "bg-red-500/20 text-red-500 border border-red-500/30"
-                                : contact.status === "bounced"
+                                : contact.emailMarketingStatus === "bounced"
                                 ? "bg-orange-500/20 text-orange-500 border border-orange-500/30"
                                 : "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30"
                             }`}
                           >
-                            {contact.status}
+                            {contact.emailMarketingStatus}
                           </span>
                           <p className="text-xs text-foreground/50">
                             {formatDistanceToNow(new Date(contact.createdAt), { addSuffix: true })}

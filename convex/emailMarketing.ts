@@ -1,6 +1,7 @@
 import { mutation, query, internalMutation, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 import { Resend } from "resend";
 
 import { requireAdmin } from "./adminAuth";
@@ -47,17 +48,8 @@ export const listContacts = query({
       await requireAdmin(ctx);
     }
     
-    let contacts;
-    
-    if (args.status) {
-      contacts = await ctx.db
-        .query("emailContacts")
-        .withIndex("by_status", (q: any) => q.eq("status", args.status))
-        .collect();
-    } else {
-      // Get all contacts if no filter
-      contacts = await ctx.db.query("emailContacts").collect();
-    }
+    // Get all contacts from unified contacts database
+    let contacts = await ctx.db.query("contacts").collect();
     
     // Filter by tags if provided
     if (args.tags && args.tags.length > 0) {
@@ -66,7 +58,34 @@ export const listContacts = query({
       );
     }
     
-    return contacts;
+    // Populate email marketing status
+    const contactsWithStatus = await Promise.all(
+      contacts.map(async (contact) => {
+        let emailMarketing = null;
+        if (contact.emailMarketingId) {
+          emailMarketing = await ctx.db.get(contact.emailMarketingId);
+        } else {
+          // Try to find by email
+          emailMarketing = await ctx.db
+            .query("emailContacts")
+            .withIndex("by_email", (q: any) => q.eq("email", contact.email))
+            .first();
+        }
+        
+        return {
+          ...contact,
+          emailMarketingStatus: emailMarketing?.status || "subscribed",
+          emailMarketingId: emailMarketing?._id || contact.emailMarketingId,
+        };
+      })
+    );
+    
+    // Filter by status if provided
+    if (args.status) {
+      return contactsWithStatus.filter(contact => contact.emailMarketingStatus === args.status);
+    }
+    
+    return contactsWithStatus;
   },
 });
 
@@ -120,18 +139,62 @@ export const createContact = mutation({
       await requireAdmin(ctx);
     }
     
-    // Check if contact already exists
+    // Check if contact already exists in unified contacts database
+    const existingContact = await ctx.db
+      .query("contacts")
+      .withIndex("by_email", (q: any) => q.eq("email", args.email))
+      .first();
+    
+    let contactId: Id<"contacts">;
+    
+    if (!existingContact) {
+      // Create in unified contacts database first
+      const now = Date.now();
+      contactId = await ctx.db.insert("contacts", {
+        email: args.email,
+        firstName: args.firstName,
+        lastName: args.lastName,
+        tags: args.tags || [],
+        source: args.source || "email_marketing",
+        metadata: args.metadata,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else {
+      contactId = existingContact._id;
+      // Update unified contact
+      await ctx.db.patch(contactId, {
+        firstName: args.firstName !== undefined ? args.firstName : existingContact.firstName,
+        lastName: args.lastName !== undefined ? args.lastName : existingContact.lastName,
+        tags: args.tags !== undefined ? args.tags : existingContact.tags,
+        source: args.source !== undefined ? args.source : existingContact.source || "email_marketing",
+        metadata: args.metadata !== undefined ? args.metadata : existingContact.metadata,
+        updatedAt: Date.now(),
+      });
+    }
+    
+    // Check if email marketing contact already exists
     const existing = await ctx.db
       .query("emailContacts")
       .withIndex("by_email", (q: any) => q.eq("email", args.email))
       .first();
     
     if (existing) {
-      throw new Error("Contact with this email already exists");
+      // Update existing email marketing contact
+      await ctx.db.patch(existing._id, {
+        contactId: contactId,
+        firstName: args.firstName,
+        lastName: args.lastName,
+        tags: args.tags || [],
+        source: args.source,
+        metadata: args.metadata,
+        updatedAt: Date.now(),
+      });
+      return existing._id;
     }
     
     const now = Date.now();
-    return await ctx.db.insert("emailContacts", {
+    const emailContactId = await ctx.db.insert("emailContacts", {
       email: args.email,
       firstName: args.firstName,
       lastName: args.lastName,
@@ -139,9 +202,18 @@ export const createContact = mutation({
       status: "subscribed",
       source: args.source,
       metadata: args.metadata,
+      contactId: contactId,
       createdAt: now,
       updatedAt: now,
     });
+    
+    // Update unified contact with email marketing ID
+    await ctx.db.patch(contactId, {
+      emailMarketingId: emailContactId,
+      updatedAt: now,
+    });
+    
+    return emailContactId;
   },
 });
 
@@ -176,12 +248,33 @@ export const updateContact = mutation({
       await requireAdmin(ctx);
     }
     
+    const emailContact = await ctx.db.get(args.id);
+    if (!emailContact) {
+      throw new Error("Email contact not found");
+    }
+    
     const { id, adminEmail, ...updates } = args;
     
+    // Update email marketing contact
     await ctx.db.patch(id, {
       ...updates,
       updatedAt: Date.now(),
     });
+    
+    // Sync to unified contacts database
+    if (emailContact.contactId) {
+      const unifiedContact = await ctx.db.get(emailContact.contactId);
+      if (unifiedContact) {
+        await ctx.db.patch(emailContact.contactId, {
+          firstName: args.firstName !== undefined ? args.firstName : unifiedContact.firstName,
+          lastName: args.lastName !== undefined ? args.lastName : unifiedContact.lastName,
+          tags: args.tags !== undefined ? args.tags : unifiedContact.tags,
+          metadata: args.metadata !== undefined ? args.metadata : unifiedContact.metadata,
+          updatedAt: Date.now(),
+        });
+      }
+    }
+    
     return id;
   },
 });

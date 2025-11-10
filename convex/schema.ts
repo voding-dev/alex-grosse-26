@@ -475,12 +475,14 @@ export default defineSchema({
     ),
     source: v.optional(v.string()), // Where they came from
     metadata: v.optional(v.any()), // Custom metadata
+    contactId: v.optional(v.id("contacts")), // Link to unified contacts
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_email", ["email"])
     .index("by_status", ["status"])
-    .index("by_tags", ["tags"]),
+    .index("by_tags", ["tags"])
+    .index("by_contact", ["contactId"]),
 
   emailCampaigns: defineTable({
     name: v.string(),
@@ -817,5 +819,136 @@ export default defineSchema({
     .index("by_folder", ["folder"])
     .index("by_tags", ["tags"])
     .index("by_pinned", ["isPinned"]),
+
+  // Prospect Industries - reusable industry categories
+  prospectIndustries: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_name", ["name"]),
+
+  // Prospect Searches - search/scrape sessions
+  prospectSearches: defineTable({
+    name: v.string(), // Search query name (e.g., "med spa in charlotte nc")
+    city: v.string(),
+    state: v.string(),
+    industryId: v.id("prospectIndustries"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_industry", ["industryId"])
+    .index("by_city_state", ["city", "state"])
+    .index("by_created_at", ["createdAt"]),
+
+  // Prospects - individual business prospects
+  prospects: defineTable({
+    searchId: v.id("prospectSearches"),
+    name: v.string(),
+    address: v.string(),
+    website: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    instagram: v.optional(v.string()),
+    facebook: v.optional(v.string()),
+    youtube: v.optional(v.string()),
+    twitter: v.optional(v.string()),
+    linkedin: v.optional(v.string()),
+    emails: v.array(v.string()), // Array of email addresses
+    googleBusinessLink: v.optional(v.string()),
+    score: v.optional(v.number()), // Calculated score
+    scoreBreakdown: v.optional(v.any()), // Detailed breakdown of scoring
+    notes: v.optional(v.string()), // User notes
+    tags: v.array(v.string()), // Custom tags
+    convertedToLeadId: v.optional(v.id("leads")), // Track if converted
+    convertedAt: v.optional(v.number()), // When converted
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_search", ["searchId"])
+    .index("by_score", ["score"])
+    .index("by_created_at", ["createdAt"])
+    .index("by_converted", ["convertedToLeadId"]),
+
+  // Leads - prospects converted to leads with decision maker info
+  leads: defineTable({
+    prospectId: v.id("prospects"), // Link back to original prospect
+    contactId: v.optional(v.id("contacts")), // Link to contact if created
+    // All prospect data copied over
+    name: v.string(),
+    address: v.string(),
+    website: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    instagram: v.optional(v.string()),
+    facebook: v.optional(v.string()),
+    youtube: v.optional(v.string()),
+    twitter: v.optional(v.string()),
+    linkedin: v.optional(v.string()),
+    emails: v.array(v.string()),
+    googleBusinessLink: v.optional(v.string()),
+    // Decision maker info (what makes it a lead)
+    contactName: v.optional(v.string()),
+    contactTitle: v.optional(v.string()),
+    contactPhone: v.optional(v.string()),
+    contactEmail: v.optional(v.string()),
+    // Pipeline status
+    status: v.union(
+      v.literal("new"),
+      v.literal("contacted"),
+      v.literal("qualified"),
+      v.literal("proposal"),
+      v.literal("closed")
+    ),
+    closedOutcome: v.optional(v.union(v.literal("won"), v.literal("lost"))),
+    notes: v.optional(v.string()),
+    tags: v.array(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_prospect", ["prospectId"])
+    .index("by_contact", ["contactId"])
+    .index("by_status", ["status"])
+    .index("by_created_at", ["createdAt"]),
+
+  // Contacts - unified contacts database (source of truth)
+  contacts: defineTable({
+    // Contact identification
+    email: v.string(), // Primary identifier
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+    // Business info (from lead/prospect)
+    businessName: v.optional(v.string()),
+    address: v.optional(v.string()),
+    website: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    // Social links
+    instagram: v.optional(v.string()),
+    facebook: v.optional(v.string()),
+    youtube: v.optional(v.string()),
+    twitter: v.optional(v.string()),
+    linkedin: v.optional(v.string()),
+    googleBusinessLink: v.optional(v.string()),
+    // Decision maker info
+    contactName: v.optional(v.string()),
+    contactTitle: v.optional(v.string()),
+    contactPhone: v.optional(v.string()),
+    // Source tracking
+    source: v.optional(v.string()), // "lead", "email_marketing", "manual"
+    leadId: v.optional(v.id("leads")), // If from lead
+    prospectId: v.optional(v.id("prospects")), // If from prospect
+    // Email marketing sync
+    emailMarketingId: v.optional(v.id("emailContacts")), // Link to email marketing contact
+    // Status and metadata
+    tags: v.array(v.string()),
+    notes: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_source", ["source"])
+    .index("by_lead", ["leadId"])
+    .index("by_prospect", ["prospectId"])
+    .index("by_email_marketing", ["emailMarketingId"]),
 });
 

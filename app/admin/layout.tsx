@@ -27,7 +27,8 @@ import {
   Minimize2,
   RefreshCw,
   User,
-  Settings
+  Settings,
+  Users
 } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -46,7 +47,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     about?.imageStorageId ? { storageId: about.imageStorageId } : "skip"
   );
   const [clientsOpen, setClientsOpen] = useState(false);
-  const [businessOpen, setBusinessOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
   const [websiteOpen, setWebsiteOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -54,7 +55,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileDropdownsOpen, setMobileDropdownsOpen] = useState({
     website: false,
     clients: false,
-    business: false,
+    tools: false,
     media: false,
   });
   
@@ -68,12 +69,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     // Close dropdowns when navigating (only if pathname actually changed)
     if (pathname) {
       setClientsOpen(false);
-      setBusinessOpen(false);
+      setToolsOpen(false);
       setMediaOpen(false);
       setWebsiteOpen(false);
       setProfileOpen(false);
       setMobileMenuOpen(false);
-      setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+      setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
     }
   }, [pathname, isChecking, isAuthenticated, router]);
 
@@ -145,7 +146,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
   const isClientsActive = isActive("/admin/client-projects") || isActive("/admin/deliveries") || isActive("/admin/feedback");
-  const isBusinessActive = isActive("/admin/quote-calculator") || isActive("/admin/tools/pitch-deck-builder") || isActive("/admin/scheduling") || isActive("/admin/email-marketing") || isActive("/admin/qr-codes");
+  const isToolsActive = isActive("/admin/quote-calculator") || isActive("/admin/tools/pitch-deck-builder") || isActive("/admin/tools/prospecting") || isActive("/admin/tools/lead-pipeline") || isActive("/admin/tools/contacts") || isActive("/admin/scheduling") || isActive("/admin/email-marketing") || isActive("/admin/qr-codes");
   const isMediaActive = isActive("/admin/tools/media-library") || isActive("/admin/image-compressor") || isActive("/admin/file-converter");
   const isWebsiteActive = isActive("/admin/website-editor") || isActive("/admin/page-builder") || isActive("/admin/portraits") || isActive("/admin/design") || isActive("/admin/landing-pages") || isActive("/admin/graphic-designer");
 
@@ -213,7 +214,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   onClick={() => {
                     setWebsiteOpen(!websiteOpen);
                     setClientsOpen(false);
-                    setBusinessOpen(false);
+                    setToolsOpen(false);
                     setMediaOpen(false);
                     setProfileOpen(false);
                   }}
@@ -285,7 +286,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <button
                   onClick={() => {
                     setClientsOpen(!clientsOpen);
-                    setBusinessOpen(false);
+                    setToolsOpen(false);
                     setMediaOpen(false);
                     setWebsiteOpen(false);
                     setProfileOpen(false);
@@ -353,11 +354,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 )}
               </div>
 
-              {/* Business Dropdown */}
+              {/* Tools Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => {
-                    setBusinessOpen(!businessOpen);
+                    setToolsOpen(!toolsOpen);
                     setClientsOpen(false);
                     setMediaOpen(false);
                     setWebsiteOpen(false);
@@ -365,21 +366,66 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   }}
                   className={cn(
                     "px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg flex items-center gap-2 group",
-                    businessOpen || isBusinessActive
+                    toolsOpen || isToolsActive
                       ? "text-accent bg-accent/10" 
                       : "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
                   )}
                 >
-                  Business
-                  <ChevronDown className={cn("h-3.5 w-3.5 transition-all duration-300", businessOpen && "rotate-180")} />
+                  Tools
+                  <ChevronDown className={cn("h-3.5 w-3.5 transition-all duration-300", toolsOpen && "rotate-180")} />
                 </button>
-                {businessOpen && (
+                {toolsOpen && (
                   <div className="absolute top-full left-0 mt-2 bg-background/95 backdrop-blur-xl border border-foreground/10 rounded-xl shadow-2xl py-2 min-w-[260px] z-100 animate-in fade-in slide-in-from-top-2 duration-200" data-dropdown>
                     <div className="px-2 py-1.5">
                       <Link
+                        href="/admin/tools/prospecting"
+                        onClick={(e) => {
+                          setTimeout(() => setToolsOpen(false), 0);
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                          isActive("/admin/tools/prospecting")
+                            ? "text-accent bg-accent/10 shadow-sm"
+                            : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
+                        )}
+                      >
+                        <Sliders className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/prospecting") && "text-accent")} />
+                        Prospecting
+                      </Link>
+                      <Link
+                        href="/admin/tools/lead-pipeline"
+                        onClick={(e) => {
+                          setTimeout(() => setToolsOpen(false), 0);
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                          isActive("/admin/tools/lead-pipeline")
+                            ? "text-accent bg-accent/10 shadow-sm"
+                            : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
+                        )}
+                      >
+                        <Sliders className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/lead-pipeline") && "text-accent")} />
+                        Lead Pipeline
+                      </Link>
+                      <Link
+                        href="/admin/tools/contacts"
+                        onClick={(e) => {
+                          setTimeout(() => setToolsOpen(false), 0);
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                          isActive("/admin/tools/contacts")
+                            ? "text-accent bg-accent/10 shadow-sm"
+                            : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
+                        )}
+                      >
+                        <Users className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/contacts") && "text-accent")} />
+                        Contacts
+                      </Link>
+                      <Link
                         href="/admin/quote-calculator"
                         onClick={(e) => {
-                          setTimeout(() => setBusinessOpen(false), 0);
+                          setTimeout(() => setToolsOpen(false), 0);
                         }}
                         className={cn(
                           "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
@@ -394,7 +440,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       <Link
                         href="/admin/tools/pitch-deck-builder"
                         onClick={(e) => {
-                          setTimeout(() => setBusinessOpen(false), 0);
+                          setTimeout(() => setToolsOpen(false), 0);
                         }}
                         className={cn(
                           "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
@@ -409,7 +455,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       <Link
                         href="/admin/scheduling"
                         onClick={(e) => {
-                          setTimeout(() => setBusinessOpen(false), 0);
+                          setTimeout(() => setToolsOpen(false), 0);
                         }}
                         className={cn(
                           "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
@@ -424,7 +470,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       <Link
                         href="/admin/email-marketing"
                         onClick={(e) => {
-                          setTimeout(() => setBusinessOpen(false), 0);
+                          setTimeout(() => setToolsOpen(false), 0);
                         }}
                         className={cn(
                           "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
@@ -439,7 +485,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       <Link
                         href="/admin/qr-codes"
                         onClick={(e) => {
-                          setTimeout(() => setBusinessOpen(false), 0);
+                          setTimeout(() => setToolsOpen(false), 0);
                         }}
                         className={cn(
                           "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
@@ -462,7 +508,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   onClick={() => {
                     setMediaOpen(!mediaOpen);
                     setClientsOpen(false);
-                    setBusinessOpen(false);
+                    setToolsOpen(false);
                     setWebsiteOpen(false);
                     setProfileOpen(false);
                   }}
@@ -539,7 +585,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   onClick={() => {
                     setProfileOpen(!profileOpen);
                     setClientsOpen(false);
-                    setBusinessOpen(false);
+                    setToolsOpen(false);
                     setMediaOpen(false);
                     setWebsiteOpen(false);
                   }}
@@ -634,7 +680,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 href="/admin"
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                  setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                 }}
                 className={cn(
                   "block px-4 py-3 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg",
@@ -666,7 +712,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href="/admin/website-editor"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -682,7 +728,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href="/admin/page-builder"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -698,7 +744,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href="/admin/graphic-designer"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -734,7 +780,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href="/admin/client-projects"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -750,7 +796,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href="/admin/deliveries"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -766,7 +812,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href="/admin/feedback"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -782,27 +828,73 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 )}
               </div>
 
-              {/* Business Mobile Dropdown */}
+              {/* Tools Mobile Dropdown */}
               <div>
                 <button
-                  onClick={() => toggleMobileDropdown('business')}
+                  onClick={() => toggleMobileDropdown('tools')}
                   className={cn(
                     "w-full flex items-center justify-between px-4 py-3 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg",
-                    mobileDropdownsOpen.business || isBusinessActive
+                    mobileDropdownsOpen.tools || isToolsActive
                       ? "text-accent bg-accent/10 shadow-sm"
                       : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
                   )}
                 >
-                  <span>Business</span>
-                  <ChevronDown className={cn("h-4 w-4 transition-all duration-300", mobileDropdownsOpen.business && "rotate-180")} />
+                  <span>Tools</span>
+                  <ChevronDown className={cn("h-4 w-4 transition-all duration-300", mobileDropdownsOpen.tools && "rotate-180")} />
                 </button>
-                {mobileDropdownsOpen.business && (
+                {mobileDropdownsOpen.tools && (
                   <div className="ml-4 mt-1 space-y-1 border-l-2 border-accent/20 pl-4 animate-in slide-in-from-left duration-200">
+                    <Link
+                      href="/admin/tools/prospecting"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
+                        isActive("/admin/tools/prospecting")
+                          ? "text-accent bg-accent/10 shadow-sm"
+                          : "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
+                      )}
+                    >
+                      <Sliders className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/prospecting") && "text-accent")} />
+                      Prospecting
+                    </Link>
+                    <Link
+                      href="/admin/tools/lead-pipeline"
+                      onClick={(e) => {
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                        isActive("/admin/tools/lead-pipeline")
+                          ? "text-accent bg-accent/10 shadow-sm"
+                          : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
+                      )}
+                    >
+                      <Sliders className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/lead-pipeline") && "text-accent")} />
+                      Lead Pipeline
+                    </Link>
+                    <Link
+                      href="/admin/tools/contacts"
+                      onClick={(e) => {
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                        isActive("/admin/tools/contacts")
+                          ? "text-accent bg-accent/10 shadow-sm"
+                          : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
+                      )}
+                    >
+                      <Users className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/contacts") && "text-accent")} />
+                      Contacts
+                    </Link>
                     <Link
                       href="/admin/quote-calculator"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -818,7 +910,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href="/admin/tools/pitch-deck-builder"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -834,7 +926,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href="/admin/scheduling"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -850,7 +942,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href="/admin/email-marketing"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -866,7 +958,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href="/admin/qr-codes"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -902,7 +994,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href="/admin/tools/media-library"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -918,7 +1010,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href="/admin/image-compressor"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -934,7 +1026,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       href="/admin/file-converter"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       }}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -976,7 +1068,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     href="/admin/settings"
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                      setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                     }}
                     className={cn(
                       "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
@@ -994,7 +1086,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     rel="noopener noreferrer"
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                      setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                     }}
                     className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group text-foreground/80 hover:text-foreground hover:bg-foreground/5"
                   >
@@ -1004,7 +1096,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <button
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      setMobileDropdownsOpen({ website: false, clients: false, business: false, media: false });
+                      setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
                       handleLogout();
                     }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group text-foreground/80 hover:text-red-400 hover:bg-red-500/10"
@@ -1024,7 +1116,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <FloatingNotesButton />
       
       {/* Click outside to close dropdowns */}
-      {(clientsOpen || businessOpen || mediaOpen || websiteOpen || profileOpen) && (
+      {(clientsOpen || toolsOpen || mediaOpen || websiteOpen || profileOpen) && (
         <div 
           className="fixed inset-0 z-90 hidden md:block" 
           onClick={(e) => {
@@ -1034,7 +1126,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               return;
             }
             setClientsOpen(false);
-            setBusinessOpen(false);
+            setToolsOpen(false);
             setMediaOpen(false);
             setWebsiteOpen(false);
             setProfileOpen(false);
