@@ -101,6 +101,7 @@ export default function MediaLibraryPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [compressingItemId, setCompressingItemId] = useState<Id<"mediaLibrary"> | null>(null);
   const [selectedMedia, setSelectedMedia] = useState<Set<string>>(new Set());
+  const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; mediaId: Id<"mediaLibrary"> | null }>({ open: false, mediaId: null });
   
   // Bulk operations
@@ -157,6 +158,12 @@ export default function MediaLibraryPage() {
       console.log("[Media Library] Query returned unexpected value:", media);
     }
   }, [media]);
+
+  // Reset last selected index when media array changes (e.g., filters change)
+  useEffect(() => {
+    setLastSelectedIndex(null);
+  }, [typeFilter, folderFilter, selectedTags, searchQuery, includeAssets]);
+
   const folders = useQuery(api.mediaLibrary.getFolders);
   const tags = useQuery(api.mediaLibrary.getTags);
   
@@ -654,14 +661,31 @@ export default function MediaLibraryPage() {
   };
 
   // Selection handlers
-  const toggleMedia = (mediaId: string) => {
-    const newSet = new Set(selectedMedia);
-    if (newSet.has(mediaId)) {
-      newSet.delete(mediaId);
+  const toggleMedia = (mediaId: string, index: number, event?: React.MouseEvent) => {
+    // Check if shift key is held and we have a previous selection
+    if (event?.shiftKey && lastSelectedIndex !== null && media) {
+      const startIndex = Math.min(lastSelectedIndex, index);
+      const endIndex = Math.max(lastSelectedIndex, index);
+      
+      // Select all items in the range
+      const newSet = new Set(selectedMedia);
+      for (let i = startIndex; i <= endIndex; i++) {
+        newSet.add(media[i]._id.toString());
+      }
+      setSelectedMedia(newSet);
+      // Don't update lastSelectedIndex on shift-click to allow extending the range
     } else {
-      newSet.add(mediaId);
+      // Normal toggle behavior
+      const newSet = new Set(selectedMedia);
+      if (newSet.has(mediaId)) {
+        newSet.delete(mediaId);
+      } else {
+        newSet.add(mediaId);
+      }
+      setSelectedMedia(newSet);
+      // Update last selected index for future shift-clicks
+      setLastSelectedIndex(index);
     }
-    setSelectedMedia(newSet);
   };
 
   const handleSelectAll = () => {
@@ -669,10 +693,13 @@ export default function MediaLibraryPage() {
     if (selectedMedia.size === media.length) {
       // Deselect all
       setSelectedMedia(new Set());
+      setLastSelectedIndex(null);
     } else {
       // Select all
       const allIds = new Set(media.map((item) => item._id.toString()));
       setSelectedMedia(allIds);
+      // Set last selected index to the last item
+      setLastSelectedIndex(media.length - 1);
     }
   };
 
@@ -847,6 +874,7 @@ export default function MediaLibraryPage() {
           description: `${successCount} item${successCount !== 1 ? 's' : ''} moved to folder${bulkFolderValue ? ` "${bulkFolderValue}"` : ' (removed from folder)'}${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
         });
         setSelectedMedia(new Set());
+        setLastSelectedIndex(null);
         setBulkFolderDialogOpen(false);
         setBulkFolderValue("");
       } else {
@@ -961,6 +989,7 @@ export default function MediaLibraryPage() {
           description: `Tags ${actionText} ${successCount} item${successCount !== 1 ? 's' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
         });
         setSelectedMedia(new Set());
+        setLastSelectedIndex(null);
         setBulkTagDialogOpen(false);
         setBulkTagValue("");
         setBulkTagInput("");
@@ -1590,7 +1619,7 @@ export default function MediaLibraryPage() {
           <div
             className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
           >
-            {media.map((item) => {
+            {media.map((item, index) => {
               const isSelected = selectedMedia.has(item._id.toString());
               return (
                 <Card key={item._id} className={`group relative overflow-hidden ${
@@ -1602,12 +1631,15 @@ export default function MediaLibraryPage() {
                       {/* Selection checkbox */}
                       <div
                         className="absolute top-2 left-2 z-10"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          toggleMedia(item._id.toString(), index, e);
+                        }}
                       >
                         <Checkbox
                           checked={isSelected}
-                          onCheckedChange={() => toggleMedia(item._id.toString())}
-                          className="bg-background/95 border-2 border-foreground/40 hover:border-accent data-[state=checked]:bg-accent data-[state=checked]:border-accent shadow-lg"
+                          className="bg-background/95 border-2 border-foreground/40 hover:border-accent data-[state=checked]:bg-accent data-[state=checked]:border-accent shadow-lg cursor-pointer pointer-events-none"
                         />
                       </div>
                     </div>
