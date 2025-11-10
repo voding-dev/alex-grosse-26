@@ -536,6 +536,38 @@ export const selectSlot = mutation({
           requestDescription: request.description || undefined,
         });
       }
+
+      // Schedule reminder email if enabled
+      const reminderSetting = await ctx.db
+        .query("settings")
+        .withIndex("by_key", (q: any) => q.eq("key", "bookingReminderEmail"))
+        .first();
+
+      const reminderHoursSetting = await ctx.db
+        .query("settings")
+        .withIndex("by_key", (q: any) => q.eq("key", "bookingReminderHours"))
+        .first();
+
+      if (reminderSetting?.value === true && args.bookingName && args.bookingEmail) {
+        const reminderHours = (reminderHoursSetting?.value as number) || 24;
+        const reminderTime = slot.start - (reminderHours * 60 * 60 * 1000); // Convert hours to milliseconds
+        const now = Date.now();
+        
+        // Only schedule if reminder time is in the future
+        if (reminderTime > now) {
+          await ctx.scheduler.runAt(
+            reminderTime,
+            internal.emailMarketing.sendBookingReminderEmail,
+            {
+              bookingEmail: args.bookingEmail,
+              bookingName: args.bookingName,
+              slotStart: slot.start,
+              slotEnd: slot.end,
+              requestTitle: request.title,
+            }
+          );
+        }
+      }
     }
 
     return { success: true };
