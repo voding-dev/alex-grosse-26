@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Resend } from "resend";
 
@@ -572,6 +572,142 @@ export const getSend = query({
   args: { id: v.id("emailSends") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);
+  },
+});
+
+// Send booking confirmation email (internal - called from scheduling)
+export const sendBookingConfirmationEmail = internalMutation({
+  args: {
+    bookingEmail: v.string(),
+    bookingName: v.string(),
+    slotStart: v.number(),
+    slotEnd: v.number(),
+    requestTitle: v.string(),
+    requestDescription: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const resend = await getResendClient(ctx);
+      
+      const domainSetting = await ctx.db
+        .query("settings")
+        .withIndex("by_key", (q: any) => q.eq("key", "emailDomain"))
+        .first();
+      
+      const domain = domainSetting?.value || "onboarding.resend.dev";
+      const fromEmail = `noreply@${domain}`;
+      const fromName = "Ian Courtright";
+      
+      const startDate = new Date(args.slotStart);
+      const endDate = new Date(args.slotEnd);
+      const dateStr = startDate.toLocaleDateString(undefined, { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      const timeStr = `${startDate.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} - ${endDate.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+      
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #FFA617; font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Booking Confirmed</h1>
+            <p>Hi ${args.bookingName},</p>
+            <p>Your booking has been confirmed!</p>
+            <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h2 style="margin-top: 0; font-size: 18px; font-weight: 900; text-transform: uppercase;">${args.requestTitle}</h2>
+              ${args.requestDescription ? `<p>${args.requestDescription}</p>` : ''}
+              <p><strong>Date:</strong> ${dateStr}</p>
+              <p><strong>Time:</strong> ${timeStr}</p>
+            </div>
+            <p>We look forward to meeting with you!</p>
+            <p>Best regards,<br>Ian Courtright</p>
+          </body>
+        </html>
+      `;
+      
+      await resend.emails.send({
+        from: `${fromName} <${fromEmail}>`,
+        to: args.bookingEmail,
+        subject: `Booking Confirmed: ${args.requestTitle}`,
+        html: htmlContent,
+      });
+    } catch (error) {
+      console.error("Failed to send booking confirmation email:", error);
+      // Don't throw - booking should still succeed even if email fails
+    }
+  },
+});
+
+// Send booking reminder email (internal - called from scheduler)
+export const sendBookingReminderEmail = internalMutation({
+  args: {
+    bookingEmail: v.string(),
+    bookingName: v.string(),
+    slotStart: v.number(),
+    slotEnd: v.number(),
+    requestTitle: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const resend = await getResendClient(ctx);
+      
+      const domainSetting = await ctx.db
+        .query("settings")
+        .withIndex("by_key", (q: any) => q.eq("key", "emailDomain"))
+        .first();
+      
+      const domain = domainSetting?.value || "onboarding.resend.dev";
+      const fromEmail = `noreply@${domain}`;
+      const fromName = "Ian Courtright";
+      
+      const startDate = new Date(args.slotStart);
+      const endDate = new Date(args.slotEnd);
+      const dateStr = startDate.toLocaleDateString(undefined, { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      const timeStr = `${startDate.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} - ${endDate.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+      
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #FFA617; font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Booking Reminder</h1>
+            <p>Hi ${args.bookingName},</p>
+            <p>This is a reminder about your upcoming booking:</p>
+            <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h2 style="margin-top: 0; font-size: 18px; font-weight: 900; text-transform: uppercase;">${args.requestTitle}</h2>
+              <p><strong>Date:</strong> ${dateStr}</p>
+              <p><strong>Time:</strong> ${timeStr}</p>
+            </div>
+            <p>We look forward to meeting with you!</p>
+            <p>Best regards,<br>Ian Courtright</p>
+          </body>
+        </html>
+      `;
+      
+      await resend.emails.send({
+        from: `${fromName} <${fromEmail}>`,
+        to: args.bookingEmail,
+        subject: `Reminder: ${args.requestTitle}`,
+        html: htmlContent,
+      });
+    } catch (error) {
+      console.error("Failed to send booking reminder email:", error);
+      // Don't throw - reminder should fail silently
+    }
   },
 });
 

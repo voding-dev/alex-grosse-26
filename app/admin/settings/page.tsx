@@ -38,6 +38,10 @@ export default function SettingsPage() {
     workHoursTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     defaultSlotDurationMinutes: 60,
     defaultSlotIntervalMinutes: 60,
+    autoAddBookingContacts: true,
+    bookingConfirmationEmail: true,
+    bookingReminderEmail: false,
+    bookingReminderHours: 24,
   });
 
   // Availability state
@@ -80,6 +84,10 @@ export default function SettingsPage() {
         workHoursTimezone: settings.workHoursTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
         defaultSlotDurationMinutes: settings.defaultSlotDurationMinutes || 60,
         defaultSlotIntervalMinutes: settings.defaultSlotIntervalMinutes || 60,
+        autoAddBookingContacts: settings.autoAddBookingContacts !== false, // Default to true
+        bookingConfirmationEmail: settings.bookingConfirmationEmail !== false, // Default to true
+        bookingReminderEmail: settings.bookingReminderEmail === true, // Default to false
+        bookingReminderHours: settings.bookingReminderHours || 24,
       });
       
       // Load availability from settings
@@ -131,6 +139,10 @@ export default function SettingsPage() {
         setSetting({ key: "defaultSlotDurationMinutes", value: formData.defaultSlotDurationMinutes, sessionToken }),
         setSetting({ key: "defaultSlotIntervalMinutes", value: formData.defaultSlotIntervalMinutes, sessionToken }),
         setSetting({ key: "schedulingAvailability", value: monthAvailability, sessionToken }),
+        setSetting({ key: "autoAddBookingContacts", value: formData.autoAddBookingContacts, sessionToken }),
+        setSetting({ key: "bookingConfirmationEmail", value: formData.bookingConfirmationEmail, sessionToken }),
+        setSetting({ key: "bookingReminderEmail", value: formData.bookingReminderEmail, sessionToken }),
+        setSetting({ key: "bookingReminderHours", value: formData.bookingReminderHours, sessionToken }),
       ]);
 
       toast({
@@ -414,6 +426,93 @@ export default function SettingsPage() {
                 className="mt-1"
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Booking Email Automation */}
+        <Card className="group relative overflow-hidden border border-foreground/10 hover:border-accent/30 transition-all duration-300 hover:shadow-lg hover:shadow-accent/10 bg-gradient-to-br from-background to-foreground/5">
+          <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <CardHeader className="pb-4 relative z-10">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-lg bg-foreground/10 group-hover:bg-accent/20 transition-colors">
+                <Calendar className="h-5 w-5 text-foreground/60 group-hover:text-accent transition-colors" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                  Booking Email Automation
+                </CardTitle>
+                <CardDescription className="text-base mt-1">Automate email marketing and notifications for bookings</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6 relative z-10">
+            <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 transition-colors">
+              <div className="flex-1">
+                <Label htmlFor="autoAddBookingContacts" className="text-sm font-black uppercase tracking-wider mb-2 block cursor-pointer" style={{ fontWeight: '900' }}>
+                  Auto-Add Booking Contacts
+                </Label>
+                <p className="text-sm text-foreground/60">
+                  Automatically add booking email addresses to your email marketing contacts list. Contacts will be tagged with "booking" and the scheduler ID.
+                </p>
+              </div>
+              <Checkbox
+                id="autoAddBookingContacts"
+                checked={formData.autoAddBookingContacts}
+                onCheckedChange={(checked) => setFormData({ ...formData, autoAddBookingContacts: checked === true })}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 transition-colors">
+              <div className="flex-1">
+                <Label htmlFor="bookingConfirmationEmail" className="text-sm font-black uppercase tracking-wider mb-2 block cursor-pointer" style={{ fontWeight: '900' }}>
+                  Send Confirmation Emails
+                </Label>
+                <p className="text-sm text-foreground/60">
+                  Automatically send confirmation emails when bookings are made. Includes booking details and date/time.
+                </p>
+              </div>
+              <Checkbox
+                id="bookingConfirmationEmail"
+                checked={formData.bookingConfirmationEmail}
+                onCheckedChange={(checked) => setFormData({ ...formData, bookingConfirmationEmail: checked === true })}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 transition-colors">
+              <div className="flex-1">
+                <Label htmlFor="bookingReminderEmail" className="text-sm font-black uppercase tracking-wider mb-2 block cursor-pointer" style={{ fontWeight: '900' }}>
+                  Send Reminder Emails
+                </Label>
+                <p className="text-sm text-foreground/60">
+                  Automatically send reminder emails before bookings. Helps reduce no-shows.
+                </p>
+              </div>
+              <Checkbox
+                id="bookingReminderEmail"
+                checked={formData.bookingReminderEmail}
+                onCheckedChange={(checked) => setFormData({ ...formData, bookingReminderEmail: checked === true })}
+                className="mt-1"
+              />
+            </div>
+            {formData.bookingReminderEmail && (
+              <div className="p-4 rounded-lg border border-foreground/10 bg-foreground/5">
+                <Label htmlFor="bookingReminderHours" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Reminder Timing (Hours Before Booking)
+                </Label>
+                <Input
+                  id="bookingReminderHours"
+                  type="number"
+                  min={1}
+                  max={168}
+                  value={formData.bookingReminderHours}
+                  onChange={(e) => setFormData({ ...formData, bookingReminderHours: parseInt(e.target.value) || 24 })}
+                  className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors max-w-xs"
+                />
+                <p className="mt-2 text-sm text-foreground/60">
+                  How many hours before the booking to send the reminder email (default: 24 hours).
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

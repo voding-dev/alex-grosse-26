@@ -1,4 +1,5 @@
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { requireAdmin } from "./auth";
 import { requireAdminWithSession } from "./adminAuth";
@@ -460,7 +461,139 @@ export const selectSlot = mutation({
       updatedAt: now,
     });
 
+    // Auto-add to email marketing if enabled and email provided
+    if (args.bookingEmail) {
+      const autoAddSetting = await ctx.db
+        .query("settings")
+        .withIndex("by_key", (q: any) => q.eq("key", "autoAddBookingContacts"))
+        .first();
+
+      if (autoAddSetting?.value === true) {
+        // Check if contact exists
+        const existingContact = await ctx.db
+          .query("emailContacts")
+          .withIndex("by_email", (q: any) => q.eq("email", args.bookingEmail!))
+          .first();
+        
+        if (!existingContact) {
+          // Parse name into first/last
+          const nameParts = args.bookingName?.split(" ") || [];
+          const firstName = nameParts[0] || "";
+          const lastName = nameParts.slice(1).join(" ") || undefined;
+          
+          await ctx.db.insert("emailContacts", {
+            email: args.bookingEmail,
+            firstName: firstName || undefined,
+            lastName: lastName,
+            tags: ["booking", `scheduler-${invite.requestId}`],
+            status: "subscribed",
+            source: "booking",
+            metadata: {
+              bookingRequestId: invite.requestId,
+              firstBookingDate: slot.start,
+            },
+            createdAt: now,
+            updatedAt: now,
+          });
+        } else {
+          // Update existing contact with booking tag if not present
+          const tags = existingContact.tags || [];
+          const hasBookingTag = tags.includes("booking");
+          const hasSchedulerTag = tags.includes(`scheduler-${invite.requestId}`);
+          
+          if (!hasBookingTag || !hasSchedulerTag) {
+            const updatedTags = [...tags];
+            if (!hasBookingTag) {
+              updatedTags.push("booking");
+            }
+            if (!hasSchedulerTag) {
+              updatedTags.push(`scheduler-${invite.requestId}`);
+            }
+            
+            await ctx.db.patch(existingContact._id, {
+              tags: updatedTags,
+              updatedAt: now,
+            });
+          }
+        }
+      }
+
+      // Send confirmation email if enabled
+      const confirmationSetting = await ctx.db
+        .query("settings")
+        .withIndex("by_key", (q: any) => q.eq("key", "bookingConfirmationEmail"))
+        .first();
+
+      if (confirmationSetting?.value === true && args.bookingName) {
+        // Schedule email to be sent (non-blocking)
+        // Use runAfter with 0 delay to send immediately but non-blocking
+        await ctx.scheduler.runAfter(0, internal.emailMarketing.sendBookingConfirmationEmail, {
+          bookingEmail: args.bookingEmail,
+          bookingName: args.bookingName,
+          slotStart: slot.start,
+          slotEnd: slot.end,
+          requestTitle: request.title,
+          requestDescription: request.description || undefined,
+        });
+      }
+    }
+
     return { success: true };
+  },
+});
+
+// Get all bookings across all schedulers (admin)
+export const getAllBookings = query({
+  args: { email: v.optional(v.string()), sessionToken: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    // Try session-based auth first if sessionToken is provided
+    if (args.sessionToken) {
+      await requireAdminWithSession(ctx, args.sessionToken);
+    } else if (args.email) {
+      // Fallback to email-based check
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.email))
+        .first();
+      if (!user || user.role !== "admin") throw new Error("Unauthorized - admin access required");
+    } else {
+      // Last resort: try Convex auth
+      await requireAdmin(ctx);
+    }
+    
+    // Get all invites with booking information
+    const allInvites = await ctx.db
+      .query("schedulingInvites")
+      .collect();
+    
+    const bookings = [];
+    
+    for (const invite of allInvites) {
+      if (!invite.selectedSlotId || !invite.bookingEmail) continue;
+      
+      const slot = await ctx.db.get(invite.selectedSlotId);
+      if (!slot) continue;
+      
+      const request = await ctx.db.get(invite.requestId);
+      if (!request) continue;
+      
+      bookings.push({
+        inviteId: invite._id,
+        slotId: slot._id,
+        requestId: request._id,
+        bookingName: invite.bookingName,
+        bookingEmail: invite.bookingEmail,
+        bookingPhone: invite.bookingPhone,
+        bookingNotes: invite.bookingNotes,
+        slotStart: slot.start,
+        slotEnd: slot.end,
+        requestTitle: request.title,
+        requestDescription: request.description,
+        respondedAt: invite.respondedAt,
+      });
+    }
+    
+    return bookings;
   },
 });
 
