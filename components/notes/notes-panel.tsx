@@ -274,10 +274,10 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                 resetForm();
                 onClose();
               }}
-              className="p-2 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors touch-manipulation"
+              className="p-2 sm:p-2 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center md:min-h-0 md:min-w-0"
               aria-label="Close notes"
             >
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6 sm:h-5 sm:w-5" />
             </button>
           </div>
 
