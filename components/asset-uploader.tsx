@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Upload, X, Image as ImageIcon, Video, FileText, Loader2, Link2, Search, Check } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { Progress } from "@/components/ui/progress";
 import { Id } from "@/convex/_generated/dataModel";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { isValidVideoUrl } from "@/lib/video-utils";
@@ -49,6 +50,7 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
   const { toast } = useToast();
   const { adminEmail, sessionToken } = useAdminAuth();
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
@@ -246,12 +248,14 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
     if (selectedFiles.length === 0) return;
 
     setIsUploading(true);
+    setUploadProgress(0);
     let successCount = 0;
     let errorCount = 0;
     let duplicateCount = 0;
 
     try {
-      for (const file of selectedFiles) {
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
         try {
           const isImage = file.type.startsWith("image/");
           const isVideo = file.type.startsWith("video/");
@@ -385,9 +389,16 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
 
             successCount++;
           }
+          
+          // Update progress
+          const progress = ((i + 1) / selectedFiles.length) * 100;
+          setUploadProgress(progress);
         } catch (error) {
           console.error(`Error uploading ${file.name}:`, error);
           errorCount++;
+          // Still update progress even on error
+          const progress = ((i + 1) / selectedFiles.length) * 100;
+          setUploadProgress(progress);
         }
       }
 
@@ -418,6 +429,10 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
       });
     } finally {
       setIsUploading(false);
+      // Keep progress at 100% briefly before resetting
+      setTimeout(() => {
+        setUploadProgress(0);
+      }, 500);
     }
   };
 
@@ -609,23 +624,27 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
                 ))}
               </div>
 
-              <Button
-                onClick={handleUpload}
-                disabled={isUploading}
-                className="w-full"
-              >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload {selectedFiles.length} File{selectedFiles.length > 1 ? 's' : ''}
-                  </>
-                )}
-              </Button>
+              {isUploading ? (
+                <div className="w-full space-y-2">
+                  <div className="flex items-center justify-between text-sm text-foreground/80">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Uploading...</span>
+                    </div>
+                    <span className="font-bold">{Math.round(uploadProgress)}%</span>
+                  </div>
+                  <Progress value={uploadProgress} className="w-full h-2" />
+                </div>
+              ) : (
+                <Button
+                  onClick={handleUpload}
+                  disabled={isUploading}
+                  className="w-full"
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload {selectedFiles.length} File{selectedFiles.length > 1 ? 's' : ''}
+                </Button>
+              )}
             </div>
           )}
 

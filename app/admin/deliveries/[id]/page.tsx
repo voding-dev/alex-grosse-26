@@ -16,6 +16,7 @@ import { Package, Upload, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AssetUploader } from "@/components/asset-uploader";
 import { AssetThumbnail } from "@/components/asset-thumbnail";
+import { CustomDatePicker } from "@/components/ui/custom-date-picker";
 import { Id } from "@/convex/_generated/dataModel";
 
 export default function EditDeliveryPage() {
@@ -291,12 +292,11 @@ export default function EditDeliveryPage() {
               <Label htmlFor="expiresAt" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
                 Expiration Date (Free Storage)
               </Label>
-              <Input
-                id="expiresAt"
-                type="date"
+              <CustomDatePicker
                 value={formData.expiresAt}
-                onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
-                className="h-12 text-base"
+                onChange={(value) => setFormData({ ...formData, expiresAt: value })}
+                placeholder="Select expiration date"
+                min={new Date().toISOString().split('T')[0]}
               />
               <p className="mt-2 text-xs text-foreground/60">
                 Files expire on this date. Clients can subscribe for extended storage.
