@@ -237,7 +237,7 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       {/* Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm transition-opacity"
           onClick={() => {
             resetForm();
             onClose();
@@ -248,7 +248,7 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       {/* Panel */}
       <div
         className={cn(
-          "fixed left-0 top-0 bottom-0 z-50",
+          "fixed left-0 top-0 bottom-0 z-[120]",
           "w-full sm:w-[500px] lg:w-[600px]",
           "bg-background border-r border-foreground/10",
           "shadow-2xl",

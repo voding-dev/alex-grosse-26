@@ -20,7 +20,7 @@ export function FloatingNotesButton() {
       <button
         onClick={() => setIsOpen(true)}
         className={cn(
-          "fixed bottom-4 left-4 sm:bottom-6 sm:left-6 z-50",
+          "fixed bottom-4 left-4 sm:bottom-6 sm:left-6 z-[120]",
           "h-12 w-12 sm:h-14 sm:w-14 rounded-full",
           "bg-accent text-background",
           "shadow-lg shadow-accent/30",
