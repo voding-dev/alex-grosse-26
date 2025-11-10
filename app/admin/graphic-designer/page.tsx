@@ -1109,8 +1109,38 @@ export default function GraphicDesignerEditorPage() {
                   <div className="space-y-3">
                     {bookingToken && (
                       <div className="p-3 rounded-md border border-foreground/20 bg-foreground/5">
-                        <p className="text-xs text-foreground/60 mb-1">Current Token:</p>
-                        <p className="text-xs font-mono break-all">{bookingToken}</p>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-foreground/60 mb-1">Current Token:</p>
+                            <p className="text-xs font-mono break-all">{bookingToken}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                await updateGraphicDesigner({
+                                  bookingToken: "",
+                                  email: adminEmail || undefined,
+                                });
+                                toast({
+                                  title: "Token removed",
+                                  description: "Booking token has been removed from the graphic designer page.",
+                                });
+                              } catch (error: any) {
+                                toast({
+                                  title: "Error",
+                                  description: error.message || "Failed to remove token.",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                            className="text-red-500 hover:text-red-600 hover:bg-red-500/10 flex-shrink-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     )}
                     <Button

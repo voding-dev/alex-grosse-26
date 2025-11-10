@@ -10,8 +10,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { Eye, EyeOff, Key, Mail, Package, Bell, Settings as SettingsIcon, Save } from "lucide-react";
+import { Eye, EyeOff, Key, Mail, Package, Bell, Settings as SettingsIcon, Save, Clock, Calendar, ChevronDown, ChevronUp } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { CustomTimePicker } from "@/components/ui/custom-time-picker";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { MonthAvailabilityCalendar, type MonthAvailability } from "@/components/ui/month-availability-calendar";
+import { DayConfigPanel } from "@/components/scheduling/day-config-panel";
 
 export default function SettingsPage() {
   const settings = useQuery(api.settings.getAll) || {};
@@ -28,7 +32,19 @@ export default function SettingsPage() {
     emailNotifications: true,
     newFeedbackNotifications: true,
     expiringDeliveryAlerts: true,
+    workHoursStart: "09:00",
+    workHoursEnd: "17:00",
+    workHoursDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    workHoursTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    defaultSlotDurationMinutes: 60,
+    defaultSlotIntervalMinutes: 60,
   });
+
+  // Availability state
+  const [monthAvailability, setMonthAvailability] = useState<MonthAvailability>({});
+  // Accordion state for month grouping
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
   // Password reset form state
   const [passwordForm, setPasswordForm] = useState({
@@ -58,9 +74,35 @@ export default function SettingsPage() {
         emailNotifications: settings.emailNotifications !== false, // Default to true
         newFeedbackNotifications: settings.newFeedbackNotifications !== false, // Default to true
         expiringDeliveryAlerts: settings.expiringDeliveryAlerts !== false, // Default to true
+        workHoursStart: settings.workHoursStart || "09:00",
+        workHoursEnd: settings.workHoursEnd || "17:00",
+        workHoursDays: settings.workHoursDays || ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        workHoursTimezone: settings.workHoursTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        defaultSlotDurationMinutes: settings.defaultSlotDurationMinutes || 60,
+        defaultSlotIntervalMinutes: settings.defaultSlotIntervalMinutes || 60,
       });
+      
+      // Load availability from settings
+      if (settings.schedulingAvailability) {
+        setMonthAvailability(settings.schedulingAvailability as MonthAvailability);
+      }
     }
   }, [settings]);
+
+  // Auto-expand first month when availability changes and no months are expanded
+  useEffect(() => {
+    if (expandedMonths.size === 0 && Object.keys(monthAvailability).length > 0) {
+      const availableDates = Object.keys(monthAvailability)
+        .filter((date) => monthAvailability[date]?.available)
+        .sort();
+      
+      if (availableDates.length > 0) {
+        const firstDate = availableDates[0];
+        const firstMonthKey = firstDate.substring(0, 7); // yyyy-mm
+        setExpandedMonths(new Set([firstMonthKey]));
+      }
+    }
+  }, [monthAvailability, expandedMonths.size]);
 
   const handleSave = async () => {
     if (!adminEmail || !sessionToken) {
@@ -82,6 +124,13 @@ export default function SettingsPage() {
         setSetting({ key: "emailNotifications", value: formData.emailNotifications, sessionToken }),
         setSetting({ key: "newFeedbackNotifications", value: formData.newFeedbackNotifications, sessionToken }),
         setSetting({ key: "expiringDeliveryAlerts", value: formData.expiringDeliveryAlerts, sessionToken }),
+        setSetting({ key: "workHoursStart", value: formData.workHoursStart, sessionToken }),
+        setSetting({ key: "workHoursEnd", value: formData.workHoursEnd, sessionToken }),
+        setSetting({ key: "workHoursDays", value: formData.workHoursDays, sessionToken }),
+        setSetting({ key: "workHoursTimezone", value: formData.workHoursTimezone, sessionToken }),
+        setSetting({ key: "defaultSlotDurationMinutes", value: formData.defaultSlotDurationMinutes, sessionToken }),
+        setSetting({ key: "defaultSlotIntervalMinutes", value: formData.defaultSlotIntervalMinutes, sessionToken }),
+        setSetting({ key: "schedulingAvailability", value: monthAvailability, sessionToken }),
       ]);
 
       toast({
@@ -184,9 +233,28 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="space-y-6">
-        {/* Two Column Layout for General Settings and Delivery Defaults */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <Tabs defaultValue="general" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 max-w-md bg-foreground/5 border border-foreground/20 rounded-lg p-1.5 h-auto items-center gap-1">
+          <TabsTrigger 
+            value="general" 
+            className="font-black uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            style={{ fontWeight: '900' }}
+          >
+            General
+          </TabsTrigger>
+          <TabsTrigger 
+            value="availability" 
+            className="font-black uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            style={{ fontWeight: '900' }}
+          >
+            Availability
+          </TabsTrigger>
+        </TabsList>
+
+        {/* General Tab */}
+        <TabsContent value="general" className="space-y-6">
+          {/* Two Column Layout for General Settings and Delivery Defaults */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* General Settings */}
           <Card className="group relative overflow-hidden border border-foreground/10 hover:border-accent/30 transition-all duration-300 hover:shadow-lg hover:shadow-accent/10 bg-gradient-to-br from-background to-foreground/5">
             <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -277,6 +345,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </div>
+
 
         {/* Notification Preferences */}
         <Card className="group relative overflow-hidden border border-foreground/10 hover:border-accent/30 transition-all duration-300 hover:shadow-lg hover:shadow-accent/10 bg-gradient-to-br from-background to-foreground/5">
@@ -467,19 +536,346 @@ export default function SettingsPage() {
           </Card>
         )}
 
-        {/* Save Button */}
-        <div className="flex justify-end pt-4">
-          <Button 
-            onClick={handleSave} 
-            className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors flex items-center gap-2"
-            style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
-            disabled={isSaving}
-          >
-            <Save className="h-4 w-4" />
-            {isSaving ? "Saving..." : "Save All Settings"}
-          </Button>
-        </div>
-      </div>
+          {/* Save Button */}
+          <div className="flex justify-end pt-4">
+            <Button 
+              onClick={handleSave} 
+              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors flex items-center gap-2"
+              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              disabled={isSaving}
+            >
+              <Save className="h-4 w-4" />
+              {isSaving ? "Saving..." : "Save All Settings"}
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* Availability Tab */}
+        <TabsContent value="availability" className="space-y-6">
+          {/* Work Hours Settings */}
+          <Card className="group relative overflow-hidden border border-foreground/10 hover:border-accent/30 transition-all duration-300 hover:shadow-lg hover:shadow-accent/10 bg-gradient-to-br from-background to-foreground/5">
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="pb-4 relative z-10">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-lg bg-foreground/10 group-hover:bg-accent/20 transition-colors">
+                  <Clock className="h-5 w-5 text-foreground/60 group-hover:text-accent transition-colors" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                    Work Hours
+                  </CardTitle>
+                  <CardDescription className="text-base mt-1">Configure your default work hours for scheduling</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 relative z-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                    Start Time
+                  </Label>
+                  <CustomTimePicker
+                    value={formData.workHoursStart}
+                    onChange={(value) => setFormData({ ...formData, workHoursStart: value })}
+                    placeholder="Select start time"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                    End Time
+                  </Label>
+                  <CustomTimePicker
+                    value={formData.workHoursEnd}
+                    onChange={(value) => setFormData({ ...formData, workHoursEnd: value })}
+                    placeholder="Select end time"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Work Days
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => {
+                        const currentDays = formData.workHoursDays;
+                        const isSelected = currentDays.includes(day);
+                        setFormData({
+                          ...formData,
+                          workHoursDays: isSelected
+                            ? currentDays.filter((d) => d !== day)
+                            : [...currentDays, day].sort((a, b) => {
+                                const order = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+                                return order.indexOf(a) - order.indexOf(b);
+                              }),
+                        });
+                      }}
+                      className={`px-4 py-2 text-sm font-black uppercase tracking-wider rounded border transition-colors ${
+                        formData.workHoursDays.includes(day)
+                          ? "border-accent bg-accent/10 text-accent"
+                          : "border-foreground/20 text-foreground/80 hover:border-accent/50 hover:bg-foreground/5"
+                      }`}
+                      style={{ fontWeight: '900' }}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="workHoursTimezone" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Timezone
+                </Label>
+                <Input
+                  id="workHoursTimezone"
+                  type="text"
+                  value={formData.workHoursTimezone}
+                  onChange={(e) => setFormData({ ...formData, workHoursTimezone: e.target.value })}
+                  placeholder="America/New_York"
+                  className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors"
+                />
+                <p className="mt-2 text-sm text-foreground/60">
+                  Timezone for your work hours (e.g., America/New_York, Europe/London). Defaults to your system timezone.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="defaultSlotDurationMinutes" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                    Default Slot Duration (minutes)
+                  </Label>
+                  <Input
+                    id="defaultSlotDurationMinutes"
+                    type="number"
+                    min="5"
+                    step="5"
+                    value={formData.defaultSlotDurationMinutes}
+                    onChange={(e) => setFormData({ ...formData, defaultSlotDurationMinutes: parseInt(e.target.value) || 60 })}
+                    className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors"
+                  />
+                  <p className="mt-2 text-sm text-foreground/60">
+                    Default duration for each time slot when auto-generating availability.
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="defaultSlotIntervalMinutes" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                    Default Slot Interval (minutes)
+                  </Label>
+                  <Input
+                    id="defaultSlotIntervalMinutes"
+                    type="number"
+                    min="5"
+                    step="5"
+                    value={formData.defaultSlotIntervalMinutes}
+                    onChange={(e) => setFormData({ ...formData, defaultSlotIntervalMinutes: parseInt(e.target.value) || 60 })}
+                    className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors"
+                  />
+                  <p className="mt-2 text-sm text-foreground/60">
+                    How often new slots start. Example: 60 min duration with 30 min interval creates slots every 30 minutes.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Month Availability Calendar */}
+          <Card className="group relative overflow-hidden border border-foreground/10 hover:border-accent/30 transition-all duration-300 hover:shadow-lg hover:shadow-accent/10 bg-gradient-to-br from-background to-foreground/5">
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="pb-4 relative z-10">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-lg bg-foreground/10 group-hover:bg-accent/20 transition-colors">
+                  <Calendar className="h-5 w-5 text-foreground/60 group-hover:text-accent transition-colors" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                    Availability Calendar
+                  </CardTitle>
+                  <CardDescription className="text-base mt-1">Select available days from the month view and configure time slots</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 relative z-10">
+              {/* Month View Calendar */}
+              <div className="border border-foreground/20 rounded-lg p-4 bg-foreground/5">
+                <Label className="text-sm font-black uppercase tracking-wider mb-4 block" style={{ fontWeight: '900' }}>
+                  Month View - Select Available Days
+                </Label>
+                <MonthAvailabilityCalendar
+                  availability={monthAvailability}
+                  onAvailabilityChange={setMonthAvailability}
+                  minDate={new Date()}
+                  workHoursStart={formData.workHoursStart}
+                  workHoursEnd={formData.workHoursEnd}
+                  durationMinutes={formData.defaultSlotDurationMinutes}
+                  intervalMinutes={formData.defaultSlotIntervalMinutes}
+                />
+              </div>
+
+              {/* Day Configuration Panels - Grouped by Month */}
+              {(() => {
+                // Group dates by month
+                const datesByMonth: Record<string, string[]> = {};
+                Object.keys(monthAvailability)
+                  .filter((date) => monthAvailability[date]?.available)
+                  .sort()
+                  .forEach((date) => {
+                    const monthKey = date.substring(0, 7); // yyyy-mm
+                    if (!datesByMonth[monthKey]) {
+                      datesByMonth[monthKey] = [];
+                    }
+                    datesByMonth[monthKey].push(date);
+                  });
+
+                const monthKeys = Object.keys(datesByMonth).sort();
+
+                if (monthKeys.length === 0) {
+                  return (
+                    <div className="p-6 rounded-lg border border-foreground/20 bg-foreground/5 text-center">
+                      <Calendar className="h-8 w-8 mx-auto mb-2 text-foreground/40" />
+                      <p className="text-sm text-foreground/60">
+                        No available days selected. Select days from the calendar above.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-3">
+                    {monthKeys.map((monthKey) => {
+                      const dates = datesByMonth[monthKey];
+                      // Parse monthKey (yyyy-mm) and create date explicitly to avoid timezone issues
+                      const [year, month] = monthKey.split('-').map(Number);
+                      const monthDate = new Date(year, month - 1, 1); // month is 0-indexed
+                      const monthName = monthDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+                      const isMonthExpanded = expandedMonths.has(monthKey);
+
+                      return (
+                        <Card key={monthKey} className="border border-foreground/20">
+                          <CardHeader
+                            className="pb-3 cursor-pointer hover:bg-foreground/5 transition-colors"
+                            onClick={() => {
+                              const newExpanded = new Set(expandedMonths);
+                              if (isMonthExpanded) {
+                                newExpanded.delete(monthKey);
+                              } else {
+                                newExpanded.add(monthKey);
+                              }
+                              setExpandedMonths(newExpanded);
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                {isMonthExpanded ? (
+                                  <ChevronUp className="h-5 w-5 text-accent" />
+                                ) : (
+                                  <ChevronDown className="h-5 w-5 text-foreground/60" />
+                                )}
+                                <CardTitle className="text-lg font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                                  {monthName}
+                                </CardTitle>
+                                <span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-accent/20 text-accent border border-accent/30">
+                                  {dates.length} day{dates.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          {isMonthExpanded && (
+                            <CardContent className="pt-0 space-y-3">
+                              {dates.map((date) => {
+                                const dayAvail = monthAvailability[date] || { date, available: true };
+                                const isDateExpanded = expandedDates.has(date);
+                                const activeSlotsCount = (() => {
+                                  let count = 0;
+                                  if (dayAvail.autoGeneratedSlots) {
+                                    count += dayAvail.autoGeneratedSlots.filter(
+                                      slot => !dayAvail.excludedSlots?.includes(slot.start)
+                                    ).length;
+                                  }
+                                  if (dayAvail.specificSlots) {
+                                    count += (dayAvail.specificSlots.length / 2);
+                                  }
+                                  return count;
+                                })();
+
+                                return (
+                                  <div key={date} className="border border-foreground/10 rounded-lg bg-foreground/5">
+                                    <div
+                                      className="p-3 cursor-pointer hover:bg-foreground/10 transition-colors flex items-center justify-between"
+                                      onClick={() => {
+                                        const newExpanded = new Set(expandedDates);
+                                        if (isDateExpanded) {
+                                          newExpanded.delete(date);
+                                        } else {
+                                          newExpanded.add(date);
+                                        }
+                                        setExpandedDates(newExpanded);
+                                      }}
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        {isDateExpanded ? (
+                                          <ChevronUp className="h-4 w-4 text-accent" />
+                                        ) : (
+                                          <ChevronDown className="h-4 w-4 text-foreground/60" />
+                                        )}
+                                        <Calendar className="h-4 w-4 text-accent" />
+                                        <span className="text-sm font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                                          {new Date(date + "T00:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                        </span>
+                                        {activeSlotsCount > 0 && (
+                                          <span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-accent/20 text-accent border border-accent/30">
+                                            {activeSlotsCount} slot{activeSlotsCount !== 1 ? 's' : ''}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {isDateExpanded && (
+                                      <div className="p-4 pt-0">
+                                        <DayConfigPanel
+                                          date={date}
+                                          availability={dayAvail}
+                                          onUpdate={(updated) => {
+                                            setMonthAvailability((prev) => ({
+                                              ...prev,
+                                              [date]: { ...updated, date },
+                                            }));
+                                          }}
+                                          workHoursStart={formData.workHoursStart}
+                                          workHoursEnd={formData.workHoursEnd}
+                                          durationMinutes={formData.defaultSlotDurationMinutes}
+                                          intervalMinutes={formData.defaultSlotIntervalMinutes}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </CardContent>
+                          )}
+                        </Card>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
+          {/* Save Button */}
+          <div className="flex justify-end pt-4">
+            <Button 
+              onClick={handleSave} 
+              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors flex items-center gap-2"
+              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              disabled={isSaving}
+            >
+              <Save className="h-4 w-4" />
+              {isSaving ? "Saving..." : "Save Availability Settings"}
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

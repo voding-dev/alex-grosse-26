@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,16 +16,17 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info, Calendar } from "lucide-react";
 import { BRAND_PRESETS, BrandingPresetId } from "@/lib/brand-presets";
-import { CustomDatePicker } from "@/components/ui/custom-date-picker";
-import { format } from "date-fns";
-
-type SlotDraft = { start: string; end: string };
+import { type MonthAvailability } from "@/components/ui/month-availability-calendar";
+import { SchedulerAvailabilitySelector } from "@/components/scheduling/scheduler-availability-selector";
+import { availabilityToSlots } from "@/lib/scheduling/availability-helpers";
+import type { SlotDraft } from "@/lib/scheduling/availability-helpers";
 
 export default function NewSchedulingRequestPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { adminEmail } = useAdminAuth();
   const createRequest = useMutation(api.scheduling.createRequest);
+  const settings = useQuery(api.settings.getAll) || {};
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -34,67 +35,84 @@ export default function NewSchedulingRequestPage() {
   const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [maxSelectionsPerPerson, setMaxSelectionsPerPerson] = useState(1);
-  const [slots, setSlots] = useState<SlotDraft[]>([{ start: "", end: "" }]);
   // Branding
   const [brandingPreset, setBrandingPreset] = useState<BrandingPresetId>("ian");
-  // Generator state
-  const [genStartDate, setGenStartDate] = useState(""); // yyyy-mm-dd
-  const [genEndDate, setGenEndDate] = useState("");
-  const [genDays, setGenDays] = useState<{[k: string]: boolean}>({ Sun: false, Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false });
-  const [genDailyStart, setGenDailyStart] = useState("09:00"); // HH:mm
-  const [genDailyEnd, setGenDailyEnd] = useState("17:00");
-  const [genInterval, setGenInterval] = useState(60); // minutes between starts
+  // Availability selection state
+  const [selectedAvailability, setSelectedAvailability] = useState<MonthAvailability>({});
+  const [enabledSlots, setEnabledSlots] = useState<Record<string, Set<string>>>({});
+  // Work hours and availability from settings
+  const workHoursStart = (settings.workHoursStart as string) || "09:00";
+  const workHoursEnd = (settings.workHoursEnd as string) || "17:00";
+  const workHoursDays = (settings.workHoursDays as string[]) || ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  const workHoursTimezone = (settings.workHoursTimezone as string) || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const monthAvailability = (settings.schedulingAvailability as MonthAvailability) || {};
+  const defaultSlotDurationMinutes = (settings.defaultSlotDurationMinutes as number) || 60;
+  const defaultSlotIntervalMinutes = (settings.defaultSlotIntervalMinutes as number) || 60;
 
-  const addSlot = () => setSlots([...slots, { start: "", end: "" }]);
-  const removeSlot = (idx: number) => setSlots(slots.filter((_, i) => i !== idx));
-  const updateSlot = (idx: number, key: keyof SlotDraft, value: string) => {
-    const next = [...slots];
-    next[idx] = { ...next[idx], [key]: value };
-    setSlots(next);
-  };
-
-  const toggleGenDay = (day: string) => setGenDays((prev) => ({ ...prev, [day]: !prev[day] }));
-
-  function toLocalMs(dateStr: string, timeStr: string): number {
-    // dateStr: yyyy-mm-dd, timeStr: HH:mm → local Date ms
-    const [y, m, d] = dateStr.split("-").map(Number);
-    const [hh, mm] = timeStr.split(":").map(Number);
-    const dt = new Date(y, (m - 1), d, hh, mm, 0, 0);
-    return dt.getTime();
-  }
-
-  const generateSlots = () => {
-    if (!genStartDate || !genEndDate) return;
-    const startDate = new Date(genStartDate + "T00:00:00");
-    const endDate = new Date(genEndDate + "T00:00:00");
-    if (endDate < startDate) return;
-
-    const daysOrder = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const newSlots: SlotDraft[] = [];
-
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      const dayKey = daysOrder[d.getDay()];
-      if (!genDays[dayKey]) continue;
-
-      // build day windows
-      const dayStr = d.toISOString().slice(0,10);
-      const dayStartMs = toLocalMs(dayStr, genDailyStart);
-      const dayEndMs = toLocalMs(dayStr, genDailyEnd);
-      if (dayEndMs <= dayStartMs) continue;
-
-      for (let s = dayStartMs; s + durationMinutes * 60_000 <= dayEndMs; s += genInterval * 60_000) {
-        const e = s + durationMinutes * 60_000;
-        newSlots.push({
-          start: new Date(s).toISOString().slice(0,16), // yyyy-mm-ddTHH:mm
-          end: new Date(e).toISOString().slice(0,16),
-        });
+  // Handle slot toggle
+  const handleSlotToggle = (date: string, slotStart: string) => {
+    setEnabledSlots(prev => {
+      const newEnabled = { ...prev };
+      if (!newEnabled[date]) {
+        newEnabled[date] = new Set<string>();
       }
-    }
-
-    if (newSlots.length) {
-      setSlots((prev) => [...prev, ...newSlots]);
-    }
+      const dateSet = new Set(newEnabled[date]);
+      if (dateSet.has(slotStart)) {
+        dateSet.delete(slotStart);
+      } else {
+        dateSet.add(slotStart);
+      }
+      newEnabled[date] = dateSet;
+      return newEnabled;
+    });
   };
+
+  // Initialize enabled slots when a day is selected
+  useEffect(() => {
+    setEnabledSlots(prev => {
+      const newEnabledSlots: Record<string, Set<string>> = { ...prev };
+      let hasChanges = false;
+      
+      Object.keys(selectedAvailability).forEach(date => {
+        if (selectedAvailability[date]?.available && !newEnabledSlots[date]) {
+          // Get active slots for this day
+          const dayAvail = selectedAvailability[date];
+          const slots: string[] = [];
+          
+          if (dayAvail.autoGeneratedSlots) {
+            dayAvail.autoGeneratedSlots.forEach(slot => {
+              if (!dayAvail.excludedSlots?.includes(slot.start)) {
+                slots.push(slot.start);
+              }
+            });
+          }
+          
+          if (dayAvail.specificSlots) {
+            for (let i = 0; i < dayAvail.specificSlots.length; i += 2) {
+              const start = dayAvail.specificSlots[i];
+              if (start) slots.push(start);
+            }
+          }
+          
+          // Enable all slots by default
+          if (slots.length > 0) {
+            newEnabledSlots[date] = new Set(slots);
+            hasChanges = true;
+          }
+        }
+      });
+      
+      // Remove enabled slots for deselected days
+      Object.keys(prev).forEach(date => {
+        if (!selectedAvailability[date]?.available) {
+          delete newEnabledSlots[date];
+          hasChanges = true;
+        }
+      });
+      
+      return hasChanges ? newEnabledSlots : prev;
+    });
+  }, [selectedAvailability]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,17 +120,28 @@ export default function NewSchedulingRequestPage() {
       toast({ title: "Missing info", description: "Title and organizer email are required", variant: "destructive" });
       return;
     }
+    
+    // Convert selected availability + enabled slots to slots
+    const slots = availabilityToSlots(selectedAvailability, enabledSlots, durationMinutes);
+    
+    if (slots.length === 0) {
+      toast({ title: "No slots", description: "Select at least one day and enable at least one time slot", variant: "destructive" });
+      return;
+    }
+    
     const recipients = recipientEmails
       .split(",")
       .map((e) => e.trim())
       .filter((e) => e);
-    // Recipients are optional - you can create a booking request without recipients
+    
+    // Convert slots to timestamp format
     const parsedSlots = slots
       .filter((s) => s.start && s.end)
       .map((s) => ({ start: new Date(s.start).getTime(), end: new Date(s.end).getTime() }))
       .filter((s) => s.end > s.start);
+    
     if (parsedSlots.length === 0) {
-      toast({ title: "No slots", description: "Add at least one valid slot", variant: "destructive" });
+      toast({ title: "No valid slots", description: "Please select valid time slots", variant: "destructive" });
       return;
     }
 
@@ -311,203 +340,38 @@ export default function NewSchedulingRequestPage() {
           </CardContent>
         </Card>
 
-        {/* Step 3: Candidate Slots */}
+        {/* Step 3: Select Availability */}
         <Card className="border border-foreground/20">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
-              Step 3: Candidate Slots
+              Step 3: Select Availability
             </CardTitle>
             <CardDescription className="text-base">
-              Add potential time slots. Use the generator below for repeating ranges.
+              Select which days and time slots from your availability settings to offer for this scheduler. Configure availability in Settings → Availability tab.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-4 border border-foreground/20 rounded-lg p-4 bg-foreground/5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="text-sm font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>Slot Generator</div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="How generator works" className="text-foreground/60 hover:text-foreground">
-                        <Info className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      Choose a date range, weekdays, hours, and an interval. The tool creates slots with your duration starting every interval within those hours.
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+            {Object.keys(monthAvailability).length === 0 ? (
+              <div className="p-6 border border-foreground/20 rounded-lg bg-foreground/5 text-center">
+                <Calendar className="h-12 w-12 mx-auto mb-4 text-foreground/40" />
+                <p className="text-sm text-foreground/60 mb-2">
+                  No availability configured. Go to <strong>Settings → Availability</strong> to configure your available days and time slots.
+                </p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-xs font-bold uppercase tracking-wider">Start Date</Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="What is start date?" className="text-foreground/60 hover:text-foreground">
-                            <Info className="h-3.5 w-3.5" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          First day to generate availability for. Only selected weekdays within this range are used.
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <CustomDatePicker
-                    value={genStartDate}
-                    onChange={setGenStartDate}
-                    placeholder="Select start date"
-                    min={format(new Date(), "yyyy-MM-dd")}
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-xs font-bold uppercase tracking-wider">End Date</Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="What is end date?" className="text-foreground/60 hover:text-foreground">
-                            <Info className="h-3.5 w-3.5" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Last day to generate availability for. The range is inclusive.
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <CustomDatePicker
-                    value={genEndDate}
-                    onChange={setGenEndDate}
-                    placeholder="Select end date"
-                    min={genStartDate || format(new Date(), "yyyy-MM-dd")}
-                  />
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {(["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]).map((d) => (
-                  <button type="button" key={d} onClick={() => toggleGenDay(d)} className={`px-3 py-2 text-xs font-bold uppercase tracking-wider rounded border ${genDays[d] ? 'border-accent bg-accent/10 text-accent' : 'border-foreground/20 text-foreground/80'}`}>
-                    {d}
-                  </button>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                  <Label className="text-xs font-bold uppercase tracking-wider mb-2 block">Daily Start</Label>
-                  <Input type="time" value={genDailyStart} onChange={(e) => setGenDailyStart(e.target.value)} />
-                </div>
-                <div>
-                  <Label className="text-xs font-bold uppercase tracking-wider mb-2 block">Daily End</Label>
-                  <Input type="time" value={genDailyEnd} onChange={(e) => setGenDailyEnd(e.target.value)} />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-xs font-bold uppercase tracking-wider">Interval (min)</Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="What is interval?" className="text-foreground/60 hover:text-foreground">
-                            <Info className="h-3.5 w-3.5" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          How often new starts occur. Example: 60 min duration with 30 min interval starts every 30 minutes.
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <Input type="number" min={5} step={5} value={genInterval} onChange={(e) => setGenInterval(Number(e.target.value))} />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-xs font-bold uppercase tracking-wider">Duration (min)</Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="What is duration?" className="text-foreground/60 hover:text-foreground">
-                            <Info className="h-3.5 w-3.5" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Length of each slot. End time = start + duration.
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <Input type="number" min={5} step={5} value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))} />
-                </div>
-              </div>
-              <div>
-                <Button type="button" variant="outline" className="font-bold uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors" onClick={generateSlots}>Generate Slots</Button>
-              </div>
-            </div>
-
-            {slots.map((s, i) => {
-              const startDate = s.start ? s.start.split('T')[0] : '';
-              const startTime = s.start ? s.start.split('T')[1] : '';
-              const endDate = s.end ? s.end.split('T')[0] : '';
-              const endTime = s.end ? s.end.split('T')[1] : '';
-
-              return (
-                <div key={i} className="space-y-4 p-4 border border-foreground/20 rounded-lg bg-foreground/5 hover:border-accent/30 transition-colors">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs font-bold uppercase tracking-wider mb-2 block">Start Date</Label>
-                      <CustomDatePicker
-                        value={startDate}
-                        onChange={(date) => {
-                          const newStart = date + (startTime ? 'T' + startTime : 'T00:00');
-                          updateSlot(i, 'start', newStart);
-                        }}
-                        placeholder="Select start date"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-bold uppercase tracking-wider mb-2 block">Start Time</Label>
-                      <Input 
-                        type="time" 
-                        value={startTime} 
-                        onChange={(e) => {
-                          const newStart = (startDate || format(new Date(), "yyyy-MM-dd")) + 'T' + e.target.value;
-                          updateSlot(i, 'start', newStart);
-                        }} 
-                        className="h-12 text-base"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-bold uppercase tracking-wider mb-2 block">End Date</Label>
-                      <CustomDatePicker
-                        value={endDate}
-                        onChange={(date) => {
-                          const newEnd = date + (endTime ? 'T' + endTime : 'T00:00');
-                          updateSlot(i, 'end', newEnd);
-                        }}
-                        placeholder="Select end date"
-                        min={startDate}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-bold uppercase tracking-wider mb-2 block">End Time</Label>
-                      <Input 
-                        type="time" 
-                        value={endTime} 
-                        onChange={(e) => {
-                          const newEnd = (endDate || format(new Date(), "yyyy-MM-dd")) + 'T' + e.target.value;
-                          updateSlot(i, 'end', newEnd);
-                        }} 
-                        className="h-12 text-base"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Button type="button" variant="outline" size="sm" className="font-bold uppercase tracking-wider hover:bg-foreground/10 transition-colors" onClick={() => removeSlot(i)}>Remove</Button>
-                  </div>
-                </div>
-              );
-            })}
-            <Button type="button" variant="outline" className="font-bold uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors" onClick={addSlot}>Add Slot</Button>
+            ) : (
+              <SchedulerAvailabilitySelector
+                availability={monthAvailability}
+                selectedAvailability={selectedAvailability}
+                onSelectionChange={setSelectedAvailability}
+                enabledSlots={enabledSlots}
+                onSlotToggle={handleSlotToggle}
+                durationMinutes={durationMinutes}
+                workHoursStart={workHoursStart}
+                workHoursEnd={workHoursEnd}
+                defaultSlotDurationMinutes={defaultSlotDurationMinutes}
+                defaultSlotIntervalMinutes={defaultSlotIntervalMinutes}
+              />
+            )}
           </CardContent>
         </Card>
 

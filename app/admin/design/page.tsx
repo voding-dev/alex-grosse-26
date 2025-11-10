@@ -722,8 +722,44 @@ export default function DesignEditorPage() {
                 <div className="space-y-3">
                   {designFormData.bookingToken && (
                     <div className="p-3 rounded-md border border-foreground/20 bg-foreground/5">
-                      <p className="text-xs text-foreground/60 mb-1">Current Token:</p>
-                      <p className="text-sm font-mono break-all">{designFormData.bookingToken}</p>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-foreground/60 mb-1">Current Token:</p>
+                          <p className="text-sm font-mono break-all">{designFormData.bookingToken}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={async () => {
+                            setDesignFormData({ ...designFormData, bookingToken: "" });
+                            try {
+                              await updateDesign({
+                                heroText: designFormData.heroText,
+                                bookingToken: "",
+                                stripeUrl: designFormData.stripeUrl,
+                                howItWorksTitle: designFormData.howItWorksTitle,
+                                howItWorksSteps: designFormData.howItWorksSteps.length > 0 ? designFormData.howItWorksSteps : undefined,
+                                services: designFormData.services.length > 0 ? designFormData.services : undefined,
+                                email: adminEmail || undefined,
+                              });
+                              toast({
+                                title: "Token removed",
+                                description: "Booking token has been removed from the design page.",
+                              });
+                            } catch (error: any) {
+                              toast({
+                                title: "Error",
+                                description: error.message || "Failed to remove token.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          className="text-red-500 hover:text-red-600 hover:bg-red-500/10 flex-shrink-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   )}
                   <Button

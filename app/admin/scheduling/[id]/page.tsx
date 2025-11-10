@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ExternalLink, Copy, Pencil, Trash2, Calendar, Clock, Users, Mail, Phone, MessageSquare, Link2, CheckCircle2, User } from "lucide-react";
+import { ExternalLink, Copy, Pencil, Trash2, Calendar, Clock, Users, Mail, Phone, MessageSquare, Link2, CheckCircle2, User, ChevronDown, ChevronUp } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,11 @@ import { PagesUsingRequest } from "@/components/pages-using-token";
 import { CustomDatePicker } from "@/components/ui/custom-date-picker";
 import { CustomTimePicker } from "@/components/ui/custom-time-picker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek } from "date-fns";
+import { useEffect } from "react";
+import { SchedulerAvailabilitySelector } from "@/components/scheduling/scheduler-availability-selector";
+import { type MonthAvailability } from "@/components/ui/month-availability-calendar";
+import { availabilityToSlots, slotsToAvailability } from "@/lib/scheduling/availability-helpers";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +45,7 @@ export default function SchedulingRequestDetailPage() {
     email: adminEmail,
     sessionToken: sessionToken
   } : "skip");
+  const settings = useQuery(api.settings.getAll) || {};
   const createPublicInvite = useMutation(api.scheduling.createPublicInvite);
   const updateRequest = useMutation(api.scheduling.updateRequest);
   const removeRequest = useMutation(api.scheduling.removeRequest);
@@ -62,6 +67,13 @@ export default function SchedulingRequestDetailPage() {
   const [deleteRequestDialog, setDeleteRequestDialog] = useState(false);
   const [cancelBookingDialog, setCancelBookingDialog] = useState<{ open: boolean; slotId: Id<"schedulingSlots"> | null }>({ open: false, slotId: null });
   const [deleteSlotDialog, setDeleteSlotDialog] = useState<{ open: boolean; slotId: Id<"schedulingSlots"> | null }>({ open: false, slotId: null });
+  // Accordion state for month grouping
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
+  // Edit slots mode using availability selector
+  const [isEditingSlots, setIsEditingSlots] = useState(false);
+  const [selectedAvailability, setSelectedAvailability] = useState<MonthAvailability>({});
+  const [enabledSlots, setEnabledSlots] = useState<Record<string, Set<string>>>({});
 
   const copy = async (text: string) => {
     try {
@@ -87,6 +99,151 @@ export default function SchedulingRequestDetailPage() {
   const invites = data?.invites || [];
   const bookedSlots = slots.filter((s: any) => s.status === "booked");
   const availableSlots = slots.filter((s: any) => s.status === "available");
+  
+  // Work hours and availability from settings
+  const workHoursStart = (settings.workHoursStart as string) || "09:00";
+  const workHoursEnd = (settings.workHoursEnd as string) || "17:00";
+  const monthAvailability = (settings.schedulingAvailability as MonthAvailability) || {};
+  const defaultSlotDurationMinutes = (settings.defaultSlotDurationMinutes as number) || 60;
+  const defaultSlotIntervalMinutes = (settings.defaultSlotIntervalMinutes as number) || 60;
+
+  // Auto-expand first month when slots change and no months are expanded
+  useEffect(() => {
+    if (expandedMonths.size === 0 && slots && slots.length > 0) {
+      const firstSlot = slots[0];
+      if (firstSlot && firstSlot.start) {
+        const dateObj = new Date(firstSlot.start);
+        const monthKey = format(dateObj, "yyyy-MM");
+        setExpandedMonths(new Set([monthKey]));
+      }
+    }
+  }, [slots, expandedMonths.size]);
+
+  // Convert existing slots to availability format when entering edit mode
+  useEffect(() => {
+    if (isEditingSlots && slots && slots.length > 0 && Object.keys(selectedAvailability).length === 0) {
+      const slotDrafts = slots.map((s: any) => ({
+        start: new Date(s.start).toISOString().slice(0, 16),
+        end: new Date(s.end).toISOString().slice(0, 16),
+      }));
+      const { availability: convertedAvailability, enabledSlots: convertedEnabledSlots } = slotsToAvailability(slotDrafts, monthAvailability);
+      setSelectedAvailability(convertedAvailability);
+      setEnabledSlots(convertedEnabledSlots);
+    }
+  }, [isEditingSlots, slots, monthAvailability]);
+
+  // Handle slot toggle
+  const handleSlotToggle = (date: string, slotStart: string) => {
+    setEnabledSlots(prev => {
+      const newEnabled = { ...prev };
+      if (!newEnabled[date]) {
+        newEnabled[date] = new Set<string>();
+      }
+      const dateSet = new Set(newEnabled[date]);
+      if (dateSet.has(slotStart)) {
+        dateSet.delete(slotStart);
+      } else {
+        dateSet.add(slotStart);
+      }
+      newEnabled[date] = dateSet;
+      return newEnabled;
+    });
+  };
+
+  // Initialize enabled slots when a day is selected
+  useEffect(() => {
+    if (!isEditingSlots) return;
+    
+    setEnabledSlots(prev => {
+      const newEnabledSlots: Record<string, Set<string>> = { ...prev };
+      let hasChanges = false;
+      
+      Object.keys(selectedAvailability).forEach(date => {
+        if (selectedAvailability[date]?.available && !newEnabledSlots[date]) {
+          const dayAvail = selectedAvailability[date];
+          const slots: string[] = [];
+          
+          if (dayAvail.autoGeneratedSlots) {
+            dayAvail.autoGeneratedSlots.forEach(slot => {
+              if (!dayAvail.excludedSlots?.includes(slot.start)) {
+                slots.push(slot.start);
+              }
+            });
+          }
+          
+          if (dayAvail.specificSlots) {
+            for (let i = 0; i < dayAvail.specificSlots.length; i += 2) {
+              const start = dayAvail.specificSlots[i];
+              if (start) slots.push(start);
+            }
+          }
+          
+          if (slots.length > 0) {
+            newEnabledSlots[date] = new Set(slots);
+            hasChanges = true;
+          }
+        }
+      });
+      
+      Object.keys(prev).forEach(date => {
+        if (!selectedAvailability[date]?.available) {
+          delete newEnabledSlots[date];
+          hasChanges = true;
+        }
+      });
+      
+      return hasChanges ? newEnabledSlots : prev;
+    });
+  }, [selectedAvailability, isEditingSlots]);
+
+  // Handle save slots from availability
+  const handleSaveSlots = async () => {
+    if (!request) return;
+    
+    try {
+      // Convert selected availability + enabled slots to slots
+      const newSlots = availabilityToSlots(selectedAvailability, enabledSlots, request.durationMinutes);
+      
+      if (newSlots.length === 0) {
+        toast({
+          title: "No slots",
+          description: "Select at least one day and enable at least one time slot",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Delete all existing slots first
+      for (const slot of slots) {
+        await removeSlot({
+          id: slot._id,
+          email: adminEmail || undefined,
+        });
+      }
+
+      // Create new slots
+      for (const slot of newSlots) {
+        await createSlot({
+          requestId: request._id,
+          start: new Date(slot.start).getTime(),
+          end: new Date(slot.end).getTime(),
+          email: adminEmail || undefined,
+        });
+      }
+
+      setIsEditingSlots(false);
+      toast({
+        title: "Slots updated",
+        description: `Updated ${newSlots.length} time slots`,
+      });
+    } catch (e: any) {
+      toast({
+        title: "Error",
+        description: e.message || "Failed to update slots",
+        variant: "destructive",
+      });
+    }
+  };
   
   // Get public invite token to check if it exists
   const publicToken = useQuery(
@@ -444,188 +601,349 @@ export default function SchedulingRequestDetailPage() {
                 Time Slots
               </CardTitle>
               <CardDescription className="text-base mt-1">
-                All available and booked time slots for this request
+                {isEditingSlots 
+                  ? "Select which days and time slots from your availability to offer for this scheduler"
+                  : "All available and booked time slots for this request"}
               </CardDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
-              onClick={() => setShowAddSlot(true)}
-              style={{ fontWeight: '900' }}
-            >
-              <Calendar className="h-4 w-4 mr-2" /> Add Slot
-            </Button>
+            <div className="flex items-center gap-2">
+              {!isEditingSlots ? (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
+                    onClick={() => setIsEditingSlots(true)}
+                    style={{ fontWeight: '900' }}
+                  >
+                    <Calendar className="h-4 w-4 mr-2" /> Edit Slots
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="font-black uppercase tracking-wider hover:bg-accent hover:text-background hover:border-accent transition-colors"
+                    onClick={() => setShowAddSlot(true)}
+                    style={{ fontWeight: '900' }}
+                  >
+                    <Calendar className="h-4 w-4 mr-2" /> Add Slot
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="font-bold uppercase tracking-wider hover:bg-foreground/10 transition-colors"
+                    onClick={() => {
+                      setIsEditingSlots(false);
+                      setSelectedAvailability({});
+                      setEnabledSlots({});
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+                    onClick={handleSaveSlots}
+                    style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+                  >
+                    <Calendar className="h-4 w-4 mr-2" /> Save Slots
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-8">
-          {slots.length > 0 ? (() => {
-            // Group slots by date
-            const groupedByDate = slots.reduce((acc: Record<string, any[]>, slot: any) => {
-              const dateKey = new Date(slot.start).toLocaleDateString();
-              if (!acc[dateKey]) acc[dateKey] = [];
-              acc[dateKey].push(slot);
-              return acc;
-            }, {});
+          {isEditingSlots ? (
+            // Edit mode: Use availability selector
+            Object.keys(monthAvailability).length === 0 ? (
+              <div className="p-6 border border-foreground/20 rounded-lg bg-foreground/5 text-center">
+                <Calendar className="h-12 w-12 mx-auto mb-4 text-foreground/40" />
+                <p className="text-sm text-foreground/60 mb-2">
+                  No availability configured. Go to <strong>Settings → Availability</strong> to configure your available days and time slots.
+                </p>
+              </div>
+            ) : (
+              <SchedulerAvailabilitySelector
+                availability={monthAvailability}
+                selectedAvailability={selectedAvailability}
+                onSelectionChange={setSelectedAvailability}
+                enabledSlots={enabledSlots}
+                onSlotToggle={handleSlotToggle}
+                durationMinutes={request?.durationMinutes || 60}
+                workHoursStart={workHoursStart}
+                workHoursEnd={workHoursEnd}
+                defaultSlotDurationMinutes={defaultSlotDurationMinutes}
+                defaultSlotIntervalMinutes={defaultSlotIntervalMinutes}
+              />
+            )
+          ) : slots.length > 0 ? (() => {
+            // Group slots by month, then by week, then by date
+            const groupedByMonth: Record<string, Record<string, Record<string, any[]>>> = {};
+            slots.forEach((slot: any) => {
+              const dateObj = new Date(slot.start);
+              const monthKey = format(dateObj, "yyyy-MM");
+              const weekStart = startOfWeek(dateObj);
+              const weekKey = format(weekStart, "yyyy-MM-dd");
+              const dateKey = format(dateObj, "yyyy-MM-dd");
+              
+              if (!groupedByMonth[monthKey]) {
+                groupedByMonth[monthKey] = {};
+              }
+              if (!groupedByMonth[monthKey][weekKey]) {
+                groupedByMonth[monthKey][weekKey] = {};
+              }
+              if (!groupedByMonth[monthKey][weekKey][dateKey]) {
+                groupedByMonth[monthKey][weekKey][dateKey] = [];
+              }
+              groupedByMonth[monthKey][weekKey][dateKey].push(slot);
+            });
             
-            // Sort date groups chronologically
-            const sortedDateKeys = Object.keys(groupedByDate).sort((a, b) => 
-              new Date(a).getTime() - new Date(b).getTime()
-            );
+            // Sort month keys chronologically
+            const sortedMonthKeys = Object.keys(groupedByMonth).sort();
             
             return (
-              <div className="space-y-8">
-                {sortedDateKeys.map((dateKey) => {
-                  const dateSlots = groupedByDate[dateKey];
-                  const dateObj = new Date(dateSlots[0].start);
+              <div className="space-y-3">
+                {sortedMonthKeys.map((monthKey) => {
+                  const monthWeeks = groupedByMonth[monthKey];
+                  const [year, month] = monthKey.split('-').map(Number);
+                  const monthDate = new Date(year, month - 1, 1);
+                  const monthName = monthDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+                  const isMonthExpanded = expandedMonths.has(monthKey);
+                  
+                  // Get all slots in this month for count
+                  const allMonthSlots = Object.values(monthWeeks).flatMap(week => Object.values(week).flat());
+                  const bookedCount = allMonthSlots.filter((s: any) => s.status === "booked").length;
+                  
+                  // Sort week keys within month
+                  const sortedWeekKeys = Object.keys(monthWeeks).sort();
+                  
                   return (
-                    <div key={dateKey} className="space-y-4">
-                      {/* Date Header */}
-                      <div className="flex items-center gap-3 pb-3 border-b border-foreground/20">
-                        <div className="text-xl sm:text-2xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
-                          {dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                    <Card key={monthKey} className="border border-foreground/20">
+                      <CardHeader
+                        className="pb-3 cursor-pointer hover:bg-foreground/5 transition-colors"
+                        onClick={() => {
+                          const newExpanded = new Set(expandedMonths);
+                          if (isMonthExpanded) {
+                            newExpanded.delete(monthKey);
+                          } else {
+                            newExpanded.add(monthKey);
+                          }
+                          setExpandedMonths(newExpanded);
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            {isMonthExpanded ? (
+                              <ChevronUp className="h-5 w-5 text-accent" />
+                            ) : (
+                              <ChevronDown className="h-5 w-5 text-foreground/60" />
+                            )}
+                            <CardTitle className="text-lg font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                              {monthName}
+                            </CardTitle>
+                            <span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-accent/20 text-accent border border-accent/30">
+                              {allMonthSlots.length} slot{allMonthSlots.length !== 1 ? 's' : ''} • {bookedCount} booked
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-sm sm:text-base font-bold uppercase tracking-wider opacity-60 text-foreground">
-                          {dateObj.toLocaleDateString(undefined, { weekday: 'long' })}
-                        </div>
-                        <div className="flex-1" />
-                        <div className="text-xs font-bold uppercase tracking-wider opacity-60 text-foreground">
-                          {dateSlots.filter((s: any) => s.status === "booked").length} of {dateSlots.length} booked
-                        </div>
-                      </div>
-                      
-                      {/* Time Slots Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                        {dateSlots.map((s: any) => {
-                          const bookingInvite = s.bookedByInviteId ? invites.find((inv: any) => inv._id === s.bookedByInviteId) : null;
-                          const isBooked = s.status === "booked";
-                          return (
-                            <div 
-                              key={s._id} 
-                              className={`relative rounded-lg border-2 p-4 transition-all ${
-                                isBooked 
-                                  ? "border-accent/40 bg-accent/5 hover:border-accent/60" 
-                                  : "border-foreground/20 bg-foreground/5 hover:border-accent/30"
-                              }`}
-                            >
-                              {isBooked && (
-                                <div className="absolute -top-2 -right-2">
-                                  <div className="rounded-full bg-accent p-1">
-                                    <CheckCircle2 className="h-4 w-4 text-black" />
-                                  </div>
-                                </div>
-                              )}
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="text-base sm:text-lg font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
-                                    {new Date(s.start).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} – {new Date(s.end).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                                  </div>
-                                  <span className={`text-xs font-black uppercase tracking-wider px-2 py-1 rounded-full ${
-                                    isBooked 
-                                      ? "bg-accent/20 text-accent border border-accent/30" 
-                                      : "bg-foreground/10 text-foreground/80 border border-foreground/20"
-                                  }`} style={{ fontWeight: '900' }}>
-                                    {s.status}
+                      </CardHeader>
+                      {isMonthExpanded && (
+                        <CardContent className="pt-0 space-y-4">
+                          {sortedWeekKeys.map((weekKey) => {
+                            const weekDates = monthWeeks[weekKey];
+                            const weekStart = new Date(weekKey + "T00:00:00");
+                            const weekEnd = endOfWeek(weekStart);
+                            const weekLabel = `${format(weekStart, "MMM d")} - ${format(weekEnd, "MMM d")}`;
+                            
+                            // Get all slots in this week for count
+                            const allWeekSlots = Object.values(weekDates).flat();
+                            const weekBookedCount = allWeekSlots.filter((s: any) => s.status === "booked").length;
+                            
+                            // Sort date keys within week
+                            const sortedDateKeys = Object.keys(weekDates).sort();
+                            
+                            return (
+                              <div key={weekKey} className="space-y-2">
+                                <div className="flex items-center justify-between pb-2 border-b border-foreground/10">
+                                  <span className="text-xs font-black uppercase tracking-wider text-foreground/70" style={{ fontWeight: '900' }}>
+                                    Week: {weekLabel}
+                                  </span>
+                                  <span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-foreground/10 text-foreground/80 border border-foreground/20">
+                                    {allWeekSlots.length} slot{allWeekSlots.length !== 1 ? 's' : ''} • {weekBookedCount} booked
                                   </span>
                                 </div>
-                  {bookingInvite && isBooked && (
-                    <div className="mt-3 pt-3 border-t-2 border-accent/30 space-y-3 bg-accent/5 rounded-lg p-3 -mx-1">
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="text-xs font-black uppercase tracking-wider text-accent flex items-center gap-2" style={{ fontWeight: '900' }}>
-                          <Users className="h-4 w-4" />
-                          Booked By
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-xs font-bold uppercase tracking-wider text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                          onClick={() => {
-                            setCancelBookingDialog({ open: true, slotId: s._id });
-                          }}
-                        >
-                          Cancel Booking
-                        </Button>
-                      </div>
-                      <div className="space-y-2">
-                        {bookingInvite.bookingName && (
-                          <div className="space-y-1">
-                            <div className="text-xs font-bold uppercase tracking-wider text-foreground/60">Name</div>
-                            <div className="text-sm text-foreground font-medium">{bookingInvite.bookingName}</div>
-                          </div>
-                        )}
-                        {bookingInvite.bookingEmail && (
-                          <div className="space-y-1">
-                            <div className="text-xs font-bold uppercase tracking-wider text-foreground/60 flex items-center gap-1">
-                              <Mail className="h-3 w-3" />
-                              Email
-                            </div>
-                            <a href={`mailto:${bookingInvite.bookingEmail}`} className="text-sm text-accent hover:underline font-medium">
-                              {bookingInvite.bookingEmail}
-                            </a>
-                          </div>
-                        )}
-                        {bookingInvite.bookingPhone && (
-                          <div className="space-y-1">
-                            <div className="text-xs font-bold uppercase tracking-wider text-foreground/60 flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              Phone
-                            </div>
-                            <a href={`tel:${bookingInvite.bookingPhone}`} className="text-sm text-accent hover:underline font-medium">
-                              {bookingInvite.bookingPhone}
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                      {bookingInvite.bookingNotes && (
-                        <div className="space-y-1 pt-2">
-                          <div className="text-xs font-bold uppercase tracking-wider text-foreground/60 flex items-center gap-1">
-                            <MessageSquare className="h-3 w-3" />
-                            Notes
-                          </div>
-                          <div className="text-sm text-foreground opacity-80 leading-relaxed bg-foreground/10 border border-foreground/20 rounded p-3">
-                            {bookingInvite.bookingNotes}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                                {/* Action Buttons */}
-                                <div className="flex gap-2 pt-2 border-t border-foreground/10 mt-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="flex-1 h-8 text-xs font-bold uppercase tracking-wider hover:bg-accent/10 hover:text-accent"
-                                    onClick={() => {
-                                      setEditingSlotId(s._id);
-                                      const startDate = new Date(s.start);
-                                      const endDate = new Date(s.end);
-                                      setEditSlotStartDate(format(startDate, "yyyy-MM-dd"));
-                                      setEditSlotStartTime(format(startDate, "HH:mm"));
-                                      setEditSlotEndDate(format(endDate, "yyyy-MM-dd"));
-                                      setEditSlotEndTime(format(endDate, "HH:mm"));
-                                    }}
-                                    disabled={isBooked}
-                                  >
-                                    <Pencil className="h-3 w-3 mr-1" /> Edit
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 px-3 text-xs font-bold uppercase tracking-wider text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                                    onClick={() => {
-                                      setDeleteSlotDialog({ open: true, slotId: s._id });
-                                    }}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
+                                <div className="space-y-2">
+                                  {sortedDateKeys.map((dateKey) => {
+                                    const dateSlots = weekDates[dateKey];
+                                    const dateObj = new Date(dateSlots[0].start);
+                                    const isDateExpanded = expandedDates.has(dateKey);
+                                    const bookedCount = dateSlots.filter((s: any) => s.status === "booked").length;
+                                    
+                                    return (
+                                      <div key={dateKey} className="border border-foreground/10 rounded-lg bg-foreground/5">
+                                        <div
+                                          className="p-3 cursor-pointer hover:bg-foreground/10 transition-colors flex items-center justify-between"
+                                          onClick={() => {
+                                            const newExpanded = new Set(expandedDates);
+                                            if (isDateExpanded) {
+                                              newExpanded.delete(dateKey);
+                                            } else {
+                                              newExpanded.add(dateKey);
+                                            }
+                                            setExpandedDates(newExpanded);
+                                          }}
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            {isDateExpanded ? (
+                                              <ChevronUp className="h-4 w-4 text-accent" />
+                                            ) : (
+                                              <ChevronDown className="h-4 w-4 text-foreground/60" />
+                                            )}
+                                            <Calendar className="h-4 w-4 text-accent" />
+                                            <span className="text-sm font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                                              {dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                            </span>
+                                            <span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-accent/20 text-accent border border-accent/30">
+                                              {bookedCount} of {dateSlots.length} booked
+                                            </span>
+                                          </div>
+                                        </div>
+                                        {isDateExpanded && (
+                                          <div className="p-4 pt-0 space-y-3">
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                                          {dateSlots.map((s: any) => {
+                                                const bookingInvite = s.bookedByInviteId ? invites.find((inv: any) => inv._id === s.bookedByInviteId) : null;
+                                                const isBooked = s.status === "booked";
+                                                const timeStr = `${format(new Date(s.start), "HH:mm")} - ${format(new Date(s.end), "HH:mm")}`;
+                                                
+                                                return (
+                                                  <div
+                                                    key={s._id}
+                                                    className={`relative rounded-lg border-2 p-3 transition-all ${
+                                                      isBooked
+                                                        ? "border-accent bg-accent/10 hover:border-accent/60"
+                                                        : "border-foreground/20 bg-foreground/5 hover:border-accent/30"
+                                                    }`}
+                                                  >
+                                                    {isBooked && (
+                                                      <div className="absolute -top-1 -right-1">
+                                                        <div className="rounded-full bg-accent p-0.5">
+                                                          <CheckCircle2 className="h-3 w-3 text-background" />
+                                                        </div>
+                                                      </div>
+                                                    )}
+                                                    <div className="space-y-2">
+                                                      <div className="flex items-center justify-between gap-2">
+                                                        <div className="flex items-center gap-2 flex-1">
+                                                          <Clock className="h-3 w-3 text-accent" />
+                                                          <span className="text-xs font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                                                            {timeStr}
+                                                          </span>
+                                                        </div>
+                                                        <span className={`text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                                          isBooked
+                                                            ? "bg-accent/20 text-accent"
+                                                            : "bg-foreground/10 text-foreground/80"
+                                                        }`}>
+                                                          {s.status}
+                                                        </span>
+                                                      </div>
+                                                      {bookingInvite && isBooked && (
+                                                        <div className="mt-2 pt-2 border-t border-accent/20 space-y-1.5 text-xs">
+                                                          {bookingInvite.bookingName && (
+                                                            <div className="flex items-center gap-1.5">
+                                                              <User className="h-3 w-3 text-accent" />
+                                                              <span className="font-bold uppercase tracking-wider text-foreground/80">{bookingInvite.bookingName}</span>
+                                                            </div>
+                                                          )}
+                                                          {bookingInvite.bookingEmail && (
+                                                            <div className="flex items-center gap-1.5">
+                                                              <Mail className="h-3 w-3 text-accent" />
+                                                              <a href={`mailto:${bookingInvite.bookingEmail}`} className="text-accent hover:underline font-medium">
+                                                                {bookingInvite.bookingEmail}
+                                                              </a>
+                                                            </div>
+                                                          )}
+                                                          {bookingInvite.bookingPhone && (
+                                                            <div className="flex items-center gap-1.5">
+                                                              <Phone className="h-3 w-3 text-accent" />
+                                                              <a href={`tel:${bookingInvite.bookingPhone}`} className="text-accent hover:underline font-medium">
+                                                                {bookingInvite.bookingPhone}
+                                                              </a>
+                                                            </div>
+                                                          )}
+                                                          {bookingInvite.bookingNotes && (
+                                                            <div className="pt-1 border-t border-accent/10">
+                                                              <div className="flex items-start gap-1.5">
+                                                                <MessageSquare className="h-3 w-3 text-accent mt-0.5" />
+                                                                <span className="text-foreground/70 leading-relaxed">{bookingInvite.bookingNotes}</span>
+                                                              </div>
+                                                            </div>
+                                                          )}
+                                                          <div className="flex gap-1 pt-1">
+                                                            <Button
+                                                              variant="ghost"
+                                                              size="sm"
+                                                              className="h-6 px-2 text-xs font-bold uppercase tracking-wider text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                                              onClick={() => {
+                                                                setCancelBookingDialog({ open: true, slotId: s._id });
+                                                              }}
+                                                            >
+                                                              Cancel
+                                                            </Button>
+                                                          </div>
+                                                        </div>
+                                                      )}
+                                                      {!isBooked && (
+                                                        <div className="flex gap-1 pt-1 border-t border-foreground/10">
+                                                          <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="flex-1 h-6 px-2 text-xs font-bold uppercase tracking-wider hover:bg-accent/10 hover:text-accent"
+                                                            onClick={() => {
+                                                              setEditingSlotId(s._id);
+                                                              const startDate = new Date(s.start);
+                                                              const endDate = new Date(s.end);
+                                                              setEditSlotStartDate(format(startDate, "yyyy-MM-dd"));
+                                                              setEditSlotStartTime(format(startDate, "HH:mm"));
+                                                              setEditSlotEndDate(format(endDate, "yyyy-MM-dd"));
+                                                              setEditSlotEndTime(format(endDate, "HH:mm"));
+                                                            }}
+                                                          >
+                                                            <Pencil className="h-3 w-3 mr-1" /> Edit
+                                                          </Button>
+                                                          <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-6 px-2 text-xs font-bold uppercase tracking-wider text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                                            onClick={() => {
+                                                              setDeleteSlotDialog({ open: true, slotId: s._id });
+                                                            }}
+                                                          >
+                                                            <Trash2 className="h-3 w-3" />
+                                                          </Button>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                            );
+                          })}
+                        </CardContent>
+                      )}
+                    </Card>
                   );
                 })}
               </div>
@@ -634,7 +952,7 @@ export default function SchedulingRequestDetailPage() {
             <div className="text-sm text-foreground/70 text-center py-12">
               <Calendar className="h-12 w-12 mx-auto mb-4 text-foreground/40" />
               <p className="font-bold uppercase tracking-wider mb-2">No time slots added yet</p>
-              <p className="text-sm">Add time slots when creating the booking request.</p>
+              <p className="text-sm">Add time slots when creating the booking request or use Edit Slots to select from availability.</p>
             </div>
           )}
         </CardContent>
@@ -669,87 +987,71 @@ export default function SchedulingRequestDetailPage() {
               {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto px-6 py-6">
                 <div className="space-y-6">
-                  {/* Start Time Section */}
+                  {/* Date Selection */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 pb-2 border-b border-foreground/10">
-                      <Clock className="h-5 w-5 text-accent" />
+                      <Calendar className="h-5 w-5 text-accent" />
                       <Label className="text-lg font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
-                        Start Time *
+                        Select Date *
                       </Label>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
-                          Date *
-                        </Label>
-                        <CustomDatePicker
-                          value={editSlotStartDate}
-                          onChange={(date) => {
-                            setEditSlotStartDate(date);
-                            // Auto-set end date if not set or if start date is after end date
-                            if (!editSlotEndDate || date > editSlotEndDate) {
-                              setEditSlotEndDate(date);
-                            }
-                          }}
-                          placeholder="Select start date"
-                          min={format(new Date(), "yyyy-MM-dd")}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
-                          Time *
-                        </Label>
-                        <CustomTimePicker
-                          value={editSlotStartTime}
-                          onChange={(time) => {
-                            setEditSlotStartTime(time);
-                            // Auto-set end time if not set or if start time is after end time (on same date)
-                            if (editSlotStartDate === editSlotEndDate && (!editSlotEndTime || time >= editSlotEndTime)) {
-                              // Set end time to 1 hour after start time
-                              const [hours, minutes] = time.split(':').map(Number);
-                              const endHours = (hours + 1) % 24;
-                              const endTimeStr = `${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-                              setEditSlotEndTime(endTimeStr);
-                            }
-                          }}
-                          placeholder="Select start time"
-                        />
-                      </div>
-                    </div>
+                    <CustomDatePicker
+                      value={editSlotStartDate}
+                      onChange={(date) => {
+                        setEditSlotStartDate(date);
+                        // Auto-set end date if not set or if start date is after end date
+                        if (!editSlotEndDate || date > editSlotEndDate) {
+                          setEditSlotEndDate(date);
+                        }
+                      }}
+                      placeholder="Select date"
+                      min={format(new Date(), "yyyy-MM-dd")}
+                    />
                   </div>
 
-                  {/* End Time Section */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 pb-2 border-b border-foreground/10">
-                      <Clock className="h-5 w-5 text-accent" />
-                      <Label className="text-lg font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
-                        End Time *
-                      </Label>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
-                          Date *
+                  {/* Time Selection - Only show if date is selected */}
+                  {editSlotStartDate && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 pb-2 border-b border-foreground/10">
+                        <Clock className="h-5 w-5 text-accent" />
+                        <Label className="text-lg font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                          Select Times *
                         </Label>
-                        <CustomDatePicker
-                          value={editSlotEndDate}
-                          onChange={(date) => setEditSlotEndDate(date)}
-                          placeholder="Select end date"
-                          min={editSlotStartDate || format(new Date(), "yyyy-MM-dd")}
-                        />
                       </div>
-                      <div>
-                        <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
-                          Time *
-                        </Label>
-                        <CustomTimePicker
-                          value={editSlotEndTime}
-                          onChange={(time) => setEditSlotEndTime(time)}
-                          placeholder="Select end time"
-                        />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                            Start Time *
+                          </Label>
+                          <CustomTimePicker
+                            value={editSlotStartTime}
+                            onChange={(time) => {
+                              setEditSlotStartTime(time);
+                              // Auto-set end time if not set or if start time is after end time (on same date)
+                              if (editSlotStartDate === editSlotEndDate && (!editSlotEndTime || time >= editSlotEndTime)) {
+                                // Set end time to 1 hour after start time
+                                const [hours, minutes] = time.split(':').map(Number);
+                                const endHours = (hours + 1) % 24;
+                                const endTimeStr = `${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                                setEditSlotEndTime(endTimeStr);
+                              }
+                            }}
+                            placeholder="Select start time"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                            End Time *
+                          </Label>
+                          <CustomTimePicker
+                            value={editSlotEndTime}
+                            onChange={(time) => setEditSlotEndTime(time)}
+                            placeholder="Select end time"
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Duration Preview */}
                   {(editSlotStartDate && editSlotStartTime && editSlotEndDate && editSlotEndTime) && (() => {
@@ -905,87 +1207,71 @@ export default function SchedulingRequestDetailPage() {
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto px-6 py-6">
             <div className="space-y-6">
-              {/* Start Time Section */}
+              {/* Date Selection */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b border-foreground/10">
-                  <Clock className="h-5 w-5 text-accent" />
+                  <Calendar className="h-5 w-5 text-accent" />
                   <Label className="text-lg font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
-                    Start Time *
+                    Select Date *
                   </Label>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
-                      Date *
-                    </Label>
-                    <CustomDatePicker
-                      value={addSlotStartDate}
-                      onChange={(date) => {
-                        setAddSlotStartDate(date);
-                        // Auto-set end date if not set or if start date is after end date
-                        if (!addSlotEndDate || date > addSlotEndDate) {
-                          setAddSlotEndDate(date);
-                        }
-                      }}
-                      placeholder="Select start date"
-                      min={format(new Date(), "yyyy-MM-dd")}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
-                      Time *
-                    </Label>
-                    <CustomTimePicker
-                      value={addSlotStartTime}
-                      onChange={(time) => {
-                        setAddSlotStartTime(time);
-                        // Auto-set end time if not set or if start time is after end time (on same date)
-                        if (addSlotStartDate === addSlotEndDate && (!addSlotEndTime || time >= addSlotEndTime)) {
-                          // Set end time to 1 hour after start time
-                          const [hours, minutes] = time.split(':').map(Number);
-                          const endHours = (hours + 1) % 24;
-                          const endTimeStr = `${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-                          setAddSlotEndTime(endTimeStr);
-                        }
-                      }}
-                      placeholder="Select start time"
-                    />
-                  </div>
-                </div>
+                <CustomDatePicker
+                  value={addSlotStartDate}
+                  onChange={(date) => {
+                    setAddSlotStartDate(date);
+                    // Auto-set end date if not set or if start date is after end date
+                    if (!addSlotEndDate || date > addSlotEndDate) {
+                      setAddSlotEndDate(date);
+                    }
+                  }}
+                  placeholder="Select date"
+                  min={format(new Date(), "yyyy-MM-dd")}
+                />
               </div>
 
-              {/* End Time Section */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-foreground/10">
-                  <Clock className="h-5 w-5 text-accent" />
-                  <Label className="text-lg font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
-                    End Time *
-                  </Label>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
-                      Date *
+              {/* Time Selection - Only show if date is selected */}
+              {addSlotStartDate && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-foreground/10">
+                    <Clock className="h-5 w-5 text-accent" />
+                    <Label className="text-lg font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                      Select Times *
                     </Label>
-                    <CustomDatePicker
-                      value={addSlotEndDate}
-                      onChange={(date) => setAddSlotEndDate(date)}
-                      placeholder="Select end date"
-                      min={addSlotStartDate || format(new Date(), "yyyy-MM-dd")}
-                    />
                   </div>
-                  <div>
-                    <Label className="text-sm font-bold uppercase tracking-wider mb-2 block text-foreground/70">
-                      Time *
-                    </Label>
-                    <CustomTimePicker
-                      value={addSlotEndTime}
-                      onChange={(time) => setAddSlotEndTime(time)}
-                      placeholder="Select end time"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                        Start Time *
+                      </Label>
+                      <CustomTimePicker
+                        value={addSlotStartTime}
+                        onChange={(time) => {
+                          setAddSlotStartTime(time);
+                          // Auto-set end time if not set or if start time is after end time (on same date)
+                          if (addSlotStartDate === addSlotEndDate && (!addSlotEndTime || time >= addSlotEndTime)) {
+                            // Set end time to 1 hour after start time
+                            const [hours, minutes] = time.split(':').map(Number);
+                            const endHours = (hours + 1) % 24;
+                            const endTimeStr = `${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                            setAddSlotEndTime(endTimeStr);
+                          }
+                        }}
+                        placeholder="Select start time"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                        End Time *
+                      </Label>
+                      <CustomTimePicker
+                        value={addSlotEndTime}
+                        onChange={(time) => setAddSlotEndTime(time)}
+                        placeholder="Select end time"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Duration Preview */}
               {(addSlotStartDate && addSlotStartTime && addSlotEndDate && addSlotEndTime) && (() => {

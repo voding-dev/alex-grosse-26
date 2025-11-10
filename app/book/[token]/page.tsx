@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { resolveBranding } from "@/lib/brand-presets";
-import { Loader2, CheckCircle2, Mail, Clock, User, Phone, MessageSquare, X } from "lucide-react";
+import { Loader2, CheckCircle2, Mail, Clock, User, Phone, MessageSquare, X, Calendar } from "lucide-react";
+import { BookingDayPicker } from "@/components/booking-day-picker";
+import { isSameDay } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,6 +60,7 @@ export default function BookingInvitePage() {
   const token = params?.token as string;
   const { toast } = useToast();
   const router = useRouter();
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [bookingSlotId, setBookingSlotId] = useState<string | null>(null);
   const [bookedSlotId, setBookedSlotId] = useState<string | null>(null);
   const [selectedSlotForBooking, setSelectedSlotForBooking] = useState<any | null>(null);
@@ -77,8 +80,14 @@ export default function BookingInvitePage() {
   };
 
   const handleCloseModal = () => {
+    setSelectedDate(null);
     setSelectedSlotForBooking(null);
     setBookingInfo({ name: "", email: "", phone: "", notes: "" });
+  };
+
+  const handleDateSelect = (date: Date) => {
+    setSelectedDate(date);
+    setSelectedSlotForBooking(null);
   };
 
   const handleSubmitBooking = async () => {
@@ -115,22 +124,17 @@ export default function BookingInvitePage() {
     }
   };
 
-  // Group slots by date and sort within each group
-  const groupedSlots = slots?.reduce((acc: Record<string, any[]>, slot) => {
-    const dateKey = new Date(slot.start).toLocaleDateString();
-    if (!acc[dateKey]) acc[dateKey] = [];
-    acc[dateKey].push(slot);
-    return acc;
-  }, {}) || {};
-  
-  // Sort slots within each date group by time, then sort date groups chronologically
-  Object.keys(groupedSlots).forEach(dateKey => {
-    groupedSlots[dateKey].sort((a, b) => a.start - b.start);
-  });
-  
-  const sortedDateGroups = Object.entries(groupedSlots).sort(([dateA], [dateB]) => {
-    return new Date(dateA).getTime() - new Date(dateB).getTime();
-  });
+  // Get unique dates that have available slots
+  const availableDates = slots
+    ? Array.from(new Set(slots.map((slot: any) => new Date(slot.start).toDateString())))
+        .map((dateStr) => new Date(dateStr))
+        .sort((a, b) => a.getTime() - b.getTime())
+    : [];
+
+  // Get slots for selected date
+  const selectedDateSlots = selectedDate
+    ? slots?.filter((slot: any) => isSameDay(new Date(slot.start), selectedDate)).sort((a: any, b: any) => a.start - b.start) || []
+    : [];
 
   if (inviteData === null) {
     return (
@@ -403,11 +407,11 @@ export default function BookingInvitePage() {
           ) : null;
         })()}
 
-        {/* Available Times Section */}
+        {/* Day Selection or Time Selection */}
         <div className="space-y-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="text-xl sm:text-2xl font-black uppercase tracking-wider text-center sm:text-left" style={{ fontWeight: '900', color: brand.text }}>
-              Available Times
+              {selectedDate ? "Select a Time" : "Select a Date"}
             </div>
             {maxSelections > 1 && (
               <div className="text-sm sm:text-base opacity-80 text-center sm:text-right" style={{ color: brand.text }}>
@@ -420,106 +424,166 @@ export default function BookingInvitePage() {
               </div>
             )}
           </div>
-          
-          {slots?.length ? (
-            <div className="space-y-8">
-              {sortedDateGroups.map(([dateKey, dateSlots]) => {
-                const dateObj = new Date(dateSlots[0].start);
-                return (
-                  <div key={dateKey} className="space-y-4">
-                    {/* Date Header */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="text-2xl sm:text-3xl font-black uppercase tracking-tight" style={{ fontWeight: '900', color: brand.text }}>
-                        {formatDateShort(dateObj.getTime())}
-                      </div>
-                      <div className="text-base sm:text-lg font-bold uppercase tracking-wider opacity-60" style={{ color: brand.text }}>
-                        {formatWeekday(dateObj.getTime())}
-                      </div>
-                    </div>
-                    
-                    {/* Time Slots Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                      {dateSlots.map((s) => {
-                        const isBooking = bookingSlotId === s._id;
-                        const isBookedByMe = s.bookedByInviteId === invite?._id;
-                        const isBooked = bookedSlotId === s._id || isBookedByMe || (invite?.selectedSlotId && invite.selectedSlotId === s._id);
-                        const canSelectThis = canBookMore && !isBooked && s.status === "available";
-                        return (
-                          <div key={s._id}>
-                            {/* Time Slot Card */}
-                            <div 
-                              className={`relative rounded-lg border-2 p-4 transition-all cursor-pointer ${
-                                isBookedByMe 
-                                  ? 'border-accent shadow-lg scale-105' 
-                                  : isBooked 
-                                    ? 'border-foreground/30 opacity-60 cursor-not-allowed' 
-                                    : canSelectThis 
-                                      ? 'hover:shadow-lg hover:scale-105 hover:border-accent/60' 
-                                      : 'opacity-60 cursor-not-allowed'
-                              }`}
-                              style={{ 
-                                borderColor: isBookedByMe 
-                                  ? brand.accent 
-                                  : isBooked 
-                                    ? hexToRgba(brand.accent, 0.3)
-                                    : canSelectThis 
-                                      ? hexToRgba(brand.accent, 0.4)
-                                      : hexToRgba(brand.accent, 0.2),
-                                backgroundColor: isBookedByMe 
-                                  ? hexToRgba(brand.accent, 0.2)
-                                  : isBooked 
-                                    ? hexToRgba(brand.accent, 0.05)
-                                    : hexToRgba(brand.accent, 0.08)
-                              }}
-                              onClick={() => canSelectThis && handleSelectClick(s)}
-                            >
-                              {isBookedByMe && (
-                                <div className="absolute -top-2 -right-2">
-                                  <div className="rounded-full bg-accent p-1" style={{ backgroundColor: brand.accent }}>
-                                    <CheckCircle2 className="h-4 w-4 text-black" />
-                                  </div>
-                                </div>
-                              )}
-                              <div className="space-y-2">
-                                <div className="text-lg sm:text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900', color: brand.text }}>
-                                  {formatTime(s.start, s.end)}
-                                </div>
-                                {isBookedByMe && (
-                                  <div className="text-xs font-bold uppercase tracking-wider opacity-80" style={{ color: brand.accent }}>
-                                    Booked by You
-                                  </div>
-                                )}
-                                {!isBooked && canSelectThis && (
-                                  <div className="text-xs font-bold uppercase tracking-wider opacity-60" style={{ color: brand.text }}>
-                                    Click to book
-                                  </div>
-                                )}
-                                {!canSelectThis && !isBooked && (
-                                  <div className="text-xs font-bold uppercase tracking-wider opacity-60" style={{ color: brand.text }}>
-                                    Unavailable
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-                );
-              })}
-            </div>
-          ) : (
+
+          {!selectedDate ? (
+            /* Day Picker */
             <div 
-              className="rounded-lg border-2 p-8 sm:p-12 text-center"
+              className="rounded-lg border-2 p-4 sm:p-6"
               style={{ 
-                borderColor: hexToRgba(brand.accent, 0.4),
-                backgroundColor: hexToRgba(brand.accent, 0.08)
+                borderColor: hexToRgba(brand.accent, 0.3),
+                backgroundColor: hexToRgba(brand.accent, 0.05)
               }}
             >
-              <div className="text-base sm:text-lg opacity-80" style={{ color: brand.text }}>
-                No available times. Please contact the organizer at {request?.organizerEmail || 'the provided email'}.
+              {availableDates.length > 0 ? (
+                <BookingDayPicker
+                  availableDates={availableDates}
+                  selectedDate={selectedDate}
+                  onDateSelect={handleDateSelect}
+                  minDate={new Date()}
+                />
+              ) : (
+                <div className="rounded-lg border-2 p-8 sm:p-12 text-center" style={{ 
+                  borderColor: hexToRgba(brand.accent, 0.4),
+                  backgroundColor: hexToRgba(brand.accent, 0.08)
+                }}>
+                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-60" style={{ color: brand.accent }} />
+                  <div className="text-base sm:text-lg opacity-80" style={{ color: brand.text }}>
+                    No available dates. Please contact the organizer at {request?.organizerEmail || 'the provided email'}.
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Time Slots for Selected Date */
+            <div className="space-y-6">
+              <div 
+                className="flex items-center justify-between pb-4 border-b rounded-lg p-4"
+                style={{ 
+                  borderColor: hexToRgba(brand.accent, 0.3),
+                  backgroundColor: hexToRgba(brand.accent, 0.05)
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-5 w-5" style={{ color: brand.accent }} />
+                  <div>
+                    <div className="text-xl sm:text-2xl font-black uppercase tracking-tight" style={{ fontWeight: '900', color: brand.text }}>
+                      {formatDateShort(selectedDate.getTime())}
+                    </div>
+                    <div className="text-sm sm:text-base font-bold uppercase tracking-wider opacity-60" style={{ color: brand.text }}>
+                      {formatWeekday(selectedDate.getTime())}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedDate(null)}
+                  className="font-bold uppercase tracking-wider"
+                  style={{ 
+                    borderColor: hexToRgba(brand.accent, 0.4),
+                    color: brand.text,
+                    backgroundColor: 'transparent'
+                  }}
+                >
+                  Change Date
+                </Button>
               </div>
+
+              {selectedDateSlots.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                  {selectedDateSlots.map((s: any) => {
+                    const isBooking = bookingSlotId === s._id;
+                    const isBookedByMe = s.bookedByInviteId === invite?._id;
+                    const isBooked = bookedSlotId === s._id || isBookedByMe || (invite?.selectedSlotId && invite.selectedSlotId === s._id);
+                    const canSelectThis = canBookMore && !isBooked && s.status === "available";
+                    return (
+                      <div key={s._id}>
+                        <div 
+                          className={`relative rounded-lg border-2 p-4 transition-all cursor-pointer ${
+                            isBookedByMe 
+                              ? 'border-accent shadow-lg scale-105' 
+                              : isBooked 
+                                ? 'border-foreground/30 opacity-60 cursor-not-allowed' 
+                                : canSelectThis 
+                                  ? 'hover:shadow-lg hover:scale-105 hover:border-accent/60' 
+                                  : 'opacity-60 cursor-not-allowed'
+                          }`}
+                          style={{ 
+                            borderColor: isBookedByMe 
+                              ? brand.accent 
+                              : isBooked 
+                                ? hexToRgba(brand.accent, 0.3)
+                                : canSelectThis 
+                                  ? hexToRgba(brand.accent, 0.4)
+                                  : hexToRgba(brand.accent, 0.2),
+                            backgroundColor: isBookedByMe 
+                              ? hexToRgba(brand.accent, 0.2)
+                              : isBooked 
+                                ? hexToRgba(brand.accent, 0.05)
+                                : hexToRgba(brand.accent, 0.08)
+                          }}
+                          onClick={() => canSelectThis && handleSelectClick(s)}
+                        >
+                          {isBookedByMe && (
+                            <div className="absolute -top-2 -right-2">
+                              <div className="rounded-full bg-accent p-1" style={{ backgroundColor: brand.accent }}>
+                                <CheckCircle2 className="h-4 w-4 text-black" />
+                              </div>
+                            </div>
+                          )}
+                          <div className="space-y-2">
+                            <div className="text-lg sm:text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900', color: brand.text }}>
+                              {formatTime(s.start, s.end)}
+                            </div>
+                            {isBookedByMe && (
+                              <div className="text-xs font-bold uppercase tracking-wider opacity-80" style={{ color: brand.accent }}>
+                                Booked by You
+                              </div>
+                            )}
+                            {!isBooked && canSelectThis && (
+                              <div className="text-xs font-bold uppercase tracking-wider opacity-60" style={{ color: brand.text }}>
+                                Click to book
+                              </div>
+                            )}
+                            {!canSelectThis && !isBooked && (
+                              <div className="text-xs font-bold uppercase tracking-wider opacity-60" style={{ color: brand.text }}>
+                                Unavailable
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div 
+                  className="rounded-lg border-2 p-8 sm:p-12 text-center"
+                  style={{ 
+                    borderColor: hexToRgba(brand.accent, 0.4),
+                    backgroundColor: hexToRgba(brand.accent, 0.08)
+                  }}
+                >
+                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-60" style={{ color: brand.accent }} />
+                  <div className="text-base sm:text-lg opacity-80 mb-4" style={{ color: brand.text }}>
+                    No available times for this date.
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSelectedDate(null)}
+                    className="font-bold uppercase tracking-wider"
+                    style={{ 
+                      borderColor: hexToRgba(brand.accent, 0.4),
+                      color: brand.text,
+                      backgroundColor: 'transparent'
+                    }}
+                  >
+                    Select Another Date
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
