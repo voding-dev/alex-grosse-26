@@ -281,16 +281,34 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
 
       // Get URL from Convex storage
       const url = await downloadAsset({ storageKey: asset.storageKey });
-      if (url) {
-        // Open URL in new tab to trigger download
-        window.open(url, '_blank');
-      } else {
+      if (!url) {
         toast({
           title: "Error",
           description: "Failed to get download URL.",
           variant: "destructive",
         });
+        return;
       }
+      
+      // Fetch the file as a blob to ensure proper download
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Failed to fetch file");
+      }
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Create download link
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = asset.filename || "download";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the blob URL
+      URL.revokeObjectURL(blobUrl);
     } catch (error) {
       toast({
         title: "Error",
@@ -459,12 +477,26 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
         });
         return;
       }
+      
+      // Fetch the file as a blob to ensure proper download
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Failed to fetch file");
+      }
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Create download link
       const link = document.createElement("a");
-      link.href = url;
+      link.href = blobUrl;
       link.download = asset.filename || "download";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      // Clean up the blob URL
+      URL.revokeObjectURL(blobUrl);
     } catch (error) {
       toast({
         title: "Error",
