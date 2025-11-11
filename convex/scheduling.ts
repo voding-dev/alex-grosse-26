@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { requireAdmin } from "./auth";
 import { requireAdminWithSession } from "./adminAuth";
+import { Id } from "./_generated/dataModel";
 
 function generateToken(): string {
   // Simple random token, adequate for invite links
@@ -120,9 +121,34 @@ export const createRequest = mutation({
     }
 
     const now = Date.now();
+    
+    // Auto-create or link contact from organizer email
+    let contactId: Id<"contacts"> | undefined = undefined;
+    if (requestData.organizerEmail) {
+      // Try to find existing contact by email
+      const existingContact = await ctx.db
+        .query("contacts")
+        .withIndex("by_email", (q: any) => q.eq("email", requestData.organizerEmail))
+        .first();
+      
+      if (existingContact) {
+        contactId = existingContact._id;
+      } else {
+        // Create new contact from organizer email
+        contactId = await ctx.db.insert("contacts", {
+          email: requestData.organizerEmail,
+          source: "scheduling",
+          tags: ["scheduling"],
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+    
     const requestId = await ctx.db.insert("schedulingRequests", {
       ...requestData,
       status: "open",
+      contactId: contactId,
       createdAt: now,
       updatedAt: now,
     });
@@ -460,6 +486,97 @@ export const selectSlot = mutation({
       bookingNotes: args.bookingNotes,
       updatedAt: now,
     });
+    
+    // Auto-create or link contact from booking email
+    let bookingContactId: Id<"contacts"> | undefined = undefined;
+    if (args.bookingEmail) {
+      const existingContact = await ctx.db
+        .query("contacts")
+        .withIndex("by_email", (q: any) => q.eq("email", args.bookingEmail))
+        .first();
+      
+      if (existingContact) {
+        bookingContactId = existingContact._id;
+        // Update contact with booking info if needed
+        const nameParts = args.bookingName?.split(" ") || [];
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || undefined;
+        
+        await ctx.db.patch(bookingContactId, {
+          firstName: existingContact.firstName || firstName || undefined,
+          lastName: existingContact.lastName || lastName,
+          phone: existingContact.phone || args.bookingPhone || undefined,
+          updatedAt: now,
+        });
+      } else {
+        // Create new contact from booking
+        const nameParts = args.bookingName?.split(" ") || [];
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || undefined;
+        
+        bookingContactId = await ctx.db.insert("contacts", {
+          email: args.bookingEmail,
+          firstName: firstName || undefined,
+          lastName: lastName,
+          phone: args.bookingPhone,
+          source: "scheduling",
+          tags: ["booking", `scheduler-${invite.requestId}`],
+          notes: args.bookingNotes,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+    
+    // Auto-create project when booking is confirmed (if enabled via setting)
+    const autoCreateProjectSetting = await ctx.db
+      .query("settings")
+      .withIndex("by_key", (q: any) => q.eq("key", "autoCreateProjectFromBooking"))
+      .first();
+    
+    if (autoCreateProjectSetting?.value === true && args.bookingEmail && args.bookingName) {
+      // Check if project already exists for this slot
+      const existingProject = await ctx.db
+        .query("clientProjects")
+        .withIndex("by_contact", (q: any) => q.eq("contactId", bookingContactId))
+        .filter((q: any) => 
+          q.eq(q.field("status"), "planning") || 
+          q.eq(q.field("status"), "in_progress")
+        )
+        .first();
+      
+      if (!existingProject && bookingContactId) {
+        // Create project from booking
+        const projectId = await ctx.db.insert("clientProjects", {
+          title: `${args.bookingName} - Consultation`,
+          clientName: args.bookingName,
+          description: `Project created from booking on ${new Date(slot.start).toLocaleDateString()}`,
+          status: "planning",
+          notes: `Booking details:\n- Date: ${new Date(slot.start).toLocaleString()}\n- Request: ${request.title}\n- Notes: ${args.bookingNotes || "None"}`,
+          keyMoments: [],
+          signOffs: [],
+          linkedDeliveryIds: [],
+          modificationHistory: [{
+            field: "created_from_booking",
+            oldValue: null,
+            newValue: slot._id,
+            modifiedBy: undefined,
+            modifiedAt: now,
+          }],
+          contactId: bookingContactId,
+          createdBy: undefined,
+          modifiedBy: undefined,
+          createdAt: now,
+          updatedAt: now,
+        });
+        
+        // Link project to slot
+        await ctx.db.patch(slot._id, {
+          projectId: projectId,
+          updatedAt: now,
+        });
+      }
+    }
 
     // Auto-add to email marketing if enabled and email provided
     if (args.bookingEmail) {

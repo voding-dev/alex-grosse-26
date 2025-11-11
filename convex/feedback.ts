@@ -104,11 +104,60 @@ export const create = mutation({
     decision: v.optional(v.union(v.literal("approve"), v.literal("reject"), v.literal("changes"))),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("feedback", {
+    const delivery = await ctx.db.get(args.deliveryId);
+    if (!delivery) {
+      throw new Error("Delivery not found");
+    }
+    
+    // Try to find project by client name
+    let projectId: any = undefined;
+    let contactId: any = undefined;
+    
+    if (delivery.clientName) {
+      // Find project by client name
+      const projects = await ctx.db
+        .query("clientProjects")
+        .withIndex("by_client", (q: any) => q.eq("clientName", delivery.clientName))
+        .collect();
+      
+      // Get the most recent active project for this client
+      const activeProject = projects
+        .filter((p: any) => p.status !== "completed" && p.status !== "cancelled")
+        .sort((a: any, b: any) => b.createdAt - a.createdAt)[0];
+      
+      if (activeProject) {
+        projectId = activeProject._id;
+        contactId = activeProject.contactId;
+      } else if (projects.length > 0) {
+        // Use most recent project even if completed
+        const recentProject = projects.sort((a: any, b: any) => b.createdAt - a.createdAt)[0];
+        projectId = recentProject._id;
+        contactId = recentProject.contactId;
+      } else {
+        // Try to find contact by business name
+        const contacts = await ctx.db.query("contacts").collect();
+        const matchingContact = contacts.find(
+          (c: any) => c.businessName?.toLowerCase() === delivery.clientName.toLowerCase()
+        );
+        if (matchingContact) {
+          contactId = matchingContact._id;
+        }
+      }
+    }
+    
+    const now = Date.now();
+    const feedbackId = await ctx.db.insert("feedback", {
       ...args,
       author: "client", // Required by schema
-      createdAt: Date.now(),
+      projectId: projectId,
+      contactId: contactId,
+      createdAt: now,
     });
+    
+    // Auto-notify via email if enabled (schedule for async processing)
+    // This would be handled by a scheduled function or webhook
+    
+    return feedbackId;
   },
 });
 

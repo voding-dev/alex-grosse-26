@@ -1,6 +1,8 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "./auth";
+import { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 
 // List all client projects
 export const list = query({
@@ -23,11 +25,27 @@ export const list = query({
       await requireAdmin(ctx);
     }
 
-    return await ctx.db
+    const projects = await ctx.db
       .query("clientProjects")
       .withIndex("by_created_at")
       .order("desc")
       .collect();
+    
+    // Populate contact and lead info
+    const projectsWithInfo = await Promise.all(
+      projects.map(async (project) => {
+        const contact = project.contactId ? await ctx.db.get(project.contactId) : null;
+        const lead = project.leadId ? await ctx.db.get(project.leadId) : null;
+        
+        return {
+          ...project,
+          contact,
+          lead,
+        };
+      })
+    );
+    
+    return projectsWithInfo;
   },
 });
 
@@ -53,7 +71,18 @@ export const get = query({
       await requireAdmin(ctx);
     }
 
-    return await ctx.db.get(args.id);
+    const project = await ctx.db.get(args.id);
+    if (!project) return null;
+    
+    // Populate contact and lead info
+    const contact = project.contactId ? await ctx.db.get(project.contactId) : null;
+    const lead = project.leadId ? await ctx.db.get(project.leadId) : null;
+    
+    return {
+      ...project,
+      contact,
+      lead,
+    };
   },
 });
 
@@ -103,10 +132,12 @@ export const create = mutation({
     )),
     scope: v.optional(v.string()),
     notes: v.optional(v.string()),
+    contactId: v.optional(v.id("contacts")), // Optional: link to existing contact
+    leadId: v.optional(v.id("leads")), // Optional: link to lead if created from won lead
     email: v.optional(v.string()), // Dev mode: email for admin check
   },
   handler: async (ctx, args) => {
-    const { email, ...projectData } = args;
+    const { email, contactId, leadId, ...projectData } = args;
     
     // Development mode: check admin by email
     if (email) {
@@ -124,7 +155,61 @@ export const create = mutation({
     }
     
     const now = Date.now();
-    return await ctx.db.insert("clientProjects", {
+    let finalContactId: Id<"contacts"> | undefined = contactId;
+    
+    // Auto-create or link contact if not provided
+    if (!finalContactId) {
+      // Try to find contact by client name (business name) or email
+      // First, try to find by business name
+      const contacts = await ctx.db.query("contacts").collect();
+      const matchingContact = contacts.find(
+        (c) => c.businessName?.toLowerCase() === args.clientName.toLowerCase()
+      );
+      
+      if (matchingContact) {
+        finalContactId = matchingContact._id;
+      } else {
+        // Create new contact from client name
+        // Use client name as business name, try to extract email from lead if available
+        let contactEmail = "";
+        if (leadId) {
+          const lead = await ctx.db.get(leadId);
+          if (lead) {
+            contactEmail = lead.contactEmail || (lead.emails.length > 0 ? lead.emails[0] : "");
+            // If lead has contact, use that
+            if (lead.contactId) {
+              finalContactId = lead.contactId;
+            }
+          }
+        }
+        
+        // If still no contact, create one
+        if (!finalContactId && contactEmail) {
+          // Check if contact exists with this email
+          const existingContact = await ctx.db
+            .query("contacts")
+            .withIndex("by_email", (q: any) => q.eq("email", contactEmail))
+            .first();
+          
+          if (existingContact) {
+            finalContactId = existingContact._id;
+          } else {
+            // Create new contact
+            finalContactId = await ctx.db.insert("contacts", {
+              email: contactEmail,
+              businessName: args.clientName,
+              source: leadId ? "lead" : "manual",
+              leadId: leadId,
+              tags: [],
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
+        }
+      }
+    }
+    
+    const projectId = await ctx.db.insert("clientProjects", {
       ...projectData,
       status: projectData.status || "planning",
       keyMoments: [],
@@ -133,9 +218,13 @@ export const create = mutation({
       modificationHistory: [],
       createdBy: email,
       modifiedBy: email,
+      contactId: finalContactId,
+      leadId: leadId,
       createdAt: now,
       updatedAt: now,
     });
+    
+    return projectId;
   },
 });
 
@@ -199,6 +288,17 @@ export const update = mutation({
         }
       }
     });
+    
+    // Sync client name changes to contact
+    if (updates.clientName && project.contactId) {
+      const contact = await ctx.db.get(project.contactId);
+      if (contact && contact.businessName !== updates.clientName) {
+        await ctx.db.patch(project.contactId, {
+          businessName: updates.clientName,
+          updatedAt: now,
+        });
+      }
+    }
     
     await ctx.db.patch(id, {
       ...updates,
@@ -625,7 +725,7 @@ export const unlinkDelivery = mutation({
   },
 });
 
-// Get feedback for a client project (through linked deliveries)
+// Get feedback for a client project (through linked deliveries and direct project link)
 export const getFeedback = query({
   args: { 
     id: v.id("clientProjects"),
@@ -667,11 +767,29 @@ export const getFeedback = query({
         });
       }
     }
+    
+    // Also get feedback directly linked to this project
+    const directFeedback = await ctx.db
+      .query("feedback")
+      .withIndex("by_project", (q: any) => q.eq("projectId", args.id))
+      .order("desc")
+      .collect();
+    
+    for (const fb of directFeedback) {
+      const delivery = await ctx.db.get(fb.deliveryId);
+      allFeedback.push({
+        ...fb,
+        delivery,
+      });
+    }
 
-    // Sort by creation date (newest first)
-    allFeedback.sort((a, b) => b.createdAt - a.createdAt);
+    // Sort by creation date (newest first) and remove duplicates
+    const uniqueFeedback = Array.from(
+      new Map(allFeedback.map((fb: any) => [fb._id, fb])).values()
+    );
+    uniqueFeedback.sort((a: any, b: any) => b.createdAt - a.createdAt);
 
-    return allFeedback;
+    return uniqueFeedback;
   },
 });
 

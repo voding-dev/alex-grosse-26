@@ -378,6 +378,7 @@ export const createCampaign = mutation({
     htmlContent: v.optional(v.string()),
     textContent: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
+    projectId: v.optional(v.id("clientProjects")),
   },
   handler: async (ctx, args) => {
     // Development mode: check admin by email
@@ -407,6 +408,7 @@ export const createCampaign = mutation({
       htmlContent: args.htmlContent || "",
       status: "draft",
       tags: args.tags || [],
+      projectId: args.projectId,
       createdAt: now,
       updatedAt: now,
     });
@@ -424,6 +426,7 @@ export const updateCampaign = mutation({
     htmlContent: v.optional(v.string()),
     textContent: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
+    projectId: v.optional(v.id("clientProjects")),
   },
   handler: async (ctx, args) => {
     // Development mode: check admin by email

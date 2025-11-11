@@ -114,11 +114,15 @@ export default defineSchema({
     decision: v.optional(v.union(v.literal("approve"), v.literal("changes"), v.literal("reject"))),
     completedAt: v.optional(v.number()), // When feedback was marked as complete
     archived: v.optional(v.boolean()), // Whether feedback is archived
+    projectId: v.optional(v.id("clientProjects")), // Link to project if available
+    contactId: v.optional(v.id("contacts")), // Link to contact
     createdAt: v.number(),
   })
     .index("by_delivery", ["deliveryId"])
     .index("by_asset", ["assetId"])
-    .index("by_archived", ["archived"]),
+    .index("by_archived", ["archived"])
+    .index("by_project", ["projectId"])
+    .index("by_contact", ["contactId"]),
 
   events: defineTable({
     deliveryId: v.id("deliveries"),
@@ -411,6 +415,7 @@ export default defineSchema({
     windowStart: v.optional(v.number()),
     windowEnd: v.optional(v.number()),
     status: v.union(v.literal("open"), v.literal("closed")),
+    contactId: v.optional(v.id("contacts")), // Link to unified contacts
     // Branding
     brandingPreset: v.optional(
       v.union(
@@ -430,7 +435,8 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_created_at", ["createdAt"]),
+    .index("by_created_at", ["createdAt"])
+    .index("by_contact", ["contactId"]),
 
   schedulingSlots: defineTable({
     requestId: v.id("schedulingRequests"),
@@ -438,10 +444,12 @@ export default defineSchema({
     end: v.number(),
     status: v.union(v.literal("available"), v.literal("booked")),
     bookedByInviteId: v.optional(v.id("schedulingInvites")),
+    projectId: v.optional(v.id("clientProjects")), // Link to project if booking creates project
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_request", ["requestId"]),
+    .index("by_request", ["requestId"])
+    .index("by_project", ["projectId"]),
 
   schedulingInvites: defineTable({
     requestId: v.id("schedulingRequests"),
@@ -501,12 +509,14 @@ export default defineSchema({
     scheduledAt: v.optional(v.number()),
     sentAt: v.optional(v.number()),
     tags: v.array(v.string()), // Campaign tags for segmentation
+    projectId: v.optional(v.id("clientProjects")), // Link to project if campaign is project-related
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_status", ["status"])
     .index("by_scheduled_at", ["scheduledAt"])
-    .index("by_tags", ["tags"]),
+    .index("by_tags", ["tags"])
+    .index("by_project", ["projectId"]),
 
   emailSends: defineTable({
     campaignId: v.id("emailCampaigns"),
@@ -727,11 +737,15 @@ export default defineSchema({
     contractFilename: v.optional(v.string()),
     createdBy: v.optional(v.string()),
     modifiedBy: v.optional(v.string()),
+    contactId: v.optional(v.id("contacts")), // Link to unified contacts
+    leadId: v.optional(v.id("leads")), // Link to lead if created from won lead
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_created_at", ["createdAt"])
-    .index("by_client", ["clientName"]),
+    .index("by_client", ["clientName"])
+    .index("by_contact", ["contactId"])
+    .index("by_lead", ["leadId"]),
 
   // Media Library - global warehouse for reusable media
   mediaLibrary: defineTable({

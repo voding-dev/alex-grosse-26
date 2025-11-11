@@ -374,6 +374,44 @@ export const leadsUpdate = mutation({
 
     await ctx.db.patch(args.id, update);
 
+    // Auto-create project when lead status changes to "won"
+    if (args.status === "closed" && args.closedOutcome === "won" && lead.status !== "closed") {
+      // Check if project already exists for this lead
+      const existingProject = await ctx.db
+        .query("clientProjects")
+        .withIndex("by_lead", (q: any) => q.eq("leadId", args.id))
+        .first();
+      
+      if (!existingProject) {
+        // Create project from won lead
+        const now = Date.now();
+        const projectId = await ctx.db.insert("clientProjects", {
+          title: `${lead.name} - Project`,
+          clientName: lead.name,
+          description: `Project created from won lead: ${lead.contactName || "Lead"}`,
+          status: "planning",
+          scope: lead.notes || undefined,
+          notes: `Created from lead: ${lead._id}. Original lead notes: ${lead.notes || "None"}`,
+          keyMoments: [],
+          signOffs: [],
+          linkedDeliveryIds: [],
+          modificationHistory: [{
+            field: "created_from_lead",
+            oldValue: null,
+            newValue: args.id,
+            modifiedBy: undefined,
+            modifiedAt: now,
+          }],
+          contactId: lead.contactId,
+          leadId: args.id,
+          createdBy: undefined,
+          modifiedBy: undefined,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+
     // Sync to contact if exists
     if (lead.contactId) {
       const contact = await ctx.db.get(lead.contactId);

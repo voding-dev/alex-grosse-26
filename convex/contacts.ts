@@ -56,6 +56,18 @@ export const contactsList = query({
         const lead = contact.leadId ? await ctx.db.get(contact.leadId) : null;
         const prospect = contact.prospectId ? await ctx.db.get(contact.prospectId) : null;
         const emailMarketing = contact.emailMarketingId ? await ctx.db.get(contact.emailMarketingId) : null;
+        
+        // Get projects for this contact
+        const projects = await ctx.db
+          .query("clientProjects")
+          .withIndex("by_contact", (q: any) => q.eq("contactId", contact._id))
+          .collect();
+        
+        // Get bookings for this contact (through scheduling requests)
+        const bookings = await ctx.db
+          .query("schedulingRequests")
+          .withIndex("by_contact", (q: any) => q.eq("contactId", contact._id))
+          .collect();
 
         return {
           ...contact,
@@ -63,6 +75,8 @@ export const contactsList = query({
           prospect,
           emailMarketing,
           hasEmailMarketing: !!emailMarketing,
+          projects,
+          bookings,
         };
       })
     );
