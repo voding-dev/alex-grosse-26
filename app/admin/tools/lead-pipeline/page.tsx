@@ -57,14 +57,17 @@ import {
   ExternalLink,
   CheckCircle2,
   XCircle,
+  TrendingUp,
+  Users,
+  Target,
 } from "lucide-react";
 
 const STATUS_OPTIONS = [
-  { value: "new", label: "New", color: "bg-blue-500/10 text-blue-500" },
-  { value: "contacted", label: "Contacted", color: "bg-yellow-500/10 text-yellow-500" },
-  { value: "qualified", label: "Qualified", color: "bg-purple-500/10 text-purple-500" },
-  { value: "proposal", label: "Proposal", color: "bg-orange-500/10 text-orange-500" },
-  { value: "closed", label: "Closed", color: "bg-green-500/10 text-green-500" },
+  { value: "new", label: "New", color: "bg-accent/20 text-accent border border-accent/30" },
+  { value: "contacted", label: "Contacted", color: "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30" },
+  { value: "qualified", label: "Qualified", color: "bg-purple-500/20 text-purple-500 border border-purple-500/30" },
+  { value: "proposal", label: "Proposal", color: "bg-orange-500/20 text-orange-500 border border-orange-500/30" },
+  { value: "closed", label: "Closed", color: "bg-green-500/20 text-green-500 border border-green-500/30" },
 ] as const;
 
 export default function LeadPipelinePage() {
@@ -270,64 +273,163 @@ export default function LeadPipelinePage() {
   };
 
   const getStatusColor = (status: string) => {
-    return STATUS_OPTIONS.find((s) => s.value === status)?.color || "bg-gray-500/10 text-gray-500";
+    return STATUS_OPTIONS.find((s) => s.value === status)?.color || "bg-foreground/10 text-foreground/60 border border-foreground/20";
   };
 
+  // Calculate stats
+  const totalLeads = leads?.length || 0;
+  const newLeads = leads?.filter(l => l.status === "new").length || 0;
+  const qualifiedLeads = leads?.filter(l => l.status === "qualified").length || 0;
+  const closedLeads = leads?.filter(l => l.status === "closed").length || 0;
+
   return (
-    <div className="container mx-auto py-8 space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Lead Pipeline</h1>
-          <p className="text-foreground/60 mt-2">
-            Manage your leads through the sales pipeline
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
+      <div className="mb-8 sm:mb-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+            Lead Pipeline
+          </h1>
+          <p className="text-foreground/70 text-base sm:text-lg">
+            Manage your leads through the sales pipeline and track conversions.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setActiveTab("convert");
-            setIsConvertDialogOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Convert Prospect
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+            style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+            onClick={() => {
+              setActiveTab("convert");
+              setIsConvertDialogOpen(true);
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Convert Prospect
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="pipeline">Pipeline View</TabsTrigger>
-          <TabsTrigger value="list">Leads List</TabsTrigger>
-          <TabsTrigger value="convert">Convert from Prospects</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 max-w-2xl bg-foreground/5 border border-foreground/20 rounded-lg p-1.5 h-auto items-center gap-1">
+          <TabsTrigger 
+            value="pipeline" 
+            className="font-black uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            style={{ fontWeight: '900' }}
+          >
+            Pipeline View
+          </TabsTrigger>
+          <TabsTrigger 
+            value="list" 
+            className="font-black uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            style={{ fontWeight: '900' }}
+          >
+            Leads List
+          </TabsTrigger>
+          <TabsTrigger 
+            value="convert" 
+            className="font-black uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            style={{ fontWeight: '900' }}
+          >
+            Convert
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pipeline" className="space-y-6">
-          <Card>
+          {/* Stats */}
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="border border-foreground/20">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-1">
+                      Total Leads
+                    </p>
+                    <p className="text-2xl sm:text-3xl font-black text-foreground" style={{ fontWeight: '900' }}>
+                      {totalLeads}
+                    </p>
+                  </div>
+                  <TrendingUp className="h-8 w-8 sm:h-10 sm:w-10 text-foreground/40" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-foreground/20">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-1">
+                      New Leads
+                    </p>
+                    <p className="text-2xl sm:text-3xl font-black text-foreground" style={{ fontWeight: '900' }}>
+                      {newLeads}
+                    </p>
+                  </div>
+                  <User className="h-8 w-8 sm:h-10 sm:w-10 text-accent/60" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-foreground/20">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-1">
+                      Qualified
+                    </p>
+                    <p className="text-2xl sm:text-3xl font-black text-foreground" style={{ fontWeight: '900' }}>
+                      {qualifiedLeads}
+                    </p>
+                  </div>
+                  <Target className="h-8 w-8 sm:h-10 sm:w-10 text-foreground/40" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-foreground/20">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-1">
+                      Closed
+                    </p>
+                    <p className="text-2xl sm:text-3xl font-black text-foreground" style={{ fontWeight: '900' }}>
+                      {closedLeads}
+                    </p>
+                  </div>
+                  <CheckCircle2 className="h-8 w-8 sm:h-10 sm:w-10 text-foreground/40" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border border-foreground/20">
             <CardHeader>
-              <CardTitle>Pipeline View</CardTitle>
+              <CardTitle className="text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+                Pipeline View
+              </CardTitle>
               <CardDescription>
                 Drag and drop leads between stages or click to edit
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 {STATUS_OPTIONS.map((status) => (
                   <div key={status.value} className="space-y-2">
-                    <div className="flex items-center justify-between p-2 bg-foreground/5 rounded-lg">
-                      <span className="font-medium">{status.label}</span>
-                      <span className="text-sm text-foreground/60">
+                    <div className="flex items-center justify-between p-3 bg-foreground/5 border border-foreground/10 rounded-lg">
+                      <span className="font-bold uppercase tracking-wider text-sm">{status.label}</span>
+                      <span className="text-sm font-black text-foreground" style={{ fontWeight: '900' }}>
                         {leadsByStatus[status.value]?.length || 0}
                       </span>
                     </div>
-                    <div className="space-y-2 min-h-[400px]">
+                    <div className="space-y-2 min-h-[300px] sm:min-h-[400px]">
                       {leadsByStatus[status.value]?.map((lead) => (
                         <Card
                           key={lead._id}
-                          className="cursor-pointer hover:bg-foreground/5 transition-colors"
+                          className="cursor-pointer hover:bg-foreground/5 hover:border-accent/50 transition-all border border-foreground/10"
                           onClick={() => handleEditLead(lead._id)}
                         >
                           <CardContent className="p-4">
                             <div className="space-y-2">
-                              <div className="font-medium">{lead.name}</div>
+                              <div className="font-bold text-foreground">{lead.name}</div>
                               {lead.contactName && (
                                 <div className="text-sm text-foreground/60">
                                   <User className="h-3 w-3 inline mr-1" />
@@ -354,9 +456,11 @@ export default function LeadPipelinePage() {
         </TabsContent>
 
         <TabsContent value="list" className="space-y-6">
-          <Card>
+          <Card className="border border-foreground/20">
             <CardHeader>
-              <CardTitle>Leads List</CardTitle>
+              <CardTitle className="text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+                Leads List
+              </CardTitle>
               <CardDescription>
                 View and manage all leads in a table format
               </CardDescription>
@@ -393,24 +497,28 @@ export default function LeadPipelinePage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Name</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Contact</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Status</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Created</TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredLeads.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-foreground/60 py-8">
-                          No leads found. Convert some prospects from the Convert tab.
+                        <TableCell colSpan={5} className="text-center text-foreground/60 py-12">
+                          <div className="flex flex-col items-center gap-2">
+                            <Users className="h-12 w-12 text-foreground/40 mb-2" />
+                            <p className="text-foreground/60 mb-2">No leads found</p>
+                            <p className="text-sm text-foreground/40">Convert some prospects from the Convert tab to get started.</p>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredLeads.map((lead) => (
                         <TableRow key={lead._id}>
-                          <TableCell className="font-medium">{lead.name}</TableCell>
+                          <TableCell className="font-bold">{lead.name}</TableCell>
                           <TableCell>
                             {lead.contactName && (
                               <div className="text-sm">
@@ -423,7 +531,7 @@ export default function LeadPipelinePage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(lead.status)}`}>
+                            <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded ${getStatusColor(lead.status)}`}>
                               {STATUS_OPTIONS.find((s) => s.value === lead.status)?.label || lead.status}
                             </span>
                           </TableCell>
@@ -459,9 +567,11 @@ export default function LeadPipelinePage() {
         </TabsContent>
 
         <TabsContent value="convert" className="space-y-6">
-          <Card>
+          <Card className="border border-foreground/20">
             <CardHeader>
-              <CardTitle>Convert from Prospects</CardTitle>
+              <CardTitle className="text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+                Convert from Prospects
+              </CardTitle>
               <CardDescription>
                 Select a prospect to convert to a lead
               </CardDescription>
@@ -471,26 +581,30 @@ export default function LeadPipelinePage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Address</TableHead>
-                      <TableHead>Score</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Name</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Address</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Score</TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {unconvertedProspects.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-foreground/60 py-8">
-                          No unconverted prospects found.
+                        <TableCell colSpan={4} className="text-center text-foreground/60 py-12">
+                          <div className="flex flex-col items-center gap-2">
+                            <Target className="h-12 w-12 text-foreground/40 mb-2" />
+                            <p className="text-foreground/60 mb-2">No unconverted prospects found</p>
+                            <p className="text-sm text-foreground/40">Import prospects from the Prospecting tool first.</p>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : (
                       unconvertedProspects.map((prospect) => (
                         <TableRow key={prospect._id}>
-                          <TableCell className="font-medium">{prospect.name}</TableCell>
+                          <TableCell className="font-bold">{prospect.name}</TableCell>
                           <TableCell className="text-sm text-foreground/60">{prospect.address}</TableCell>
                           <TableCell>
-                            <span className="px-2 py-1 rounded text-xs font-medium bg-accent/10 text-accent">
+                            <span className="px-3 py-1 text-xs font-bold uppercase tracking-wider rounded bg-accent/20 text-accent border border-accent/30">
                               {prospect.score || 0}
                             </span>
                           </TableCell>
@@ -498,6 +612,7 @@ export default function LeadPipelinePage() {
                             <Button
                               variant="outline"
                               size="sm"
+                              className="font-black uppercase tracking-wider text-xs"
                               onClick={() => {
                                 setSelectedProspect(prospect._id);
                                 setIsConvertDialogOpen(true);
@@ -521,7 +636,9 @@ export default function LeadPipelinePage() {
       <Dialog open={isConvertDialogOpen} onOpenChange={setIsConvertDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Convert Prospect to Lead</DialogTitle>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+              Convert Prospect to Lead
+            </DialogTitle>
             <DialogDescription>
               Add decision maker information to convert this prospect to a lead
             </DialogDescription>
@@ -583,10 +700,16 @@ export default function LeadPipelinePage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsConvertDialogOpen(false)}>
+            <Button 
+              variant="outline" 
+              className="font-black uppercase tracking-wider"
+              onClick={() => setIsConvertDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button
+              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
               onClick={handleConvertProspect}
               disabled={!convertFormData.contactName || !convertFormData.contactEmail}
             >
@@ -600,7 +723,9 @@ export default function LeadPipelinePage() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Lead</DialogTitle>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+              Edit Lead
+            </DialogTitle>
             <DialogDescription>
               Update lead information and pipeline status
             </DialogDescription>
@@ -696,10 +821,20 @@ export default function LeadPipelinePage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button 
+              variant="outline" 
+              className="font-black uppercase tracking-wider"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={handleUpdateLead}>Save Changes</Button>
+            <Button 
+              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              onClick={handleUpdateLead}
+            >
+              Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

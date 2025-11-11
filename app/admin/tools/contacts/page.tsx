@@ -57,6 +57,9 @@ import {
   ExternalLink,
   Tag,
   Link as LinkIcon,
+  Users,
+  Target,
+  UserPlus,
 } from "lucide-react";
 
 export default function ContactsPage() {
@@ -374,30 +377,119 @@ export default function ContactsPage() {
     }
   };
 
+  // Calculate stats
+  const totalContacts = contacts?.length || 0;
+  const leadContacts = contacts?.filter(c => c.source === "lead").length || 0;
+  const emailMarketingContacts = contacts?.filter(c => c.source === "email_marketing").length || 0;
+  const manualContacts = contacts?.filter(c => c.source === "manual").length || 0;
+
   return (
-    <div className="container mx-auto py-8 space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Contacts</h1>
-          <p className="text-foreground/60 mt-2">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
+      <div className="mb-8 sm:mb-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+            Contacts
+          </h1>
+          <p className="text-foreground/70 text-base sm:text-lg">
             Unified contacts database - source of truth for all contacts
           </p>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Contact
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+            style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+            onClick={() => setIsAddDialogOpen(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Contact
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-1">
-          <TabsTrigger value="all">All Contacts</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-1 max-w-2xl bg-foreground/5 border border-foreground/20 rounded-lg p-1.5 h-auto items-center gap-1">
+          <TabsTrigger 
+            value="all" 
+            className="font-black uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            style={{ fontWeight: '900' }}
+          >
+            All Contacts
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="space-y-6">
-          <Card>
+          {/* Stats */}
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="border border-foreground/20">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-1">
+                      Total Contacts
+                    </p>
+                    <p className="text-2xl sm:text-3xl font-black text-foreground" style={{ fontWeight: '900' }}>
+                      {totalContacts}
+                    </p>
+                  </div>
+                  <Users className="h-8 w-8 sm:h-10 sm:w-10 text-foreground/40" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-foreground/20">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-1">
+                      From Leads
+                    </p>
+                    <p className="text-2xl sm:text-3xl font-black text-foreground" style={{ fontWeight: '900' }}>
+                      {leadContacts}
+                    </p>
+                  </div>
+                  <Target className="h-8 w-8 sm:h-10 sm:w-10 text-accent/60" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-foreground/20">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-1">
+                      Email Marketing
+                    </p>
+                    <p className="text-2xl sm:text-3xl font-black text-foreground" style={{ fontWeight: '900' }}>
+                      {emailMarketingContacts}
+                    </p>
+                  </div>
+                  <Mail className="h-8 w-8 sm:h-10 sm:w-10 text-foreground/40" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-foreground/20">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-1">
+                      Manual
+                    </p>
+                    <p className="text-2xl sm:text-3xl font-black text-foreground" style={{ fontWeight: '900' }}>
+                      {manualContacts}
+                    </p>
+                  </div>
+                  <UserPlus className="h-8 w-8 sm:h-10 sm:w-10 text-foreground/40" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border border-foreground/20">
             <CardHeader>
-              <CardTitle>All Contacts</CardTitle>
+              <CardTitle className="text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+                All Contacts
+              </CardTitle>
               <CardDescription>
                 View and manage all contacts from leads, email marketing, and manual entries
               </CardDescription>
@@ -432,7 +524,7 @@ export default function ContactsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">
                         <button
                           onClick={() => handleSort("name")}
                           className="flex items-center hover:text-accent transition-colors"
@@ -441,7 +533,7 @@ export default function ContactsPage() {
                           {getSortIcon("name")}
                         </button>
                       </TableHead>
-                      <TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">
                         <button
                           onClick={() => handleSort("email")}
                           className="flex items-center hover:text-accent transition-colors"
@@ -450,8 +542,8 @@ export default function ContactsPage() {
                           {getSortIcon("email")}
                         </button>
                       </TableHead>
-                      <TableHead>Business</TableHead>
-                      <TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Business</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">
                         <button
                           onClick={() => handleSort("source")}
                           className="flex items-center hover:text-accent transition-colors"
@@ -460,8 +552,8 @@ export default function ContactsPage() {
                           {getSortIcon("source")}
                         </button>
                       </TableHead>
-                      <TableHead>Tags</TableHead>
-                      <TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Tags</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">
                         <button
                           onClick={() => handleSort("createdAt")}
                           className="flex items-center hover:text-accent transition-colors"
@@ -476,14 +568,18 @@ export default function ContactsPage() {
                   <TableBody>
                     {filteredContacts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-foreground/60 py-8">
-                          No contacts found. Add some contacts or convert prospects to leads.
+                        <TableCell colSpan={7} className="text-center text-foreground/60 py-12">
+                          <div className="flex flex-col items-center gap-2">
+                            <Users className="h-12 w-12 text-foreground/40 mb-2" />
+                            <p className="text-foreground/60 mb-2">No contacts found</p>
+                            <p className="text-sm text-foreground/40">Add some contacts or convert prospects to leads to get started.</p>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredContacts.map((contact) => (
                         <TableRow key={contact._id}>
-                          <TableCell className="font-medium">
+                          <TableCell className="font-bold">
                             {contact.contactName || contact.firstName || contact.email}
                             {contact.lastName && ` ${contact.lastName}`}
                           </TableCell>
@@ -492,7 +588,15 @@ export default function ContactsPage() {
                             {contact.businessName || "-"}
                           </TableCell>
                           <TableCell>
-                            <span className="px-2 py-1 rounded text-xs font-medium bg-foreground/5 text-foreground/60">
+                            <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded ${
+                              contact.source === "lead"
+                                ? "bg-accent/20 text-accent border border-accent/30"
+                                : contact.source === "email_marketing"
+                                ? "bg-blue-500/20 text-blue-500 border border-blue-500/30"
+                                : contact.source === "manual"
+                                ? "bg-purple-500/20 text-purple-500 border border-purple-500/30"
+                                : "bg-foreground/10 text-foreground/60 border border-foreground/20"
+                            }`}>
                               {getSourceLabel(contact.source)}
                             </span>
                           </TableCell>
@@ -502,13 +606,13 @@ export default function ContactsPage() {
                                 {contact.tags.slice(0, 3).map((tag, idx) => (
                                   <span
                                     key={idx}
-                                    className="px-2 py-1 rounded text-xs font-medium bg-accent/10 text-accent"
+                                    className="px-2 py-1 text-xs font-bold uppercase tracking-wider bg-foreground/10 text-foreground/70 rounded"
                                   >
                                     {tag}
                                   </span>
                                 ))}
                                 {contact.tags.length > 3 && (
-                                  <span className="px-2 py-1 rounded text-xs font-medium bg-foreground/5 text-foreground/60">
+                                  <span className="px-2 py-1 rounded text-xs font-bold uppercase tracking-wider bg-foreground/5 text-foreground/60">
                                     +{contact.tags.length - 3}
                                   </span>
                                 )}
@@ -553,7 +657,9 @@ export default function ContactsPage() {
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Contact</DialogTitle>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+              Add Contact
+            </DialogTitle>
             <DialogDescription>
               Create a new contact manually
             </DialogDescription>
@@ -685,10 +791,19 @@ export default function ContactsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+            <Button 
+              variant="outline" 
+              className="font-black uppercase tracking-wider"
+              onClick={() => setIsAddDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={handleAddContact} disabled={!addFormData.email}>
+            <Button 
+              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              onClick={handleAddContact} 
+              disabled={!addFormData.email}
+            >
               Create Contact
             </Button>
           </DialogFooter>
@@ -699,7 +814,9 @@ export default function ContactsPage() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Contact</DialogTitle>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+              Edit Contact
+            </DialogTitle>
             <DialogDescription>
               Update contact information
             </DialogDescription>
@@ -819,10 +936,19 @@ export default function ContactsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button 
+              variant="outline" 
+              className="font-black uppercase tracking-wider"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={handleUpdateContact} disabled={!editFormData.email}>
+            <Button 
+              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              onClick={handleUpdateContact} 
+              disabled={!editFormData.email}
+            >
               Save Changes
             </Button>
           </DialogFooter>
