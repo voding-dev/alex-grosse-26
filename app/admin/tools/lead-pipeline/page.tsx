@@ -60,7 +60,10 @@ import {
   TrendingUp,
   Users,
   Target,
+  Link as LinkIcon,
+  ArrowRight,
 } from "lucide-react";
+import Link from "next/link";
 
 const STATUS_OPTIONS = [
   { value: "new", label: "New", color: "bg-accent/20 text-accent border border-accent/30" },
@@ -223,6 +226,9 @@ export default function LeadPipelinePage() {
     });
     setIsEditDialogOpen(true);
   };
+
+  // Get lead details for edit dialog
+  const selectedLeadData = selectedLead ? leads?.find((l) => l._id === selectedLead) : null;
 
   const handleUpdateLead = async () => {
     if (!selectedLead) return;
@@ -498,6 +504,7 @@ export default function LeadPipelinePage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="font-bold uppercase tracking-wider text-xs">Name</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">From Prospect</TableHead>
                       <TableHead className="font-bold uppercase tracking-wider text-xs">Contact</TableHead>
                       <TableHead className="font-bold uppercase tracking-wider text-xs">Status</TableHead>
                       <TableHead className="font-bold uppercase tracking-wider text-xs">Created</TableHead>
@@ -507,7 +514,7 @@ export default function LeadPipelinePage() {
                   <TableBody>
                     {filteredLeads.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-foreground/60 py-12">
+                        <TableCell colSpan={6} className="text-center text-foreground/60 py-12">
                           <div className="flex flex-col items-center gap-2">
                             <Users className="h-12 w-12 text-foreground/40 mb-2" />
                             <p className="text-foreground/60 mb-2">No leads found</p>
@@ -520,6 +527,19 @@ export default function LeadPipelinePage() {
                         <TableRow key={lead._id}>
                           <TableCell className="font-bold">{lead.name}</TableCell>
                           <TableCell>
+                            {lead.prospectName ? (
+                              <Link 
+                                href={`/admin/tools/prospecting?prospectId=${lead.prospectId}`}
+                                className="flex items-center gap-1 text-sm text-accent hover:underline"
+                              >
+                                <LinkIcon className="h-3 w-3" />
+                                {lead.prospectName}
+                              </Link>
+                            ) : (
+                              <span className="text-sm text-foreground/40">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
                             {lead.contactName && (
                               <div className="text-sm">
                                 {lead.contactName}
@@ -528,6 +548,15 @@ export default function LeadPipelinePage() {
                             )}
                             {lead.contactEmail && (
                               <div className="text-sm text-foreground/60">{lead.contactEmail}</div>
+                            )}
+                            {lead.contactId && (
+                              <Link 
+                                href={`/admin/tools/contacts?contactId=${lead.contactId}`}
+                                className="flex items-center gap-1 text-xs text-accent hover:underline mt-1"
+                              >
+                                <ArrowRight className="h-3 w-3" />
+                                View Contact
+                              </Link>
                             )}
                           </TableCell>
                           <TableCell>
@@ -731,6 +760,36 @@ export default function LeadPipelinePage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Relationship Info */}
+            {selectedLeadData && (
+              <div className="p-4 bg-foreground/5 border border-foreground/10 rounded-lg space-y-2">
+                <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-2">Related Records</p>
+                {selectedLeadData.prospectName && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground/60">From Prospect:</span>
+                    <Link 
+                      href={`/admin/tools/prospecting?prospectId=${selectedLeadData.prospectId}`}
+                      className="flex items-center gap-1 text-sm text-accent hover:underline"
+                    >
+                      <LinkIcon className="h-3 w-3" />
+                      {selectedLeadData.prospectName}
+                    </Link>
+                  </div>
+                )}
+                {selectedLeadData.contactId && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground/60">Contact:</span>
+                    <Link 
+                      href={`/admin/tools/contacts?contactId=${selectedLeadData.contactId}`}
+                      className="flex items-center gap-1 text-sm text-accent hover:underline"
+                    >
+                      <ArrowRight className="h-3 w-3" />
+                      View Contact
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Contact Name</Label>

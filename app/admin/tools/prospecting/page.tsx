@@ -79,7 +79,10 @@ import {
   ArrowUpDown,
   UserPlus,
   CheckCircle2,
+  ArrowRight,
+  Link as LinkIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Vault View Component
@@ -1899,8 +1902,14 @@ export default function ProspectImporterPage() {
                                 </Button>
                               )}
                               {prospect.convertedToLeadId && (
-                                <div className="flex items-center gap-1 text-green-500" title="Converted to Lead">
-                                  <CheckCircle2 className="h-4 w-4" />
+                                <div className="flex items-center gap-1" title="Converted to Lead">
+                                  <Link 
+                                    href={`/admin/tools/lead-pipeline?leadId=${prospect.convertedToLeadId}`}
+                                    className="flex items-center gap-1 text-accent hover:underline"
+                                  >
+                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                    <ArrowRight className="h-3 w-3" />
+                                  </Link>
                                 </div>
                               )}
                               <Button
