@@ -484,24 +484,24 @@ export default function EmailMarketingPage() {
                               ? `${contact.firstName || ""} ${contact.lastName || ""}`.trim()
                               : contact.email}
                           </p>
-                        <p className="text-sm text-foreground/60">{contact.email}</p>
+                          <p className="text-sm text-foreground/60">{contact.email}</p>
                         {contact.source && (
                           <p className="text-xs text-foreground/50 mt-1">
                             Source: {contact.source === "lead" ? "Lead" : contact.source === "email_marketing" ? "Email Marketing" : contact.source === "manual" ? "Manual" : contact.source}
                           </p>
                         )}
-                        {contact.tags.length > 0 && (
-                          <div className="flex gap-2 mt-2">
-                            {contact.tags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="px-2 py-1 text-xs font-bold uppercase tracking-wider bg-foreground/10 text-foreground/70 rounded"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                          {contact.tags.length > 0 && (
+                            <div className="flex gap-2 mt-2">
+                              {contact.tags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="px-2 py-1 text-xs font-bold uppercase tracking-wider bg-foreground/10 text-foreground/70 rounded"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="text-right">
                           <span

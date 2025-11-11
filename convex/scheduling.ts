@@ -536,14 +536,14 @@ export const selectSlot = mutation({
     
     if (autoCreateProjectSetting?.value === true && args.bookingEmail && args.bookingName) {
       // Check if project already exists for this slot
-      const existingProject = await ctx.db
+      const allProjects = await ctx.db
         .query("clientProjects")
         .withIndex("by_contact", (q: any) => q.eq("contactId", bookingContactId))
-        .filter((q: any) => 
-          q.eq(q.field("status"), "planning") || 
-          q.eq(q.field("status"), "in_progress")
-        )
-        .first();
+        .collect();
+      
+      const existingProject = allProjects.find(
+        (p: any) => p.status === "planning" || p.status === "in_progress"
+      );
       
       if (!existingProject && bookingContactId) {
         // Create project from booking

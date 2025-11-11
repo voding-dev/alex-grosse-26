@@ -372,10 +372,14 @@ export const leadsUpdate = mutation({
     if (args.notes !== undefined) update.notes = args.notes;
     if (args.tags !== undefined) update.tags = args.tags;
 
+    const wasClosed = lead.status === "closed";
+    const wasWon = lead.closedOutcome === "won";
+    
     await ctx.db.patch(args.id, update);
 
     // Auto-create project when lead status changes to "won"
-    if (args.status === "closed" && args.closedOutcome === "won" && lead.status !== "closed") {
+    // Check if we're closing the lead AND marking it as won (and it wasn't already won)
+    if (args.status === "closed" && args.closedOutcome === "won" && (!wasClosed || !wasWon)) {
       // Check if project already exists for this lead
       const existingProject = await ctx.db
         .query("clientProjects")

@@ -15,7 +15,8 @@ import Link from "next/link";
 import { 
   Briefcase, ArrowLeft, Save, Upload, Trash2, Plus, Calendar, FileText, 
   Clock, CheckCircle, XCircle, AlertCircle, Link2, History, Download,
-  Edit, X, Check, MessageSquare, ExternalLink, Eye, EyeOff, Key, Copy, RefreshCw
+  Edit, X, Check, MessageSquare, ExternalLink, Eye, EyeOff, Key, Copy, RefreshCw,
+  User, Users, ArrowRight, Link as LinkIcon
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { Id } from "@/convex/_generated/dataModel";
@@ -687,6 +688,38 @@ export default function ClientProjectDetailPage() {
                   </p>
                 </div>
               )}
+              {/* Contact Link */}
+              {project.contact && (
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider text-foreground/60 mb-1" style={{ fontWeight: '900' }}>
+                    Contact
+                  </p>
+                  <Link 
+                    href={`/admin/tools/contacts?contactId=${project.contact._id}`}
+                    className="flex items-center gap-1 text-sm text-accent hover:underline"
+                  >
+                    <User className="h-3 w-3" />
+                    {project.contact.businessName || project.contact.contactName || project.contact.email}
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              )}
+              {/* Lead Link */}
+              {project.lead && (
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider text-foreground/60 mb-1" style={{ fontWeight: '900' }}>
+                    From Lead
+                  </p>
+                  <Link 
+                    href={`/admin/tools/lead-pipeline?leadId=${project.lead._id}`}
+                    className="flex items-center gap-1 text-sm text-accent hover:underline"
+                  >
+                    <LinkIcon className="h-3 w-3" />
+                    {project.lead.name}
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -755,6 +788,58 @@ export default function ClientProjectDetailPage() {
                       </Link>
                     </div>
                   ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Feedback */}
+        {projectFeedback && projectFeedback.length > 0 && (
+          <Card className="mb-8 border border-foreground/20 rounded-xl">
+            <CardHeader>
+              <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+                Client Feedback ({projectFeedback.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {projectFeedback.map((fb: any) => {
+                  const delivery = allDeliveries.find((d: any) => d._id === fb.deliveryId);
+                  return (
+                    <div key={fb._id} className="p-4 rounded-lg border border-foreground/10 bg-foreground/5">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          {delivery && (
+                            <Link 
+                              href={`/dl/${delivery.slug}`}
+                              className="text-sm font-black uppercase tracking-wider text-accent hover:underline"
+                              style={{ fontWeight: '900' }}
+                            >
+                              {delivery.title || "Untitled Delivery"}
+                            </Link>
+                          )}
+                          <p className="text-xs text-foreground/60 mt-1">
+                            {format(new Date(fb.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                          </p>
+                        </div>
+                        {fb.decision && (
+                          <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded ${
+                            fb.decision === "approve"
+                              ? "bg-green-500/20 text-green-500 border border-green-500/30"
+                              : fb.decision === "reject"
+                              ? "bg-red-500/20 text-red-500 border border-red-500/30"
+                              : "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30"
+                          }`}>
+                            {fb.decision}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                        {fb.body}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>

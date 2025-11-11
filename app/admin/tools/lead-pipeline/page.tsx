@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useToast } from "@/components/ui/use-toast";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,7 @@ import {
   Target,
   Link as LinkIcon,
   ArrowRight,
+  Briefcase,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -76,6 +78,7 @@ const STATUS_OPTIONS = [
 export default function LeadPipelinePage() {
   const { adminEmail } = useAdminAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("pipeline");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -116,9 +119,16 @@ export default function LeadPipelinePage() {
     adminEmail ? {} : "skip"
   );
 
+  // Get all projects to check if project exists for won leads
+  const projects = useQuery(
+    api.clientProjects.list,
+    adminEmail ? { email: adminEmail } : ("skip" as const)
+  );
+
   const createLead = useMutation(api.leads.leadsCreate);
   const updateLead = useMutation(api.leads.leadsUpdate);
   const removeLead = useMutation(api.leads.leadsRemove);
+  const createProject = useMutation(api.clientProjects.create);
 
   // Filter and sort leads
   const filteredLeads = useMemo(() => {
@@ -273,6 +283,39 @@ export default function LeadPipelinePage() {
       toast({
         title: "Error",
         description: error.message || "Failed to delete lead.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateProjectFromLead = async (leadId: Id<"leads">) => {
+    const lead = leads?.find((l) => l._id === leadId);
+    if (!lead) return;
+    
+    try {
+      const projectId = await createProject({
+        title: `${lead.name} - Project`,
+        clientName: lead.name,
+        description: `Project created from won lead: ${lead.contactName || "Lead"}`,
+        status: "planning",
+        scope: lead.notes || undefined,
+        notes: `Created from lead: ${lead._id}. Original lead notes: ${lead.notes || "None"}`,
+        leadId: leadId,
+        contactId: lead.contactId,
+        email: adminEmail || undefined,
+      });
+      
+      toast({
+        title: "Project created",
+        description: "The project has been created from the won lead.",
+      });
+      
+      // Navigate to the new project
+      router.push(`/admin/client-projects/${projectId}`);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create project from lead.",
         variant: "destructive",
       });
     }
@@ -569,6 +612,25 @@ export default function LeadPipelinePage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
+                              {lead.status === "closed" && lead.closedOutcome === "won" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    // Check if project already exists
+                                    const existingProject = projects?.find((p: any) => p.leadId === lead._id);
+                                    if (existingProject) {
+                                      router.push(`/admin/client-projects/${existingProject._id}`);
+                                    } else {
+                                      // Create project from won lead
+                                      handleCreateProjectFromLead(lead._id);
+                                    }
+                                  }}
+                                  title={projects?.find((p: any) => p.leadId === lead._id) ? "View Project" : "Create Project"}
+                                >
+                                  <Briefcase className="h-4 w-4" />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="sm"

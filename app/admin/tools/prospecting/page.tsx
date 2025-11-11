@@ -928,10 +928,10 @@ export default function ProspectImporterPage() {
           variant: "destructive",
         });
       } else {
-        toast({
-          title: "CSV loaded",
+      toast({
+        title: "CSV loaded",
           description: `Found ${parsed.rows.length} rows with ${parsed.headers.length} columns. Auto-mapped successfully.`,
-        });
+      });
       }
     };
     reader.readAsText(file);
@@ -1342,13 +1342,13 @@ export default function ProspectImporterPage() {
         <div className="flex-1">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
             Prospecting
-          </h1>
+            </h1>
           <p className="text-foreground/70 text-base sm:text-lg">
-            Import, organize, and score business prospects from CSV files
-          </p>
+              Import, organize, and score business prospects from CSV files
+            </p>
         </div>
       </div>
-
+      
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 max-w-xl bg-foreground/5 border border-foreground/20 rounded-lg p-1.5 h-auto items-center gap-1">
           <TabsTrigger 
@@ -1402,10 +1402,10 @@ export default function ProspectImporterPage() {
                       Supports CSV files only
                     </p>
                     <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".csv"
-                      onChange={handleFileUpload}
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileUpload}
                       className="hidden"
                     />
                   </div>
@@ -1419,22 +1419,22 @@ export default function ProspectImporterPage() {
                           {csvData?.rows.length || 0} rows, {csvData?.headers.length || 0} columns
                         </p>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setCsvFile(null);
-                          setCsvData(null);
-                          setColumnMapping({});
-                          if (fileInputRef.current) {
-                            fileInputRef.current.value = '';
-                          }
-                        }}
-                      >
-                        <X className="h-4 w-4 mr-2" />
-                        Clear
-                      </Button>
-                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setCsvFile(null);
+                        setCsvData(null);
+                        setColumnMapping({});
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = '';
+                        }
+                      }}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Clear
+                    </Button>
+                </div>
                   </div>
                 )}
               </div>
@@ -1449,14 +1449,14 @@ export default function ProspectImporterPage() {
                       </p>
                       <p className="text-xs text-amber-700 dark:text-amber-300">
                         Please check your CSV headers to ensure 'name' and 'address' columns exist.
-                      </p>
-                    </div>
+                </p>
+              </div>
                   ) : (
                     <div className="p-4 border border-green-200 dark:border-green-800 rounded-lg bg-green-50 dark:bg-green-950">
                       <p className="text-sm text-green-800 dark:text-green-200 font-medium">
                         ✓ All required fields mapped successfully
-                      </p>
-                    </div>
+                    </p>
+                  </div>
                   )}
                   
                   <div className="space-y-2">
@@ -1487,7 +1487,7 @@ export default function ProspectImporterPage() {
                               ) : (
                                 <span className="text-sm text-foreground/40 italic">Not mapped</span>
                               )}
-                            </div>
+                      </div>
                           );
                         })}
                       </div>
@@ -1549,27 +1549,27 @@ export default function ProspectImporterPage() {
                   <CardDescription>
                     View and manage imported prospects
                   </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
+                      </div>
+                      <div className="flex items-center gap-2">
                   <Button variant="outline" onClick={handleExport}>
                     <Download className="h-4 w-4 mr-2" />
                     Export
-                  </Button>
+                        </Button>
                   {selectedProspects.size > 0 && (
                     <Button variant="destructive" onClick={handleBulkDelete}>
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete ({selectedProspects.size})
-                    </Button>
+                        </Button>
                   )}
                 </div>
-              </div>
+                      </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Top Line: Industry, City, State */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Industry *</Label>
-                  <Select
+                      <div className="space-y-2">
+                        <Label>Industry *</Label>
+                        <Select
                     value={prospectFilterIndustryId}
                     onValueChange={(value) => {
                       setProspectFilterIndustryId(value as Id<"prospectIndustries"> | "all");
@@ -1577,20 +1577,20 @@ export default function ProspectImporterPage() {
                       setProspectFilterCity("all");
                       setProspectFilterState("all");
                     }}
-                  >
-                    <SelectTrigger>
+                        >
+                          <SelectTrigger>
                       <SelectValue placeholder="Select Industry" />
-                    </SelectTrigger>
-                    <SelectContent>
+                          </SelectTrigger>
+                          <SelectContent>
                       <SelectItem value="all">All Industries</SelectItem>
-                      {industries.map((industry) => (
-                        <SelectItem key={industry._id} value={industry._id}>
+                            {industries.map((industry) => (
+                              <SelectItem key={industry._id} value={industry._id}>
                           {capitalizeWords(industry.name)} ({industryCounts[industry._id] || 0})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                 <div className="space-y-2">
                   <Label>City</Label>
                   <Select
@@ -1648,10 +1648,10 @@ export default function ProspectImporterPage() {
                       onChange={(e) => setProspectSearchQuery(e.target.value)}
                       placeholder="Search prospects..."
                       className="pl-10"
-                    />
-                  </div>
+                  />
                 </div>
-                
+              </div>
+              
                 {/* Quick Filter Buttons */}
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
@@ -1660,7 +1660,7 @@ export default function ProspectImporterPage() {
                     onClick={() => {
                       setQuickFilter(quickFilter === "hasWebsite" ? null : "hasWebsite");
                     }}
-                  >
+                >
                     <Globe className="h-3 w-3 mr-1" />
                     Has Website
                   </Button>
@@ -1690,7 +1690,7 @@ export default function ProspectImporterPage() {
                     onClick={() => {
                       setQuickFilter(quickFilter === "highScore" ? null : "highScore");
                     }}
-                  >
+                >
                     <Star className="h-3 w-3 mr-1" />
                     High Score (40+)
                   </Button>
@@ -1912,13 +1912,13 @@ export default function ProspectImporterPage() {
                                   </Link>
                                 </div>
                               )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeProspect({ id: prospect._id })}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeProspect({ id: prospect._id })}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -1935,26 +1935,26 @@ export default function ProspectImporterPage() {
 
       {/* Convert to Lead Dialog */}
       <Dialog open={isConvertDialogOpen} onOpenChange={setIsConvertDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
             <DialogTitle>Convert Prospect to Lead</DialogTitle>
-            <DialogDescription>
+                        <DialogDescription>
               Add decision maker information to convert this prospect to a lead
-            </DialogDescription>
-          </DialogHeader>
+                        </DialogDescription>
+                      </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+                        <div className="space-y-2">
                 <Label>Contact Name *</Label>
-                <Input
+                          <Input
                   value={convertFormData.contactName}
                   onChange={(e) =>
                     setConvertFormData({ ...convertFormData, contactName: e.target.value })
                   }
                   placeholder="Decision maker name"
-                />
-              </div>
-              <div className="space-y-2">
+                          />
+                        </div>
+                          <div className="space-y-2">
                 <Label>Contact Title</Label>
                 <Input
                   value={convertFormData.contactTitle}
@@ -1963,28 +1963,28 @@ export default function ProspectImporterPage() {
                   }
                   placeholder="Job title"
                 />
-              </div>
-              <div className="space-y-2">
+                          </div>
+                          <div className="space-y-2">
                 <Label>Contact Phone</Label>
-                <Input
+                            <Input
                   value={convertFormData.contactPhone}
                   onChange={(e) =>
                     setConvertFormData({ ...convertFormData, contactPhone: e.target.value })
                   }
                   placeholder="Phone number"
-                />
-              </div>
-              <div className="space-y-2">
+                            />
+                          </div>
+                        <div className="space-y-2">
                 <Label>Contact Email *</Label>
-                <Input
+                          <Input
                   value={convertFormData.contactEmail}
                   onChange={(e) =>
                     setConvertFormData({ ...convertFormData, contactEmail: e.target.value })
                   }
                   placeholder="Email address"
                   type="email"
-                />
-              </div>
+                          />
+                        </div>
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>
@@ -1996,12 +1996,12 @@ export default function ProspectImporterPage() {
                 placeholder="Additional notes..."
                 rows={4}
               />
-            </div>
-          </div>
-          <DialogFooter>
+                        </div>
+                      </div>
+                      <DialogFooter>
             <Button variant="outline" onClick={() => setIsConvertDialogOpen(false)}>
-              Cancel
-            </Button>
+                          Cancel
+                        </Button>
             <Button
               onClick={async () => {
                 if (!selectedProspectForConvert) return;
@@ -2051,10 +2051,10 @@ export default function ProspectImporterPage() {
               disabled={!convertFormData.contactName || !convertFormData.contactEmail}
             >
               Convert to Lead
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
     </div>
   );
 }

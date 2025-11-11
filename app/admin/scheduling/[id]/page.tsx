@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ExternalLink, Copy, Pencil, Trash2, Calendar, Clock, Users, Mail, Phone, MessageSquare, Link2, CheckCircle2, User, ChevronDown, ChevronUp } from "lucide-react";
+import { ExternalLink, Copy, Pencil, Trash2, Calendar, Clock, Users, Mail, Phone, MessageSquare, Link2, CheckCircle2, User, ChevronDown, ChevronUp, ArrowRight, Briefcase } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -297,6 +297,60 @@ export default function SchedulingRequestDetailPage() {
         </div>
       </div>
 
+      {/* Contact & Project Links */}
+      {request && (request.contactId || bookedSlots.some((s: any) => s.projectId)) && (
+        <Card className="border border-foreground/20">
+          <CardHeader>
+            <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+              Related Records
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {request.contactId && (
+              <div className="flex items-center justify-between p-3 rounded-lg border border-foreground/10 bg-foreground/5">
+                <div className="flex items-center gap-3">
+                  <User className="h-5 w-5 text-accent" />
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Contact</p>
+                    <p className="text-xs text-foreground/60">{request.organizerEmail}</p>
+                  </div>
+                </div>
+                <Link href={`/admin/tools/contacts?contactId=${request.contactId}`}>
+                  <Button variant="ghost" size="sm" className="text-accent">
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            )}
+            {bookedSlots.filter((s: any) => s.projectId).length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-bold uppercase tracking-wider text-foreground/60">Linked Projects</p>
+                {bookedSlots
+                  .filter((s: any) => s.projectId)
+                  .map((slot: any) => (
+                    <div key={slot._id} className="flex items-center justify-between p-3 rounded-lg border border-foreground/10 bg-foreground/5">
+                      <div className="flex items-center gap-3">
+                        <Briefcase className="h-5 w-5 text-accent" />
+                        <div>
+                          <p className="text-sm font-bold text-foreground">Project</p>
+                          <p className="text-xs text-foreground/60">
+                            {format(new Date(slot.start), "MMM d, yyyy 'at' h:mm a")}
+                          </p>
+                        </div>
+                      </div>
+                      <Link href={`/admin/client-projects/${slot.projectId}`}>
+                        <Button variant="ghost" size="sm" className="text-accent">
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats Section */}
       <div className={`grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 ${request?.maxSelectionsPerPerson && request.maxSelectionsPerPerson > 1 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
         <Card className="border border-foreground/20 hover:border-accent/50 transition-colors">
@@ -555,7 +609,7 @@ export default function SchedulingRequestDetailPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 text-foreground/70 font-mono text-xs sm:text-sm break-all bg-foreground/10 border border-foreground/20 rounded px-3 py-2">
-                        <Link2 className="h-3 w-3 flex-shrink-0" />
+                        <Link2 className="h-3 w-3 shrink-0" />
                         {link}
                       </div>
                     </div>
@@ -975,7 +1029,7 @@ export default function SchedulingRequestDetailPage() {
           return (
             <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
               {/* Fixed Header */}
-              <DialogHeader className="px-6 pt-6 pb-4 border-b border-foreground/10 flex-shrink-0">
+              <DialogHeader className="px-6 pt-6 pb-4 border-b border-foreground/10 shrink-0">
                 <DialogTitle className="text-2xl sm:text-3xl font-black uppercase tracking-tight" style={{ fontWeight: '900' }}>
                   Edit Time Slot
                 </DialogTitle>
@@ -1100,7 +1154,7 @@ export default function SchedulingRequestDetailPage() {
               </div>
 
               {/* Fixed Footer */}
-              <DialogFooter className="px-6 py-4 border-t border-foreground/10 flex-shrink-0 flex flex-col sm:flex-row gap-3">
+              <DialogFooter className="px-6 py-4 border-t border-foreground/10 shrink-0 flex flex-col sm:flex-row gap-3">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -1195,7 +1249,7 @@ export default function SchedulingRequestDetailPage() {
       }}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
           {/* Fixed Header */}
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-foreground/10 flex-shrink-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-foreground/10 shrink-0">
             <DialogTitle className="text-2xl sm:text-3xl font-black uppercase tracking-tight" style={{ fontWeight: '900' }}>
               Add New Time Slot
             </DialogTitle>
@@ -1320,7 +1374,7 @@ export default function SchedulingRequestDetailPage() {
           </div>
 
           {/* Fixed Footer */}
-          <DialogFooter className="px-6 py-4 border-t border-foreground/10 flex-shrink-0 flex flex-col sm:flex-row gap-3">
+          <DialogFooter className="px-6 py-4 border-t border-foreground/10 shrink-0 flex flex-col sm:flex-row gap-3">
             <Button
               variant="outline"
               onClick={() => {

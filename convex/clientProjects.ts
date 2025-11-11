@@ -767,7 +767,7 @@ export const getFeedback = query({
         });
       }
     }
-    
+
     // Also get feedback directly linked to this project
     const directFeedback = await ctx.db
       .query("feedback")

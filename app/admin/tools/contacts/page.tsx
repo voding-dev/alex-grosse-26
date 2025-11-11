@@ -62,6 +62,7 @@ import {
   UserPlus,
   ArrowRight,
   CheckCircle2,
+  Briefcase,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -594,6 +595,17 @@ export default function ContactsPage() {
                           <TableCell className="text-sm text-foreground/60">{contact.email}</TableCell>
                           <TableCell className="text-sm text-foreground/60">
                             {contact.businessName || "-"}
+                            {contact.projects && contact.projects.length > 0 && (
+                              <div className="mt-1">
+                                <Link
+                                  href={`/admin/tools/contacts?contactId=${contact._id}`}
+                                  className="text-xs text-accent hover:underline flex items-center gap-1"
+                                >
+                                  <Briefcase className="h-3 w-3" />
+                                  {contact.projects.length} project{contact.projects.length !== 1 ? 's' : ''}
+                                </Link>
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell>
                             <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded ${
@@ -931,6 +943,48 @@ export default function ContactsPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+            {/* Projects History */}
+            {selectedContactData && selectedContactData.projects && selectedContactData.projects.length > 0 && (
+              <div className="p-4 bg-foreground/5 border border-foreground/10 rounded-lg space-y-2">
+                <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-2">Projects ({selectedContactData.projects.length})</p>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {selectedContactData.projects.map((project: any) => (
+                    <Link
+                      key={project._id}
+                      href={`/admin/client-projects/${project._id}`}
+                      className="flex items-center justify-between p-2 rounded border border-foreground/10 hover:bg-foreground/10 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-foreground truncate">{project.title}</p>
+                        <p className="text-xs text-foreground/60">{project.status}</p>
+                      </div>
+                      <ArrowRight className="h-3 w-3 text-accent flex-shrink-0 ml-2" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Bookings History */}
+            {selectedContactData && selectedContactData.bookings && selectedContactData.bookings.length > 0 && (
+              <div className="p-4 bg-foreground/5 border border-foreground/10 rounded-lg space-y-2">
+                <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-2">Bookings ({selectedContactData.bookings.length})</p>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {selectedContactData.bookings.map((booking: any) => (
+                    <Link
+                      key={booking._id}
+                      href={`/admin/scheduling/${booking._id}`}
+                      className="flex items-center justify-between p-2 rounded border border-foreground/10 hover:bg-foreground/10 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-foreground truncate">{booking.title}</p>
+                        <p className="text-xs text-foreground/60">{booking.status}</p>
+                      </div>
+                      <ArrowRight className="h-3 w-3 text-accent flex-shrink-0 ml-2" />
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
             <div className="grid grid-cols-2 gap-4">
