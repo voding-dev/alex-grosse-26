@@ -626,6 +626,36 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_next_step_at", ["nextStepAt"]),
 
+  emailSegments: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    filters: v.object({
+      status: v.optional(v.array(v.union(
+        v.literal("subscribed"),
+        v.literal("unsubscribed"),
+        v.literal("bounced"),
+        v.literal("spam")
+      ))),
+      tags: v.optional(v.array(v.string())),
+      sources: v.optional(v.array(v.string())),
+      dateRange: v.optional(v.object({
+        field: v.union(v.literal("createdAt"), v.literal("updatedAt")),
+        start: v.optional(v.number()),
+        end: v.optional(v.number()),
+      })),
+      hasOpened: v.optional(v.boolean()),
+      hasClicked: v.optional(v.boolean()),
+      lastActivityRange: v.optional(v.object({
+        start: v.optional(v.number()),
+        end: v.optional(v.number()),
+      })),
+    }),
+    contactCount: v.number(), // Cached count
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_created_at", ["createdAt"]),
+
   // Portfolio (public website portfolio items - separate from projects)
   portfolio: defineTable({
     title: v.string(),

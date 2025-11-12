@@ -13,12 +13,117 @@ async function getResendClient(ctx: any) {
     .withIndex("by_key", (q: any) => q.eq("key", "resendApiKey"))
     .first();
   
-  if (!apiKeySetting) {
-    throw new Error("RESEND API key not configured. Please set it in settings.");
+  if (!apiKeySetting || !apiKeySetting.value || apiKeySetting.value.trim() === "") {
+    throw new Error("RESEND API key not configured. Please go to Settings > Email Configuration and set your Resend API key.");
   }
   
   return new Resend(apiKeySetting.value);
 }
+
+// Test Resend API connection
+export const testResendConnection = mutation({
+  args: {
+    adminEmail: v.optional(v.string()),
+    testEmail: v.string(), // Email address to send test email to
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Development mode: check admin by email
+      if (args.adminEmail) {
+        const user = await ctx.db
+          .query("users")
+          .withIndex("by_email", (q: any) => q.eq("email", args.adminEmail!))
+          .first();
+        
+        if (!user || user.role !== "admin") {
+          return {
+            success: false,
+            error: "Unauthorized - admin access required",
+          };
+        }
+      } else {
+        // Production mode: use requireAdmin
+        try {
+          await requireAdmin(ctx);
+        } catch (authError: any) {
+          return {
+            success: false,
+            error: authError.message || "Not authenticated",
+          };
+        }
+      }
+      
+      // Get Resend client
+      const resend = await getResendClient(ctx);
+      
+      // Get domain from settings
+      const domainSetting = await ctx.db
+        .query("settings")
+        .withIndex("by_key", (q: any) => q.eq("key", "emailDomain"))
+        .first();
+      
+      const domain = domainSetting?.value || "onboarding.resend.dev";
+      const fromEmail = `noreply@${domain}`;
+      const fromName = "Ian Courtright";
+      
+      // Send test email
+      const result = await resend.emails.send({
+        from: `${fromName} <${fromEmail}>`,
+        to: args.testEmail,
+        subject: "Test Email from Email Marketing System",
+        html: `
+          <html>
+            <body style="font-family: Arial, sans-serif; padding: 20px;">
+              <h2>Test Email</h2>
+              <p>This is a test email to verify your Resend API connection is working correctly.</p>
+              <p>If you received this email, your Resend API key is valid and emails are being sent successfully.</p>
+              <p><strong>Sent at:</strong> ${new Date().toISOString()}</p>
+            </body>
+          </html>
+        `,
+        text: "This is a test email to verify your Resend API connection is working correctly. If you received this email, your Resend API key is valid and emails are being sent successfully.",
+      });
+      
+      // Check for errors
+      if (result.error) {
+        return {
+          success: false,
+          error: result.error.message || JSON.stringify(result.error),
+          details: result.error,
+        };
+      }
+      
+      // Verify response
+      if (!result.data) {
+        return {
+          success: false,
+          error: "Resend API did not return any data",
+          details: result,
+        };
+      }
+      
+      if (!result.data.id) {
+        return {
+          success: false,
+          error: "Resend API did not return an email ID",
+          details: result.data,
+        };
+      }
+      
+      return {
+        success: true,
+        resendEmailId: result.data.id,
+        message: `Test email sent successfully! Check your inbox at ${args.testEmail}. The email ID in Resend is: ${result.data.id}`,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || String(error),
+        details: error,
+      };
+    }
+  },
+});
 
 // Contacts
 export const listContacts = query({
@@ -30,7 +135,24 @@ export const listContacts = query({
       v.literal("bounced"),
       v.literal("spam")
     )),
+    statuses: v.optional(v.array(v.union(
+      v.literal("subscribed"),
+      v.literal("unsubscribed"),
+      v.literal("bounced"),
+      v.literal("spam")
+    ))),
     tags: v.optional(v.array(v.string())),
+    sources: v.optional(v.array(v.string())),
+    search: v.optional(v.string()),
+    sortBy: v.optional(v.union(
+      v.literal("name"),
+      v.literal("email"),
+      v.literal("status"),
+      v.literal("createdAt"),
+      v.literal("updatedAt")
+    )),
+    sortOrder: v.optional(v.union(v.literal("asc"), v.literal("desc"))),
+    hasTags: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     // Development mode: check admin by email
@@ -48,44 +170,99 @@ export const listContacts = query({
       await requireAdmin(ctx);
     }
     
-    // Get all contacts from unified contacts database
-    let contacts = await ctx.db.query("contacts").collect();
+    // Build filters object for applyFiltersToContacts
+    const filters: any = {};
     
-    // Filter by tags if provided
-    if (args.tags && args.tags.length > 0) {
-      contacts = contacts.filter(contact => 
-        args.tags!.some(tag => contact.tags.includes(tag))
-      );
-    }
-    
-    // Populate email marketing status
-    const contactsWithStatus = await Promise.all(
-      contacts.map(async (contact) => {
-        let emailMarketing = null;
-        if (contact.emailMarketingId) {
-          emailMarketing = await ctx.db.get(contact.emailMarketingId);
-        } else {
-          // Try to find by email
-          emailMarketing = await ctx.db
-            .query("emailContacts")
-            .withIndex("by_email", (q: any) => q.eq("email", contact.email))
-            .first();
-        }
-        
-        return {
-          ...contact,
-          emailMarketingStatus: emailMarketing?.status || "subscribed",
-          emailMarketingId: emailMarketing?._id || contact.emailMarketingId,
-        };
-      })
-    );
-    
-    // Filter by status if provided
+    // Status filter (support both single status and multiple statuses)
     if (args.status) {
-      return contactsWithStatus.filter(contact => contact.emailMarketingStatus === args.status);
+      filters.status = [args.status];
+    } else if (args.statuses && args.statuses.length > 0) {
+      filters.status = args.statuses;
     }
     
-    return contactsWithStatus;
+    // Tags filter
+    if (args.tags && args.tags.length > 0) {
+      filters.tags = args.tags;
+    }
+    
+    // Sources filter
+    if (args.sources && args.sources.length > 0) {
+      filters.sources = args.sources;
+    }
+    
+    // Has tags filter
+    if (args.hasTags !== undefined) {
+      // This will be handled separately after getting contacts
+    }
+    
+    // Get contacts with filters applied
+    let contacts = await applyFiltersToContacts(ctx, filters);
+    
+    // Apply search filter
+    if (args.search && args.search.trim()) {
+      const searchLower = args.search.toLowerCase().trim();
+      contacts = contacts.filter((contact: any) => {
+        const name = `${contact.firstName || ""} ${contact.lastName || ""}`.trim().toLowerCase();
+        const email = contact.email.toLowerCase();
+        const businessName = (contact.businessName || "").toLowerCase();
+        return name.includes(searchLower) || 
+               email.includes(searchLower) || 
+               businessName.includes(searchLower);
+      });
+    }
+    
+    // Apply hasTags filter
+    if (args.hasTags !== undefined) {
+      contacts = contacts.filter((contact: any) => {
+        const hasTags = contact.tags && contact.tags.length > 0;
+        return args.hasTags ? hasTags : !hasTags;
+      });
+    }
+    
+    // Sort contacts
+    const sortBy = args.sortBy || "createdAt";
+    const sortOrder = args.sortOrder || "desc";
+    
+    contacts.sort((a: any, b: any) => {
+      let aVal: any;
+      let bVal: any;
+      
+      switch (sortBy) {
+        case "name":
+          aVal = `${a.firstName || ""} ${a.lastName || ""}`.trim() || a.email;
+          bVal = `${b.firstName || ""} ${b.lastName || ""}`.trim() || b.email;
+          break;
+        case "email":
+          aVal = a.email;
+          bVal = b.email;
+          break;
+        case "status":
+          aVal = a.emailMarketingStatus || "subscribed";
+          bVal = b.emailMarketingStatus || "subscribed";
+          break;
+        case "createdAt":
+          aVal = a.createdAt;
+          bVal = b.createdAt;
+          break;
+        case "updatedAt":
+          aVal = a.updatedAt;
+          bVal = b.updatedAt;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (typeof aVal === "string") {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+      
+      if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+    
+    return contacts;
   },
 });
 
@@ -288,6 +465,111 @@ export const updateContact = mutation({
     }
     
     return id;
+  },
+});
+
+// Bulk update contacts
+export const bulkUpdateContacts = mutation({
+  args: {
+    adminEmail: v.optional(v.string()),
+    contactIds: v.array(v.id("emailContacts")),
+    status: v.optional(v.union(
+      v.literal("subscribed"),
+      v.literal("unsubscribed"),
+      v.literal("bounced"),
+      v.literal("spam")
+    )),
+    tagsToAdd: v.optional(v.array(v.string())),
+    tagsToRemove: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    // Development mode: check admin by email
+    if (args.adminEmail) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.adminEmail!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized - admin access required");
+      }
+    } else {
+      // Production mode: use requireAdmin
+      await requireAdmin(ctx);
+    }
+    
+    const now = Date.now();
+    let updatedCount = 0;
+    
+    for (const contactId of args.contactIds) {
+      const emailContact = await ctx.db.get(contactId);
+      if (!emailContact) continue;
+      
+      const updates: any = { updatedAt: now };
+      
+      // Update status if provided
+      if (args.status !== undefined) {
+        updates.status = args.status;
+      }
+      
+      // Update tags if provided
+      if (args.tagsToAdd || args.tagsToRemove) {
+        const currentTags = emailContact.tags || [];
+        let newTags = [...currentTags];
+        
+        // Add tags
+        if (args.tagsToAdd) {
+          args.tagsToAdd.forEach(tag => {
+            if (!newTags.includes(tag)) {
+              newTags.push(tag);
+            }
+          });
+        }
+        
+        // Remove tags
+        if (args.tagsToRemove) {
+          newTags = newTags.filter(tag => !args.tagsToRemove!.includes(tag));
+        }
+        
+        updates.tags = newTags;
+      }
+      
+      // Update email marketing contact
+      await ctx.db.patch(contactId, updates);
+      
+      // Sync to unified contacts database
+      if (emailContact.contactId) {
+        const unifiedContact = await ctx.db.get(emailContact.contactId);
+        if (unifiedContact) {
+          const unifiedUpdates: any = { updatedAt: now };
+          
+          if (args.tagsToAdd || args.tagsToRemove) {
+            const currentTags = unifiedContact.tags || [];
+            let newTags = [...currentTags];
+            
+            if (args.tagsToAdd) {
+              args.tagsToAdd.forEach(tag => {
+                if (!newTags.includes(tag)) {
+                  newTags.push(tag);
+                }
+              });
+            }
+            
+            if (args.tagsToRemove) {
+              newTags = newTags.filter(tag => !args.tagsToRemove!.includes(tag));
+            }
+            
+            unifiedUpdates.tags = newTags;
+          }
+          
+          await ctx.db.patch(emailContact.contactId, unifiedUpdates);
+        }
+      }
+      
+      updatedCount++;
+    }
+    
+    return { success: true, updatedCount };
   },
 });
 
@@ -667,10 +949,30 @@ export const sendCampaign = mutation({
         
         const result = await resend.emails.send(emailData);
         
+        // Check if Resend API returned an error
+        if (result.error) {
+          console.error(`Resend API error for ${contact.email}:`, result.error);
+          throw new Error(result.error.message || `Resend API error: ${JSON.stringify(result.error)}`);
+        }
+        
+        // Verify we got a valid response
+        if (!result.data) {
+          console.error(`Resend API returned no data for ${contact.email}:`, result);
+          throw new Error("Resend API did not return any data");
+        }
+        
+        if (!result.data.id) {
+          console.error(`Resend API returned no email ID for ${contact.email}:`, result.data);
+          throw new Error("Resend API did not return a valid email ID");
+        }
+        
+        // Log successful send for debugging
+        console.log(`Successfully sent email to ${contact.email}, Resend ID: ${result.data.id}`);
+        
         // Update send record with Resend email ID
-        const resendEmailId = (result.data && 'id' in result.data) ? result.data.id : null;
+        const resendEmailId = result.data.id;
         await ctx.db.patch(sendId, {
-          resendEmailId: resendEmailId || undefined,
+          resendEmailId: resendEmailId,
           status: "sent",
           sentAt: now,
           updatedAt: Date.now(),
@@ -684,6 +986,7 @@ export const sendCampaign = mutation({
         });
       } catch (error: any) {
         // Error sending email - log to error tracking service in production
+        console.error(`Failed to send email to ${contact.email}:`, error);
         // Continue with next contact even if one fails
         await ctx.db.patch(sendId, {
           status: "failed",
@@ -700,6 +1003,337 @@ export const sendCampaign = mutation({
     });
     
     return { success: true, sendsCount: sendIds.length };
+  },
+});
+
+// Quick Send - one-off email blast without creating a campaign
+export const quickSend = mutation({
+  args: {
+    adminEmail: v.optional(v.string()),
+    subject: v.string(),
+    fromEmail: v.optional(v.string()),
+    fromName: v.optional(v.string()),
+    htmlContent: v.optional(v.string()),
+    textContent: v.optional(v.string()),
+    contactIds: v.optional(v.array(v.id("emailContacts"))),
+    tags: v.optional(v.array(v.string())),
+    saveAsCampaign: v.optional(v.boolean()),
+    campaignName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Development mode: check admin by email
+    if (args.adminEmail) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.adminEmail!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized - admin access required");
+      }
+    } else {
+      // Production mode: use requireAdmin
+      await requireAdmin(ctx);
+    }
+    
+    // Validate content
+    if (!args.htmlContent && !args.textContent) {
+      throw new Error("Either HTML content or plain text content is required");
+    }
+    
+    // Get contacts to send to
+    let contacts: any[] = [];
+    if (args.contactIds && args.contactIds.length > 0) {
+      const fetchedContacts = await Promise.all(
+        args.contactIds.map(id => ctx.db.get(id))
+      );
+      contacts = fetchedContacts.filter(contact => contact && contact.status === "subscribed");
+    } else if (args.tags && args.tags.length > 0) {
+      const allContacts = await ctx.db
+        .query("emailContacts")
+        .collect();
+      contacts = allContacts.filter(contact => 
+        contact && contact.status === "subscribed" && 
+        args.tags!.some(tag => contact.tags.includes(tag))
+      );
+    } else {
+      // Send to all subscribed contacts
+      contacts = await ctx.db
+        .query("emailContacts")
+        .withIndex("by_status", (q: any) => q.eq("status", "subscribed"))
+        .collect();
+    }
+    
+    if (contacts.length === 0) {
+      throw new Error("No subscribed contacts to send to");
+    }
+    
+    // Optionally create a campaign record
+    let campaignId: Id<"emailCampaigns"> | undefined;
+    if (args.saveAsCampaign) {
+      const now = Date.now();
+      campaignId = await ctx.db.insert("emailCampaigns", {
+        name: args.campaignName || `Quick Send - ${new Date().toLocaleDateString()}`,
+        subject: args.subject,
+        fromEmail: args.fromEmail,
+        fromName: args.fromName,
+        htmlContent: args.htmlContent || "",
+        textContent: args.textContent,
+        status: "sending",
+        tags: args.tags || [],
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    
+    // Get Resend client
+    const resend = await getResendClient(ctx);
+    
+    // Get domain from settings
+    const domainSetting = await ctx.db
+      .query("settings")
+      .withIndex("by_key", (q: any) => q.eq("key", "emailDomain"))
+      .first();
+    
+    const domain = domainSetting?.value || "onboarding.resend.dev";
+    const fromEmail = args.fromEmail || `noreply@${domain}`;
+    const fromName = args.fromName || "Ian Courtright";
+    
+    // Send emails
+    const sendIds = [];
+    const now = Date.now();
+    
+    for (const contact of contacts) {
+      if (!contact) continue;
+      
+      // Create tracking URLs (use a temporary send ID if no campaign)
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+      let sendId: Id<"emailSends">;
+      
+      if (campaignId) {
+        // Create send record if we have a campaign
+        sendId = await ctx.db.insert("emailSends", {
+          campaignId,
+          contactId: contact._id,
+          status: "pending",
+          opened: false,
+          openedCount: 0,
+          clicked: false,
+          clickedCount: 0,
+          unsubscribed: false,
+          markedAsSpam: false,
+          bounced: false,
+          createdAt: now,
+          updatedAt: now,
+        });
+        sendIds.push(sendId);
+      } else {
+        // For quick sends without campaign, create a temporary send record
+        // We'll use a dummy campaign ID - create a temporary campaign
+        const tempCampaignId = await ctx.db.insert("emailCampaigns", {
+          name: `Quick Send - ${contact.email}`,
+          subject: args.subject,
+          fromEmail: fromEmail,
+          fromName: fromName,
+          htmlContent: args.htmlContent || "",
+          textContent: args.textContent,
+          status: "sent",
+          sentAt: now,
+          tags: [],
+          createdAt: now,
+          updatedAt: now,
+        });
+        
+        sendId = await ctx.db.insert("emailSends", {
+          campaignId: tempCampaignId,
+          contactId: contact._id,
+          status: "pending",
+          opened: false,
+          openedCount: 0,
+          clicked: false,
+          clickedCount: 0,
+          unsubscribed: false,
+          markedAsSpam: false,
+          bounced: false,
+          createdAt: now,
+          updatedAt: now,
+        });
+        sendIds.push(sendId);
+      }
+      
+      // Process content with short codes replacement
+      const unsubscribeUrl = `${baseUrl}/api/email/unsubscribe?token=${sendId}`;
+      
+      // Replace short codes in HTML content (if it exists)
+      let personalizedHtml = "";
+      if (args.htmlContent) {
+        personalizedHtml = args.htmlContent;
+        personalizedHtml = personalizedHtml.replace(/{{\s*unsubscribe_url\s*}}/g, unsubscribeUrl);
+        personalizedHtml = personalizedHtml.replace(/{{\s*first_name\s*}}/g, contact.firstName || "");
+        personalizedHtml = personalizedHtml.replace(/{{\s*last_name\s*}}/g, contact.lastName || "");
+        personalizedHtml = personalizedHtml.replace(/{{\s*email\s*}}/g, contact.email);
+        personalizedHtml = personalizedHtml.replace(/{{\s*full_name\s*}}/g, 
+          contact.firstName || contact.lastName 
+            ? `${contact.firstName || ""} ${contact.lastName || ""}`.trim()
+            : contact.email
+        );
+        
+        // Wrap all links with tracking URLs
+        const linkRegex = /<a\s+([^>]*href=["']([^"']+)["'][^>]*)>/gi;
+        personalizedHtml = personalizedHtml.replace(linkRegex, (match, attrs, href) => {
+          if (href.includes('/api/email/unsubscribe') || 
+              href.startsWith('mailto:') || 
+              href.startsWith('tel:') || 
+              href.startsWith('#')) {
+            return match;
+          }
+          const trackingUrl = `${baseUrl}/api/email/track?sendId=${sendId}&url=${encodeURIComponent(href)}`;
+          const newAttrs = attrs.replace(/href=["'][^"']+["']/i, `href="${trackingUrl}"`);
+          return `<a ${newAttrs}>`;
+        });
+        
+        // Add tracking pixel
+        const trackingPixelUrl = `${baseUrl}/api/email/track/open?sendId=${sendId}`;
+        if (personalizedHtml.includes('</body>')) {
+          personalizedHtml = personalizedHtml.replace('</body>', `<img src="${trackingPixelUrl}" width="1" height="1" style="display:none;" alt="" /></body>`);
+        } else {
+          personalizedHtml += `<img src="${trackingPixelUrl}" width="1" height="1" style="display:none;" alt="" />`;
+        }
+      }
+      
+      // Replace short codes in subject line
+      let personalizedSubject = args.subject || "";
+      personalizedSubject = personalizedSubject.replace(/{{\s*first_name\s*}}/g, contact.firstName || "");
+      personalizedSubject = personalizedSubject.replace(/{{\s*last_name\s*}}/g, contact.lastName || "");
+      personalizedSubject = personalizedSubject.replace(/{{\s*email\s*}}/g, contact.email);
+      personalizedSubject = personalizedSubject.replace(/{{\s*full_name\s*}}/g,
+        contact.firstName || contact.lastName 
+          ? `${contact.firstName || ""} ${contact.lastName || ""}`.trim()
+          : contact.email
+      );
+      
+      // Replace short codes in plain text content
+      let personalizedText = args.textContent || "";
+      if (personalizedText) {
+        personalizedText = personalizedText.replace(/{{\s*unsubscribe_url\s*}}/g, unsubscribeUrl);
+        personalizedText = personalizedText.replace(/{{\s*first_name\s*}}/g, contact.firstName || "");
+        personalizedText = personalizedText.replace(/{{\s*last_name\s*}}/g, contact.lastName || "");
+        personalizedText = personalizedText.replace(/{{\s*email\s*}}/g, contact.email);
+        personalizedText = personalizedText.replace(/{{\s*full_name\s*}}/g,
+          contact.firstName || contact.lastName 
+            ? `${contact.firstName || ""} ${contact.lastName || ""}`.trim()
+            : contact.email
+        );
+      }
+      
+      // Send email via Resend
+      try {
+        const emailData: any = {
+          from: `${fromName} <${fromEmail}>`,
+          to: contact.email,
+          subject: personalizedSubject,
+        };
+        
+        if (personalizedHtml && personalizedHtml.trim()) {
+          emailData.html = personalizedHtml;
+        }
+        
+        if (personalizedText && personalizedText.trim()) {
+          emailData.text = personalizedText;
+        }
+        
+        if (!emailData.html && !emailData.text) {
+          throw new Error("Email must have either HTML or plain text content");
+        }
+        
+        const result = await resend.emails.send(emailData);
+        
+        // Check if Resend API returned an error
+        if (result.error) {
+          console.error(`Resend API error for ${contact.email}:`, result.error);
+          throw new Error(result.error.message || `Resend API error: ${JSON.stringify(result.error)}`);
+        }
+        
+        // Verify we got a valid response
+        if (!result.data) {
+          console.error(`Resend API returned no data for ${contact.email}:`, result);
+          throw new Error("Resend API did not return any data");
+        }
+        
+        if (!result.data.id) {
+          console.error(`Resend API returned no email ID for ${contact.email}:`, result.data);
+          throw new Error("Resend API did not return a valid email ID");
+        }
+        
+        // Log successful send for debugging
+        console.log(`Successfully sent email to ${contact.email}, Resend ID: ${result.data.id}`);
+        
+        // Update send record with Resend email ID
+        const resendEmailId = result.data.id;
+        await ctx.db.patch(sendId, {
+          resendEmailId: resendEmailId,
+          status: "sent",
+          sentAt: now,
+          updatedAt: Date.now(),
+        });
+        
+        // Create event
+        await ctx.db.insert("emailEvents", {
+          sendId,
+          type: "sent",
+          createdAt: now,
+        });
+      } catch (error: any) {
+        // Log the error for debugging
+        console.error(`Failed to send email to ${contact.email}:`, error);
+        
+        await ctx.db.patch(sendId, {
+          status: "failed",
+          updatedAt: Date.now(),
+        });
+        
+        // Note: emailEvents doesn't support "failed" type, so we'll just log the error
+        // The send record status "failed" is sufficient for tracking
+        // Don't re-throw - continue with other contacts
+      }
+    }
+    
+    // Count successful and failed sends
+    const sendStatuses = await Promise.all(
+      sendIds.map(async (sendId) => {
+        const send = await ctx.db.get(sendId);
+        return send?.status;
+      })
+    );
+    const successCount = sendStatuses.filter(status => status === "sent").length;
+    const failedCount = sendStatuses.filter(status => status === "failed").length;
+    
+    // Update campaign status if we created one
+    if (campaignId) {
+      await ctx.db.patch(campaignId, {
+        status: successCount > 0 ? "sent" : "cancelled",
+        sentAt: successCount > 0 ? now : undefined,
+        updatedAt: Date.now(),
+      });
+    }
+    
+    // If all sends failed, throw an error
+    if (failedCount === sendIds.length) {
+      throw new Error(`Failed to send all ${sendIds.length} email${sendIds.length !== 1 ? 's' : ''}. Please check your Resend API key and configuration.`);
+    }
+    
+    // If some failed, return a warning
+    if (failedCount > 0) {
+      return { 
+        success: true, 
+        sendsCount: successCount, 
+        failedCount,
+        campaignId,
+        warning: `Only ${successCount} of ${sendIds.length} email${sendIds.length !== 1 ? 's' : ''} were sent successfully. ${failedCount} failed.`
+      };
+    }
+    
+    return { success: true, sendsCount: successCount, campaignId };
   },
 });
 
@@ -2222,4 +2856,443 @@ export const getJourneyAnalytics = query({
     };
   },
 });
+
+// ============ Segments ============
+
+export const listSegments = query({
+  args: {
+    email: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Development mode: check admin by email
+    if (args.email) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.email!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized - admin access required");
+      }
+    } else {
+      // Production mode: use requireAdmin
+      await requireAdmin(ctx);
+    }
+    
+    const segments = await ctx.db
+      .query("emailSegments")
+      .withIndex("by_created_at")
+      .collect();
+    
+    return segments.sort((a, b) => b.createdAt - a.createdAt);
+  },
+});
+
+export const getSegment = query({
+  args: {
+    segmentId: v.id("emailSegments"),
+    email: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Development mode: check admin by email
+    if (args.email) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.email!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized - admin access required");
+      }
+    } else {
+      // Production mode: use requireAdmin
+      await requireAdmin(ctx);
+    }
+    
+    return await ctx.db.get(args.segmentId);
+  },
+});
+
+export const getSegmentContacts = query({
+  args: {
+    segmentId: v.id("emailSegments"),
+    email: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Development mode: check admin by email
+    if (args.email) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.email!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized - admin access required");
+      }
+    } else {
+      // Production mode: use requireAdmin
+      await requireAdmin(ctx);
+    }
+    
+    const segment = await ctx.db.get(args.segmentId);
+    if (!segment) {
+      throw new Error("Segment not found");
+    }
+    
+    // Apply segment filters to get contacts
+    return await applyFiltersToContacts(ctx, segment.filters);
+  },
+});
+
+export const getSegmentStats = query({
+  args: {
+    segmentId: v.id("emailSegments"),
+    email: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Development mode: check admin by email
+    if (args.email) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.email!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized - admin access required");
+      }
+    } else {
+      // Production mode: use requireAdmin
+      await requireAdmin(ctx);
+    }
+    
+    const segment = await ctx.db.get(args.segmentId);
+    if (!segment) {
+      throw new Error("Segment not found");
+    }
+    
+    const contacts = await applyFiltersToContacts(ctx, segment.filters);
+    
+    // Calculate stats
+    const statusCounts = {
+      subscribed: 0,
+      unsubscribed: 0,
+      bounced: 0,
+      spam: 0,
+    };
+    
+    contacts.forEach((contact: any) => {
+      const status = contact.emailMarketingStatus || "subscribed";
+      if (status in statusCounts) {
+        statusCounts[status as keyof typeof statusCounts]++;
+      }
+    });
+    
+    return {
+      total: contacts.length,
+      statusCounts,
+    };
+  },
+});
+
+export const createSegment = mutation({
+  args: {
+    adminEmail: v.optional(v.string()),
+    name: v.string(),
+    description: v.optional(v.string()),
+    filters: v.object({
+      status: v.optional(v.array(v.union(
+        v.literal("subscribed"),
+        v.literal("unsubscribed"),
+        v.literal("bounced"),
+        v.literal("spam")
+      ))),
+      tags: v.optional(v.array(v.string())),
+      sources: v.optional(v.array(v.string())),
+      dateRange: v.optional(v.object({
+        field: v.union(v.literal("createdAt"), v.literal("updatedAt")),
+        start: v.optional(v.number()),
+        end: v.optional(v.number()),
+      })),
+      hasOpened: v.optional(v.boolean()),
+      hasClicked: v.optional(v.boolean()),
+      lastActivityRange: v.optional(v.object({
+        start: v.optional(v.number()),
+        end: v.optional(v.number()),
+      })),
+    }),
+  },
+  handler: async (ctx, args) => {
+    // Development mode: check admin by email
+    if (args.adminEmail) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.adminEmail!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized - admin access required");
+      }
+    } else {
+      // Production mode: use requireAdmin
+      await requireAdmin(ctx);
+    }
+    
+    // Calculate initial contact count
+    const contacts = await applyFiltersToContacts(ctx, args.filters);
+    const contactCount = contacts.length;
+    
+    const now = Date.now();
+    const segmentId = await ctx.db.insert("emailSegments", {
+      name: args.name,
+      description: args.description,
+      filters: args.filters,
+      contactCount,
+      createdAt: now,
+      updatedAt: now,
+    });
+    
+    return segmentId;
+  },
+});
+
+export const updateSegment = mutation({
+  args: {
+    adminEmail: v.optional(v.string()),
+    segmentId: v.id("emailSegments"),
+    name: v.optional(v.string()),
+    description: v.optional(v.string()),
+    filters: v.optional(v.object({
+      status: v.optional(v.array(v.union(
+        v.literal("subscribed"),
+        v.literal("unsubscribed"),
+        v.literal("bounced"),
+        v.literal("spam")
+      ))),
+      tags: v.optional(v.array(v.string())),
+      sources: v.optional(v.array(v.string())),
+      dateRange: v.optional(v.object({
+        field: v.union(v.literal("createdAt"), v.literal("updatedAt")),
+        start: v.optional(v.number()),
+        end: v.optional(v.number()),
+      })),
+      hasOpened: v.optional(v.boolean()),
+      hasClicked: v.optional(v.boolean()),
+      lastActivityRange: v.optional(v.object({
+        start: v.optional(v.number()),
+        end: v.optional(v.number()),
+      })),
+    })),
+  },
+  handler: async (ctx, args) => {
+    // Development mode: check admin by email
+    if (args.adminEmail) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.adminEmail!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized - admin access required");
+      }
+    } else {
+      // Production mode: use requireAdmin
+      await requireAdmin(ctx);
+    }
+    
+    const segment = await ctx.db.get(args.segmentId);
+    if (!segment) {
+      throw new Error("Segment not found");
+    }
+    
+    const update: any = { updatedAt: Date.now() };
+    
+    if (args.name !== undefined) update.name = args.name;
+    if (args.description !== undefined) update.description = args.description;
+    
+    if (args.filters !== undefined) {
+      update.filters = args.filters;
+      // Recalculate contact count
+      const contacts = await applyFiltersToContacts(ctx, args.filters);
+      update.contactCount = contacts.length;
+    }
+    
+    await ctx.db.patch(args.segmentId, update);
+    
+    return args.segmentId;
+  },
+});
+
+export const deleteSegment = mutation({
+  args: {
+    adminEmail: v.optional(v.string()),
+    segmentId: v.id("emailSegments"),
+  },
+  handler: async (ctx, args) => {
+    // Development mode: check admin by email
+    if (args.adminEmail) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", args.adminEmail!))
+        .first();
+      
+      if (!user || user.role !== "admin") {
+        throw new Error("Unauthorized - admin access required");
+      }
+    } else {
+      // Production mode: use requireAdmin
+      await requireAdmin(ctx);
+    }
+    
+    await ctx.db.delete(args.segmentId);
+  },
+});
+
+// Helper function to apply filters to contacts
+async function applyFiltersToContacts(ctx: any, filters: any) {
+  // Get all contacts from unified contacts database
+  let contacts = await ctx.db.query("contacts").collect();
+  
+  // Populate email marketing status
+  const contactsWithStatus = await Promise.all(
+    contacts.map(async (contact: any) => {
+      let emailMarketing = null;
+      if (contact.emailMarketingId) {
+        emailMarketing = await ctx.db.get(contact.emailMarketingId);
+      } else {
+        // Try to find by email
+        emailMarketing = await ctx.db
+          .query("emailContacts")
+          .withIndex("by_email", (q: any) => q.eq("email", contact.email))
+          .first();
+      }
+      
+      return {
+        ...contact,
+        emailMarketingStatus: emailMarketing?.status || "subscribed",
+        emailMarketingId: emailMarketing?._id || contact.emailMarketingId,
+      };
+    })
+  );
+  
+  // Apply filters
+  let filtered = contactsWithStatus;
+  
+  // Filter by status
+  if (filters.status && filters.status.length > 0) {
+    filtered = filtered.filter(contact => 
+      filters.status.includes(contact.emailMarketingStatus)
+    );
+  }
+  
+  // Filter by tags
+  if (filters.tags && filters.tags.length > 0) {
+    filtered = filtered.filter(contact => 
+      filters.tags.some((tag: string) => contact.tags.includes(tag))
+    );
+  }
+  
+  // Filter by sources
+  if (filters.sources && filters.sources.length > 0) {
+    filtered = filtered.filter(contact => 
+      filters.sources.includes(contact.source)
+    );
+  }
+  
+  // Filter by date range
+  if (filters.dateRange) {
+    const field = filters.dateRange.field;
+    const start = filters.dateRange.start;
+    const end = filters.dateRange.end;
+    
+    filtered = filtered.filter(contact => {
+      const date = contact[field];
+      if (start && date < start) return false;
+      if (end && date > end) return false;
+      return true;
+    });
+  }
+  
+  // Filter by has opened (requires checking email sends)
+  if (filters.hasOpened !== undefined) {
+    const contactIds = new Set(filtered.map((c: any) => c.emailMarketingId || c._id));
+    const sends = await ctx.db
+      .query("emailSends")
+      .collect();
+    
+    const contactsWithOpens = new Set(
+      sends
+        .filter((send: any) => send.opened && contactIds.has(send.contactId))
+        .map((send: any) => send.contactId)
+    );
+    
+    filtered = filtered.filter((contact: any) => {
+      const contactId = contact.emailMarketingId || contact._id;
+      return filters.hasOpened 
+        ? contactsWithOpens.has(contactId)
+        : !contactsWithOpens.has(contactId);
+    });
+  }
+  
+  // Filter by has clicked (requires checking email sends)
+  if (filters.hasClicked !== undefined) {
+    const contactIds = new Set(filtered.map((c: any) => c.emailMarketingId || c._id));
+    const sends = await ctx.db
+      .query("emailSends")
+      .collect();
+    
+    const contactsWithClicks = new Set(
+      sends
+        .filter((send: any) => send.clicked && contactIds.has(send.contactId))
+        .map((send: any) => send.contactId)
+    );
+    
+    filtered = filtered.filter((contact: any) => {
+      const contactId = contact.emailMarketingId || contact._id;
+      return filters.hasClicked 
+        ? contactsWithClicks.has(contactId)
+        : !contactsWithClicks.has(contactId);
+    });
+  }
+  
+  // Filter by last activity range (requires checking email events)
+  if (filters.lastActivityRange) {
+    const start = filters.lastActivityRange.start;
+    const end = filters.lastActivityRange.end;
+    const contactIds = new Set(filtered.map((c: any) => c.emailMarketingId || c._id));
+    
+    const events = await ctx.db
+      .query("emailEvents")
+      .collect();
+    
+    const sends = await ctx.db
+      .query("emailSends")
+      .collect();
+    
+    const sendMap = new Map(sends.map((s: any) => [s._id, s]));
+    
+    const lastActivityMap = new Map<string, number>();
+    
+    events.forEach((event: any) => {
+      const send = sendMap.get(event.sendId) as any;
+      if (send && contactIds.has(send.contactId)) {
+        const contactId = send.contactId;
+        const current = lastActivityMap.get(contactId) || 0;
+        if (event.createdAt > current) {
+          lastActivityMap.set(contactId, event.createdAt);
+        }
+      }
+    });
+    
+    filtered = filtered.filter((contact: any) => {
+      const contactId = contact.emailMarketingId || contact._id;
+      const lastActivity = lastActivityMap.get(contactId);
+      if (!lastActivity) return false;
+      if (start && lastActivity < start) return false;
+      if (end && lastActivity > end) return false;
+      return true;
+    });
+  }
+  
+  return filtered;
+}
 

@@ -12,21 +12,23 @@ export const list = query({
   handler: async (ctx, args) => {
     if (args.deliveryId) {
       // If both deliveryId and uploadType are provided, use the compound index
+      let assets;
       if (args.uploadType) {
-        return await ctx.db
+        assets = await ctx.db
           .query("assets")
           .withIndex("by_delivery_and_upload_type", (q) => 
             q.eq("deliveryId", args.deliveryId!).eq("uploadType", args.uploadType!)
           )
-          .order("asc")
+          .collect();
+      } else {
+        // If only deliveryId is provided, get all assets for that delivery
+        assets = await ctx.db
+          .query("assets")
+          .withIndex("by_delivery", (q) => q.eq("deliveryId", args.deliveryId!))
           .collect();
       }
-      // If only deliveryId is provided, get all assets for that delivery
-      return await ctx.db
-        .query("assets")
-        .withIndex("by_delivery", (q) => q.eq("deliveryId", args.deliveryId!))
-        .order("asc")
-        .collect();
+      // Sort by sortOrder ascending (top to bottom)
+      return assets.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     }
     
     if (args.projectId) {

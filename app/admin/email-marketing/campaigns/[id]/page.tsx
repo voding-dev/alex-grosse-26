@@ -5,12 +5,31 @@ import { api } from "@/convex/_generated/api";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, TrendingUp, Eye, MousePointerClick, Mail, X, AlertTriangle, Edit } from "lucide-react";
+import { Send, TrendingUp, Eye, MousePointerClick, Mail, X, AlertTriangle, Edit, Users, Tag, FolderOpen } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Id } from "@/convex/_generated/dataModel";
 
 export default function CampaignDetailPage() {
   const params = useParams();
@@ -31,6 +50,35 @@ export default function CampaignDetailPage() {
 
   const sendCampaign = useMutation(api.emailMarketing.sendCampaign);
   const [isSending, setIsSending] = useState(false);
+  const [showSendDialog, setShowSendDialog] = useState(false);
+  const [sendMode, setSendMode] = useState<"all" | "contacts" | "tags" | "segments">("all");
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string>("");
+  
+  // Get all contacts and tags for selection
+  const allContacts = useQuery(
+    api.emailMarketing.listContacts,
+    adminEmail ? { email: adminEmail } : ("skip" as const)
+  ) || [];
+  
+  const allTags = useQuery(
+    api.emailMarketing.getAllTags,
+    adminEmail ? { email: adminEmail } : ("skip" as const)
+  ) || [];
+
+  const segments = useQuery(
+    api.emailMarketing.listSegments,
+    adminEmail ? { email: adminEmail } : ("skip" as const)
+  ) || [];
+
+  const segmentContacts = useQuery(
+    api.emailMarketing.getSegmentContacts,
+    adminEmail && selectedSegmentId ? { segmentId: selectedSegmentId as any, email: adminEmail } : ("skip" as const)
+  ) || [];
+  
+  // Filter to only subscribed contacts
+  const subscribedContacts = allContacts.filter(c => (c as any).emailMarketingStatus === "subscribed");
 
   if (!campaign) {
     return (
@@ -42,10 +90,56 @@ export default function CampaignDetailPage() {
     );
   }
 
+  const handleSendClick = () => {
+    setShowSendDialog(true);
+    setSendMode("all");
+    setSelectedContactIds(new Set());
+    setSelectedTags(new Set());
+    setSelectedSegmentId("");
+  };
+
   const handleSend = async () => {
     if (!adminEmail) return;
     
-    if (!confirm(`Are you sure you want to send this campaign to all subscribed contacts?`)) {
+    let contactIds: Id<"emailContacts">[] | undefined;
+    let tags: string[] | undefined;
+    
+    if (sendMode === "contacts" && selectedContactIds.size > 0) {
+      contactIds = Array.from(selectedContactIds) as Id<"emailContacts">[];
+    } else if (sendMode === "tags" && selectedTags.size > 0) {
+      tags = Array.from(selectedTags);
+    } else if (sendMode === "segments" && selectedSegmentId) {
+      // Get contact IDs from segment (only subscribed contacts)
+      const segmentContactIds = segmentContacts
+        .filter((c: any) => (c as any).emailMarketingStatus === "subscribed")
+        .map((c: any) => (c as any).emailMarketingId || (c as any)._id)
+        .filter((id: any) => id);
+      contactIds = segmentContactIds as Id<"emailContacts">[];
+    }
+    
+    const recipientCount = sendMode === "all" 
+      ? subscribedContacts.length 
+      : sendMode === "contacts" 
+        ? contactIds?.length || 0
+        : sendMode === "segments"
+          ? contactIds?.length || 0
+          : subscribedContacts.filter(c => tags?.some(tag => (c as any).tags?.includes(tag))).length;
+    
+    if (recipientCount === 0) {
+      toast({
+        title: "Error",
+        description: "No recipients selected. Please select contacts, tags, or a segment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (sendMode === "segments" && !selectedSegmentId) {
+      toast({
+        title: "Error",
+        description: "Please select a segment.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -54,11 +148,14 @@ export default function CampaignDetailPage() {
       await sendCampaign({
         campaignId: campaign._id,
         adminEmail: adminEmail,
+        contactIds,
+        tags,
       });
       toast({
         title: "Campaign sent",
-        description: "The campaign has been sent successfully.",
+        description: `The campaign has been sent to ${recipientCount} contact${recipientCount !== 1 ? 's' : ''}.`,
       });
+      setShowSendDialog(false);
       router.push("/admin/email-marketing");
     } catch (error) {
       toast({
@@ -97,13 +194,13 @@ export default function CampaignDetailPage() {
           </Link>
           {campaign.status === "draft" && (
             <Button
-              onClick={handleSend}
+              onClick={handleSendClick}
               disabled={isSending}
               className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
               style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
             >
               <Send className="mr-2 h-4 w-4" />
-              {isSending ? "Sending..." : "Send Campaign"}
+              Send Campaign
             </Button>
           )}
         </div>
@@ -316,6 +413,251 @@ export default function CampaignDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Send Campaign Dialog */}
+      <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight" style={{ fontWeight: '900' }}>
+              Send Campaign
+            </DialogTitle>
+            <DialogDescription>
+              Choose who to send this campaign to
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Send Mode Selection */}
+            <div className="space-y-3">
+              <Label className="text-sm font-bold uppercase tracking-wider">Recipient Selection</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="send-all"
+                    name="send-mode"
+                    checked={sendMode === "all"}
+                    onChange={() => setSendMode("all")}
+                    className="w-4 h-4 text-accent"
+                  />
+                  <Label htmlFor="send-all" className="font-medium cursor-pointer">
+                    All Subscribed Contacts ({subscribedContacts.length})
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="send-contacts"
+                    name="send-mode"
+                    checked={sendMode === "contacts"}
+                    onChange={() => setSendMode("contacts")}
+                    className="w-4 h-4 text-accent"
+                  />
+                  <Label htmlFor="send-contacts" className="font-medium cursor-pointer">
+                    Select Specific Contacts
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="send-tags"
+                    name="send-mode"
+                    checked={sendMode === "tags"}
+                    onChange={() => setSendMode("tags")}
+                    className="w-4 h-4 text-accent"
+                  />
+                  <Label htmlFor="send-tags" className="font-medium cursor-pointer">
+                    Select by Tags
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="send-segments"
+                    name="send-mode"
+                    checked={sendMode === "segments"}
+                    onChange={() => setSendMode("segments")}
+                    className="w-4 h-4 text-accent"
+                  />
+                  <Label htmlFor="send-segments" className="font-medium cursor-pointer">
+                    Select by Segment
+                  </Label>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Selection */}
+            {sendMode === "contacts" && (
+              <div className="space-y-3 border border-foreground/20 rounded-lg p-4 max-h-64 overflow-y-auto">
+                <Label className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Select Contacts ({selectedContactIds.size} selected)
+                </Label>
+                <Input
+                  placeholder="Search contacts..."
+                  className="mb-2"
+                  onChange={(e) => {
+                    // Simple search - could be enhanced
+                  }}
+                />
+                <div className="space-y-2">
+                  {subscribedContacts.map((contact) => (
+                    <div key={contact._id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`contact-${contact._id}`}
+                        checked={selectedContactIds.has(contact._id)}
+                        onCheckedChange={(checked) => {
+                          const newSet = new Set(selectedContactIds);
+                          if (checked) {
+                            newSet.add(contact._id);
+                          } else {
+                            newSet.delete(contact._id);
+                          }
+                          setSelectedContactIds(newSet);
+                        }}
+                      />
+                      <Label
+                        htmlFor={`contact-${contact._id}`}
+                        className="text-sm cursor-pointer flex-1"
+                      >
+                        {contact.firstName || contact.lastName
+                          ? `${contact.firstName || ""} ${contact.lastName || ""}`.trim()
+                          : contact.email}
+                        <span className="text-foreground/60 ml-2">({contact.email})</span>
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Tag Selection */}
+            {sendMode === "tags" && (
+              <div className="space-y-3 border border-foreground/20 rounded-lg p-4 max-h-64 overflow-y-auto">
+                <Label className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                  <Tag className="h-4 w-4" />
+                  Select Tags ({selectedTags.size} selected)
+                </Label>
+                <div className="space-y-2">
+                  {allTags.map((tag) => (
+                    <div key={tag} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`tag-${tag}`}
+                        checked={selectedTags.has(tag)}
+                        onCheckedChange={(checked) => {
+                          const newSet = new Set(selectedTags);
+                          if (checked) {
+                            newSet.add(tag);
+                          } else {
+                            newSet.delete(tag);
+                          }
+                          setSelectedTags(newSet);
+                        }}
+                      />
+                      <Label
+                        htmlFor={`tag-${tag}`}
+                        className="text-sm cursor-pointer"
+                      >
+                        {tag}
+                        <span className="text-foreground/60 ml-2">
+                          ({subscribedContacts.filter(c => c.tags.includes(tag)).length} contacts)
+                        </span>
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Segment Selection */}
+            {sendMode === "segments" && (
+              <div className="space-y-3 border border-foreground/20 rounded-lg p-4">
+                <Label className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 mb-2">
+                  <FolderOpen className="h-4 w-4" />
+                  Select Segment
+                </Label>
+                {segments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FolderOpen className="h-8 w-8 mx-auto mb-2 text-foreground/40" />
+                    <p className="text-sm text-foreground/60 mb-4">No segments available</p>
+                    <Link href="/admin/email-marketing/contacts">
+                      <Button variant="outline" size="sm" className="font-black uppercase tracking-wider text-xs">
+                        Create Segment
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <Select value={selectedSegmentId} onValueChange={setSelectedSegmentId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a segment..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {segments.map((segment) => (
+                        <SelectItem key={segment._id} value={segment._id}>
+                          {segment.name} ({segment.contactCount} contacts)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {selectedSegmentId && segmentContacts.length > 0 && (
+                  <div className="mt-3 p-3 bg-foreground/5 border border-foreground/10 rounded-lg">
+                    <p className="text-xs font-bold uppercase tracking-wider text-foreground/60 mb-1">
+                      Segment Preview
+                    </p>
+                    <p className="text-sm text-foreground/70">
+                      {segmentContacts.filter((c: any) => (c as any).emailMarketingStatus === "subscribed").length} subscribed contact{segmentContacts.filter((c: any) => (c as any).emailMarketingStatus === "subscribed").length !== 1 ? "s" : ""} in this segment
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Recipient Count */}
+            <div className="p-4 bg-foreground/5 border border-foreground/20 rounded-lg">
+              <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-1">
+                Recipients
+              </p>
+              <p className="text-lg font-black" style={{ fontWeight: '900' }}>
+                {sendMode === "all" 
+                  ? subscribedContacts.length 
+                  : sendMode === "contacts" 
+                    ? selectedContactIds.size
+                    : sendMode === "segments"
+                      ? (selectedSegmentId ? segmentContacts.filter((c: any) => (c as any).emailMarketingStatus === "subscribed").length : 0)
+                      : subscribedContacts.filter(c => Array.from(selectedTags).some(tag => (c as any).tags?.includes(tag))).length}
+                {" "}contact{sendMode === "all" 
+                  ? subscribedContacts.length !== 1 ? "s" : ""
+                  : sendMode === "contacts"
+                    ? selectedContactIds.size !== 1 ? "s" : ""
+                    : sendMode === "segments"
+                      ? (selectedSegmentId ? (segmentContacts.filter((c: any) => (c as any).emailMarketingStatus === "subscribed").length !== 1 ? "s" : "") : "")
+                      : subscribedContacts.filter(c => Array.from(selectedTags).some(tag => (c as any).tags?.includes(tag))).length !== 1 ? "s" : ""} will receive this campaign
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowSendDialog(false)}
+              disabled={isSending}
+              className="font-black uppercase tracking-wider"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSend}
+              disabled={isSending}
+              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              {isSending ? "Sending..." : "Send Campaign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

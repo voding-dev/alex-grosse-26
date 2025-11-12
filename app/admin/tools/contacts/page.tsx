@@ -619,10 +619,19 @@ export default function ContactsPage() {
                             }`}>
                               {getSourceLabel(contact.source)}
                             </span>
-                            {contact.hasEmailMarketing && (
-                              <div className="flex items-center gap-1 mt-1 text-xs text-foreground/50">
-                                <CheckCircle2 className="h-3 w-3 text-accent" />
-                                Synced
+                            {contact.emailMarketing && (
+                              <div className="mt-1">
+                                <span className={`px-2 py-0.5 text-xs font-bold uppercase tracking-wider rounded ${
+                                  contact.emailMarketing.status === "subscribed"
+                                    ? "bg-green-500/20 text-green-500 border border-green-500/30"
+                                    : contact.emailMarketing.status === "unsubscribed"
+                                    ? "bg-red-500/20 text-red-500 border border-red-500/30"
+                                    : contact.emailMarketing.status === "bounced"
+                                    ? "bg-orange-500/20 text-orange-500 border border-orange-500/30"
+                                    : "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30"
+                                }`}>
+                                  {contact.emailMarketing.status}
+                                </span>
                               </div>
                             )}
                           </TableCell>
@@ -934,12 +943,30 @@ export default function ContactsPage() {
                     </Link>
                   </div>
                 )}
-                {selectedContactData.hasEmailMarketing && (
+                {selectedContactData.emailMarketing && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-foreground/60">Email Marketing:</span>
-                    <div className="flex items-center gap-1 text-xs text-accent">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Synced
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 text-xs font-bold uppercase tracking-wider rounded ${
+                        selectedContactData.emailMarketing.status === "subscribed"
+                          ? "bg-green-500/20 text-green-500 border border-green-500/30"
+                          : selectedContactData.emailMarketing.status === "unsubscribed"
+                          ? "bg-red-500/20 text-red-500 border border-red-500/30"
+                          : selectedContactData.emailMarketing.status === "bounced"
+                          ? "bg-orange-500/20 text-orange-500 border border-orange-500/30"
+                          : "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30"
+                      }`}>
+                        {selectedContactData.emailMarketing.status}
+                      </span>
+                      {selectedContactData.emailMarketingId && (
+                        <Link 
+                          href={`/admin/email-marketing/contacts/${selectedContactData.emailMarketingId}`}
+                          className="flex items-center gap-1 text-xs text-accent hover:underline"
+                        >
+                          <ArrowRight className="h-3 w-3" />
+                          View in Email Marketing
+                        </Link>
+                      )}
                     </div>
                   </div>
                 )}

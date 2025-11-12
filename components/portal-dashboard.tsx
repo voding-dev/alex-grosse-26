@@ -33,14 +33,16 @@ export function PortalDashboard({ deliveryId, onAssetClick }: PortalDashboardPro
     deliveryId ? { deliveryId } : ("skip" as const)
   );
 
-  // Filter assets for this delivery
+  // Filter assets for this delivery and sort by sortOrder (top to bottom)
   const filteredAssets = useMemo(() => {
     if (!delivery || !assets) return [];
     const allowedAssetIds = delivery.allowedAssetIds;
     if (!allowedAssetIds || allowedAssetIds.length === 0) {
       return [];
     }
-    return (assets || []).filter((asset) => allowedAssetIds.includes(asset._id));
+    const filtered = (assets || []).filter((asset) => allowedAssetIds.includes(asset._id));
+    // Sort by sortOrder ascending (top to bottom)
+    return filtered.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   }, [delivery, assets]);
 
   // Group feedback by asset

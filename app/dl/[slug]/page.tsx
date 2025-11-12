@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { use } from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -229,8 +229,13 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
   }
 
   // Deliveries are now standalone - no project needed
-  const filteredAssets =
-    assets?.filter((asset) => (delivery.allowedAssetIds || []).includes(asset._id)) || [];
+  // Filter and sort assets by sortOrder (top to bottom)
+  const filteredAssets = useMemo(() => {
+    if (!assets || !delivery) return [];
+    const filtered = assets.filter((asset) => (delivery.allowedAssetIds || []).includes(asset._id));
+    // Sort by sortOrder ascending (top to bottom)
+    return filtered.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  }, [assets, delivery]);
 
   // Calculate expiration status
   const now = Date.now();

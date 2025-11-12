@@ -201,9 +201,15 @@ export const contactsCreate = mutation({
       updatedAt: now,
     });
 
-    // Sync to email marketing if requested
+    // Auto-sync to email marketing by default (unless explicitly disabled)
+    // This ensures all contacts are available for email marketing
     if (args.syncToEmailMarketing !== false) {
-      await syncToEmailMarketingInternal(ctx, contactId);
+      try {
+        await syncToEmailMarketingInternal(ctx, contactId);
+      } catch (error) {
+        // Log error but don't fail contact creation if email marketing sync fails
+        console.error("Failed to sync contact to email marketing:", error);
+      }
     }
 
     return contactId;
@@ -274,9 +280,15 @@ export const contactsUpdate = mutation({
 
     await ctx.db.patch(args.id, update);
 
-    // Sync to email marketing if requested
+    // Auto-sync to email marketing by default (unless explicitly disabled)
+    // This ensures contact updates are reflected in email marketing
     if (args.syncToEmailMarketing !== false) {
-      await syncToEmailMarketingInternal(ctx, args.id);
+      try {
+        await syncToEmailMarketingInternal(ctx, args.id);
+      } catch (error) {
+        // Log error but don't fail contact update if email marketing sync fails
+        console.error("Failed to sync contact to email marketing:", error);
+      }
     }
 
     // Sync to lead if exists

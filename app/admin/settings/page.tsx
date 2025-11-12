@@ -17,6 +17,94 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { MonthAvailabilityCalendar, type MonthAvailability } from "@/components/ui/month-availability-calendar";
 import { DayConfigPanel } from "@/components/scheduling/day-config-panel";
 
+// Test Resend Connection Component
+function TestResendConnection({ adminEmail, toast }: { adminEmail: string | null; toast: any }) {
+  const testResend = useMutation(api.emailMarketing.testResendConnection);
+  const [testEmail, setTestEmail] = useState("");
+  const [isTesting, setIsTesting] = useState(false);
+
+  const handleTest = async () => {
+    if (!testEmail || !testEmail.includes("@")) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!adminEmail) {
+      toast({
+        title: "Error",
+        description: "Not authenticated. Please log in.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsTesting(true);
+    try {
+      const result = await testResend({
+        adminEmail: adminEmail,
+        testEmail: testEmail,
+      });
+
+      if (result && result.success) {
+        toast({
+          title: "Test Email Sent!",
+          description: result.message || `Test email sent successfully to ${testEmail}. Check your inbox and Resend dashboard.`,
+        });
+        setTestEmail("");
+      } else {
+        toast({
+          title: "Test Failed",
+          description: result?.error || "Failed to send test email. Check your API key and try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Test Resend error:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send test email. Please check your console for details.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <Input
+          type="email"
+          placeholder="your-email@example.com"
+          value={testEmail}
+          onChange={(e) => setTestEmail(e.target.value)}
+          className="h-10 text-sm border-foreground/20 focus:border-accent/50 transition-colors"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleTest();
+            }
+          }}
+        />
+        <Button
+          onClick={handleTest}
+          disabled={isTesting || !testEmail}
+          size="sm"
+          className="font-black uppercase tracking-wider text-xs"
+        >
+          {isTesting ? "Sending..." : "Send Test"}
+        </Button>
+      </div>
+      <p className="text-xs text-foreground/50">
+        This will send a test email to verify your Resend API key is working. Check your Resend dashboard to see if the email appears.
+      </p>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const settings = useQuery(api.settings.getAll) || {};
   const setSetting = useMutation(api.settings.set);
@@ -561,92 +649,6 @@ export default function SettingsPage() {
           </Card>
         )}
 
-          {/* Email Marketing Settings */}
-          <Card className="group relative overflow-hidden border border-foreground/10 hover:border-accent/30 transition-all duration-300 hover:shadow-lg hover:shadow-accent/10 bg-gradient-to-br from-background to-foreground/5">
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <CardHeader className="pb-4 relative z-10">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-foreground/10 group-hover:bg-accent/20 transition-colors">
-                  <Send className="h-5 w-5 text-foreground/60 group-hover:text-accent transition-colors" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
-                    Email Marketing Configuration
-                  </CardTitle>
-                  <CardDescription className="text-base mt-1">Configure Resend API and email domain for sending emails</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6 relative z-10">
-              <div>
-                <Label htmlFor="resendApiKey" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                  Resend API Key <span className="text-accent">*</span>
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="resendApiKey"
-                    type="password"
-                    value={formData.resendApiKey}
-                    onChange={(e) => setFormData({ ...formData, resendApiKey: e.target.value })}
-                    placeholder="re_xxxxxxxxxxxxx"
-                    className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const input = document.getElementById("resendApiKey") as HTMLInputElement;
-                      if (input) {
-                        input.type = input.type === "password" ? "text" : "password";
-                      }
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/60 hover:text-foreground transition-colors"
-                  >
-                    <Eye className="h-5 w-5" />
-                  </button>
-                </div>
-                <p className="mt-2 text-sm text-foreground/60">
-                  Your Resend API key. Get it from your <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Resend dashboard</a>.
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="emailDomain" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
-                  Email Domain
-                </Label>
-                <Input
-                  id="emailDomain"
-                  type="text"
-                  value={formData.emailDomain}
-                  onChange={(e) => setFormData({ ...formData, emailDomain: e.target.value })}
-                  placeholder="example.com"
-                  className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors"
-                />
-                <p className="mt-2 text-sm text-foreground/60">
-                  Your verified email domain in Resend (e.g., example.com). If not set, defaults to onboarding.resend.dev.
-                </p>
-              </div>
-              <div className="p-4 rounded-lg border border-foreground/10 bg-foreground/5">
-                <p className="text-sm font-bold uppercase tracking-wider text-foreground/70 mb-2">Webhook Configuration</p>
-                <p className="text-sm text-foreground/60 mb-2">
-                  Configure your Resend webhook to track email opens and clicks:
-                </p>
-                <div className="space-y-2 text-xs text-foreground/60 font-mono bg-foreground/10 p-3 rounded border border-foreground/10">
-                  <p><strong>Webhook URL:</strong></p>
-                  <p className="break-all">{typeof window !== "undefined" ? window.location.origin : ""}/api/email/webhook</p>
-                  <p className="mt-2"><strong>Events to subscribe:</strong></p>
-                  <ul className="list-disc list-inside ml-2 space-y-1">
-                    <li>email.sent</li>
-                    <li>email.delivered</li>
-                    <li>email.opened</li>
-                    <li>email.clicked</li>
-                    <li>email.bounced</li>
-                    <li>email.complained</li>
-                    <li>email.unsubscribed</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Save Button */}
           <div className="flex justify-end pt-4">
             <Button 
@@ -812,6 +814,13 @@ export default function SettingsPage() {
                 <p className="mt-2 text-sm text-foreground/60">
                   Your verified email domain in Resend (e.g., example.com). If not set, defaults to onboarding.resend.dev.
                 </p>
+              </div>
+              <div className="p-4 rounded-lg border border-foreground/10 bg-foreground/5">
+                <p className="text-sm font-bold uppercase tracking-wider text-foreground/70 mb-2">Test API Connection</p>
+                <p className="text-sm text-foreground/60 mb-3">
+                  Send a test email to verify your Resend API key is working correctly:
+                </p>
+                <TestResendConnection adminEmail={adminEmail} toast={toast} />
               </div>
               <div className="p-4 rounded-lg border border-foreground/10 bg-foreground/5">
                 <p className="text-sm font-bold uppercase tracking-wider text-foreground/70 mb-2">Webhook Configuration</p>

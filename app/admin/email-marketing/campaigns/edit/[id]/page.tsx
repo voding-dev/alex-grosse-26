@@ -49,9 +49,11 @@ export default function EditCampaignPage() {
     tags: [] as string[],
   });
 
-  // Load campaign data when it's available
+  const hasLoadedCampaign = useRef(false);
+  
+  // Load campaign data when it's available (only once)
   useEffect(() => {
-    if (campaign) {
+    if (campaign && !hasLoadedCampaign.current) {
       setFormData({
         name: campaign.name || "",
         subject: campaign.subject || "",
@@ -67,8 +69,9 @@ export default function EditCampaignPage() {
       } else if (campaign.textContent && campaign.textContent.trim()) {
         setContentType("text");
       }
+      hasLoadedCampaign.current = true;
     }
-  }, [campaign]);
+  }, [campaign?._id]); // Only depend on the ID, not the whole object
 
   // Filter tags based on input
   const filteredTags = tagInput
@@ -78,6 +81,58 @@ export default function EditCampaignPage() {
       )
     : allTags.filter(tag => !formData.tags.includes(tag));
 
+  // Process content for preview with short codes
+  const processPreviewContent = (content: string) => {
+    return content
+      .replace(/{{\s*unsubscribe_url\s*}}/g, '<a href="#" style="color: #666; text-decoration: underline;">Unsubscribe</a>')
+      .replace(/{{\s*first_name\s*}}/g, '<span style="color: #333; font-weight: 600;">John</span>')
+      .replace(/{{\s*last_name\s*}}/g, '<span style="color: #333; font-weight: 600;">Doe</span>')
+      .replace(/{{\s*email\s*}}/g, '<span style="color: #333;">john.doe@example.com</span>')
+      .replace(/{{\s*full_name\s*}}/g, '<span style="color: #333; font-weight: 600;">John Doe</span>');
+  };
+
+  // Process text content for preview
+  const processPreviewText = (content: string) => {
+    return content
+      .replace(/{{\s*unsubscribe_url\s*}}/g, "[Unsubscribe Link]")
+      .replace(/{{\s*first_name\s*}}/g, "John")
+      .replace(/{{\s*last_name\s*}}/g, "Doe")
+      .replace(/{{\s*email\s*}}/g, "john.doe@example.com")
+      .replace(/{{\s*full_name\s*}}/g, "John Doe");
+  };
+
+  const previewHtml = contentType === "html" 
+    ? processPreviewContent(formData.htmlContent)
+    : null;
+  
+  const previewText = contentType === "text"
+    ? processPreviewText(formData.textContent)
+    : null;
+
+  // Handle broken images in preview - MUST be called before any early returns
+  useEffect(() => {
+    if (!previewHtml) return; // Early return inside useEffect is fine
+    
+    const handleImageError = (e: Event) => {
+      const img = e.target as HTMLImageElement;
+      if (img.src.includes('via.placeholder.com') || img.src.includes('placeholder')) {
+        img.style.display = 'none';
+      }
+    };
+
+    const images = document.querySelectorAll('img');
+    images.forEach(img => {
+      img.addEventListener('error', handleImageError);
+    });
+
+    return () => {
+      images.forEach(img => {
+        img.removeEventListener('error', handleImageError);
+      });
+    };
+  }, [previewHtml]);
+
+  // Early return AFTER all hooks
   if (!campaign) {
     return (
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
@@ -173,55 +228,6 @@ export default function EditCampaignPage() {
   const removeTag = (tagToRemove: string) => {
     setFormData({ ...formData, tags: formData.tags.filter(tag => tag !== tagToRemove) });
   };
-
-  // Process content for preview with short codes
-  const processPreviewContent = (content: string) => {
-    return content
-      .replace(/{{\s*unsubscribe_url\s*}}/g, '<a href="#" style="color: #666; text-decoration: underline;">Unsubscribe</a>')
-      .replace(/{{\s*first_name\s*}}/g, '<span style="color: #333; font-weight: 600;">John</span>')
-      .replace(/{{\s*last_name\s*}}/g, '<span style="color: #333; font-weight: 600;">Doe</span>')
-      .replace(/{{\s*email\s*}}/g, '<span style="color: #333;">john.doe@example.com</span>')
-      .replace(/{{\s*full_name\s*}}/g, '<span style="color: #333; font-weight: 600;">John Doe</span>');
-  };
-
-  // Process text content for preview
-  const processPreviewText = (content: string) => {
-    return content
-      .replace(/{{\s*unsubscribe_url\s*}}/g, "[Unsubscribe Link]")
-      .replace(/{{\s*first_name\s*}}/g, "John")
-      .replace(/{{\s*last_name\s*}}/g, "Doe")
-      .replace(/{{\s*email\s*}}/g, "john.doe@example.com")
-      .replace(/{{\s*full_name\s*}}/g, "John Doe");
-  };
-
-  const previewHtml = contentType === "html" 
-    ? processPreviewContent(formData.htmlContent)
-    : null;
-  
-  const previewText = contentType === "text"
-    ? processPreviewText(formData.textContent)
-    : null;
-
-  // Handle broken images in preview
-  useEffect(() => {
-    const handleImageError = (e: Event) => {
-      const img = e.target as HTMLImageElement;
-      if (img.src.includes('via.placeholder.com') || img.src.includes('placeholder')) {
-        img.style.display = 'none';
-      }
-    };
-
-    const images = document.querySelectorAll('img');
-    images.forEach(img => {
-      img.addEventListener('error', handleImageError);
-    });
-
-    return () => {
-      images.forEach(img => {
-        img.removeEventListener('error', handleImageError);
-      });
-    };
-  }, [previewHtml]);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">

@@ -447,51 +447,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <div className="absolute top-full left-0 mt-2 bg-background/95 backdrop-blur-xl border border-foreground/10 rounded-xl shadow-2xl py-2 min-w-[260px] z-100 animate-in fade-in slide-in-from-top-2 duration-200" data-dropdown>
                     <div className="px-2 py-1.5">
                       <Link
-                        href="/admin/tools/subscription-tracker"
-                        onClick={(e) => {
-                          setTimeout(() => setToolsOpen(false), 0);
-                        }}
-                        className={cn(
-                          "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
-                          isActive("/admin/tools/subscription-tracker")
-                            ? "text-accent bg-accent/10 shadow-sm"
-                            : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
-                        )}
-                      >
-                        <CreditCard className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/subscription-tracker") && "text-accent")} />
-                        Subscriptions
-                      </Link>
-                      <Link
-                        href="/admin/quote-calculator"
-                        onClick={(e) => {
-                          setTimeout(() => setToolsOpen(false), 0);
-                        }}
-                        className={cn(
-                          "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
-                          isActive("/admin/quote-calculator")
-                            ? "text-accent bg-accent/10 shadow-sm"
-                            : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
-                        )}
-                      >
-                        <Calculator className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/quote-calculator") && "text-accent")} />
-                        Quote Builder
-                      </Link>
-                      <Link
-                        href="/admin/tools/pitch-deck-builder"
-                        onClick={(e) => {
-                          setTimeout(() => setToolsOpen(false), 0);
-                        }}
-                        className={cn(
-                          "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
-                          isActive("/admin/tools/pitch-deck-builder")
-                            ? "text-accent bg-accent/10 shadow-sm"
-                            : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
-                        )}
-                      >
-                        <Sliders className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/pitch-deck-builder") && "text-accent")} />
-                        Pitch Deck Builder
-                      </Link>
-                      <Link
                         href="/admin/scheduling"
                         onClick={(e) => {
                           setTimeout(() => setToolsOpen(false), 0);
@@ -522,6 +477,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         Email Marketing
                       </Link>
                       <Link
+                        href="/admin/tools/subscription-tracker"
+                        onClick={(e) => {
+                          setTimeout(() => setToolsOpen(false), 0);
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                          isActive("/admin/tools/subscription-tracker")
+                            ? "text-accent bg-accent/10 shadow-sm"
+                            : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
+                        )}
+                      >
+                        <CreditCard className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/subscription-tracker") && "text-accent")} />
+                        Subscriptions
+                      </Link>
+                      <Link
                         href="/admin/qr-codes"
                         onClick={(e) => {
                           setTimeout(() => setToolsOpen(false), 0);
@@ -535,6 +505,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       >
                         <QrCode className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/qr-codes") && "text-accent")} />
                         QR Codes
+                      </Link>
+                      <Link
+                        href="/admin/quote-calculator"
+                        onClick={(e) => {
+                          setTimeout(() => setToolsOpen(false), 0);
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                          isActive("/admin/quote-calculator")
+                            ? "text-accent bg-accent/10 shadow-sm"
+                            : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
+                        )}
+                      >
+                        <Calculator className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/quote-calculator") && "text-accent")} />
+                        Quote Builder
+                      </Link>
+                      <Link
+                        href="/admin/tools/pitch-deck-builder"
+                        onClick={(e) => {
+                          setTimeout(() => setToolsOpen(false), 0);
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                          isActive("/admin/tools/pitch-deck-builder")
+                            ? "text-accent bg-accent/10 shadow-sm"
+                            : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
+                        )}
+                      >
+                        <Sliders className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/pitch-deck-builder") && "text-accent")} />
+                        Pitch Deck Builder
                       </Link>
                     </div>
                   </div>
@@ -943,54 +943,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {mobileDropdownsOpen.tools && (
                   <div className="ml-4 mt-1 space-y-1 border-l-2 border-accent/20 pl-4 animate-in slide-in-from-left duration-200">
                     <Link
-                      href="/admin/tools/subscription-tracker"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
-                      }}
-                      className={cn(
-                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
-                        isActive("/admin/tools/subscription-tracker")
-                          ? "text-accent bg-accent/10 shadow-sm"
-                          : "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
-                      )}
-                    >
-                      <CreditCard className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/subscription-tracker") && "text-accent")} />
-                      Subscriptions
-                    </Link>
-                    <Link
-                      href="/admin/quote-calculator"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
-                      }}
-                      className={cn(
-                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
-                        isActive("/admin/quote-calculator")
-                          ? "text-accent bg-accent/10 shadow-sm"
-                          : "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
-                      )}
-                    >
-                      <Calculator className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/quote-calculator") && "text-accent")} />
-                      Quote Builder
-                    </Link>
-                    <Link
-                      href="/admin/tools/pitch-deck-builder"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
-                      }}
-                      className={cn(
-                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
-                        isActive("/admin/tools/pitch-deck-builder")
-                          ? "text-accent bg-accent/10 shadow-sm"
-                          : "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
-                      )}
-                    >
-                      <Sliders className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/pitch-deck-builder") && "text-accent")} />
-                      Pitch Deck Builder
-                    </Link>
-                    <Link
                       href="/admin/scheduling"
                       onClick={() => {
                         setMobileMenuOpen(false);
@@ -1023,6 +975,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       Email Marketing
                     </Link>
                     <Link
+                      href="/admin/tools/subscription-tracker"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
+                        isActive("/admin/tools/subscription-tracker")
+                          ? "text-accent bg-accent/10 shadow-sm"
+                          : "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
+                      )}
+                    >
+                      <CreditCard className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/subscription-tracker") && "text-accent")} />
+                      Subscriptions
+                    </Link>
+                    <Link
                       href="/admin/qr-codes"
                       onClick={() => {
                         setMobileMenuOpen(false);
@@ -1037,6 +1005,38 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     >
                       <QrCode className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/qr-codes") && "text-accent")} />
                       QR Codes
+                    </Link>
+                    <Link
+                      href="/admin/quote-calculator"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
+                        isActive("/admin/quote-calculator")
+                          ? "text-accent bg-accent/10 shadow-sm"
+                          : "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
+                      )}
+                    >
+                      <Calculator className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/quote-calculator") && "text-accent")} />
+                      Quote Builder
+                    </Link>
+                    <Link
+                      href="/admin/tools/pitch-deck-builder"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
+                        isActive("/admin/tools/pitch-deck-builder")
+                          ? "text-accent bg-accent/10 shadow-sm"
+                          : "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
+                      )}
+                    >
+                      <Sliders className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/pitch-deck-builder") && "text-accent")} />
+                      Pitch Deck Builder
                     </Link>
                   </div>
                 )}
