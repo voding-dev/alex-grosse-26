@@ -964,5 +964,62 @@ export default defineSchema({
     .index("by_lead", ["leadId"])
     .index("by_prospect", ["prospectId"])
     .index("by_email_marketing", ["emailMarketingId"]),
+
+  // Subscription Payment Methods - customizable payment methods
+  subscriptionPaymentMethods: defineTable({
+    name: v.string(), // e.g., "Cash", "Red Card", "Blue Card"
+    color: v.string(), // Hex color code (e.g., "#22c55e")
+    isDefault: v.optional(v.boolean()), // Mark default methods
+    sortOrder: v.optional(v.number()), // For ordering in UI
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_sort_order", ["sortOrder"])
+    .index("by_created_at", ["createdAt"]),
+
+  // Subscriptions - recurring payment tracking
+  subscriptions: defineTable({
+    name: v.string(), // e.g., "Netflix", "Adobe Creative Cloud"
+    amount: v.number(), // Monthly cost
+    currency: v.string(), // Default: "USD"
+    billingCycle: v.union(
+      v.literal("monthly"),
+      v.literal("yearly"),
+      v.literal("quarterly"),
+      v.literal("weekly")
+    ),
+    startDate: v.number(), // Timestamp - original start date
+    dueDay: v.number(), // 1-31, the day of month it's always due
+    status: v.union(
+      v.literal("active"),
+      v.literal("paused"),
+      v.literal("archived")
+    ),
+    nextDueDate: v.number(), // Timestamp - calculated next due date
+    lastPaidDate: v.optional(v.number()), // Timestamp - when last marked as paid
+    paymentMethodId: v.optional(v.id("subscriptionPaymentMethods")), // Link to payment method
+    balance: v.optional(v.number()), // Remaining balance after covering full periods (default: 0)
+    notes: v.optional(v.string()),
+    tags: v.array(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_next_due_date", ["nextDueDate"])
+    .index("by_payment_method", ["paymentMethodId"])
+    .index("by_created_at", ["createdAt"]),
+
+  // Subscription Payments - payment history
+  subscriptionPayments: defineTable({
+    subscriptionId: v.id("subscriptions"),
+    amount: v.number(),
+    paidDate: v.number(), // Timestamp
+    paymentMethodId: v.optional(v.id("subscriptionPaymentMethods")), // Link to payment method
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_subscription", ["subscriptionId"])
+    .index("by_paid_date", ["paidDate"])
+    .index("by_payment_method", ["paymentMethodId"]),
 });
 

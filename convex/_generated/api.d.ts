@@ -50,6 +50,7 @@ import type * as storage from "../storage.js";
 import type * as storageMutations from "../storageMutations.js";
 import type * as storageQueries from "../storageQueries.js";
 import type * as stripe from "../stripe.js";
+import type * as subscriptions from "../subscriptions.js";
 
 import type {
   ApiFromModules,
@@ -108,6 +109,7 @@ declare const fullApi: ApiFromModules<{
   storageMutations: typeof storageMutations;
   storageQueries: typeof storageQueries;
   stripe: typeof stripe;
+  subscriptions: typeof subscriptions;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 

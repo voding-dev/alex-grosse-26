@@ -5,7 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { ArrowRight, AlertCircle, Clock, MessageSquare, Package, Users, Calendar, QrCode, Mail, Settings, FileText, Image as ImageIcon, File, Globe, Layers, FolderKanban, Calculator, Sliders, Minimize2, RefreshCw, TrendingUp, Sparkles, ChevronRight, Activity, MoreHorizontal, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowRight, AlertCircle, Clock, MessageSquare, Package, Users, Calendar, QrCode, Mail, Settings, FileText, Image as ImageIcon, File, Globe, Layers, FolderKanban, Calculator, Sliders, Minimize2, RefreshCw, TrendingUp, Sparkles, ChevronRight, Activity, MoreHorizontal, ChevronDown, ChevronUp, CreditCard } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
@@ -83,6 +83,7 @@ export default function AdminDashboard() {
     { href: "/admin/client-projects", label: "Projects", icon: FolderKanban, description: "Manage client projects", count: activeProjects.length },
     { href: "/admin/deliveries", label: "Portals", icon: Package, description: "Delivery portals", count: activeDeliveries.length },
     { href: "/admin/feedback", label: "Feedback", icon: MessageSquare, description: "Client feedback", count: feedbackCount, badge: feedbackCount > 0 },
+    { href: "/admin/tools/subscription-tracker", label: "Subscriptions", icon: CreditCard, description: "Track recurring payments" },
     { href: "/admin/tools/prospecting", label: "Prospecting", icon: Sparkles, description: "Import & manage prospects" },
     { href: "/admin/tools/lead-pipeline", label: "Lead Pipeline", icon: TrendingUp, description: "Manage sales pipeline" },
     { href: "/admin/tools/pitch-deck-builder", label: "Pitch Deck Builder", icon: Sliders, description: "Create pitch decks" },
