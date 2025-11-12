@@ -17,11 +17,21 @@ import { Plus, Mail, Users, TrendingUp, Send, Eye, MousePointerClick, X, AlertTr
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useSearchParams } from "next/navigation";
 
 export default function EmailMarketingPage() {
   const { adminEmail } = useAdminAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("overview");
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "overview");
+  
+  // Update tab when URL param changes
+  useEffect(() => {
+    if (tabFromUrl && ["overview", "contacts", "campaigns", "journeys", "triggers"].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const [contactFormData, setContactFormData] = useState({
     email: "",

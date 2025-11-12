@@ -13,8 +13,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { Mail, Send, Eye, MousePointerClick, X, AlertTriangle, User, Tag } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
+import { Id } from "@/convex/_generated/dataModel";
 
 type ContactStatus = "subscribed" | "unsubscribed" | "bounced" | "spam";
+
+// Validate Convex ID format (17 alphanumeric characters)
+function isValidConvexId(id: string): id is Id<"emailContacts"> {
+  return /^[a-zA-Z0-9]{17}$/.test(id);
+}
 
 export default function ContactDetailPage() {
   const params = useParams();
@@ -23,14 +29,17 @@ export default function ContactDetailPage() {
   const { toast } = useToast();
   const id = params.id as string;
 
+  // Validate ID format before querying
+  const isValidId = id && isValidConvexId(id);
+
   const contact = useQuery(
     api.emailMarketing.getContact,
-    adminEmail ? { id: id as any, email: adminEmail } : ("skip" as const)
+    adminEmail && isValidId ? { id: id as Id<"emailContacts">, email: adminEmail } : ("skip" as const)
   );
 
   const sends = useQuery(
     api.emailMarketing.getContactSends,
-    adminEmail ? { contactId: id as any, email: adminEmail } : ("skip" as const)
+    adminEmail && isValidId ? { contactId: id as Id<"emailContacts">, email: adminEmail } : ("skip" as const)
   ) || [];
 
   const updateContact = useMutation(api.emailMarketing.updateContact);
@@ -44,11 +53,52 @@ export default function ContactDetailPage() {
     status: (contact?.status as ContactStatus) || "subscribed",
   });
 
-  if (!contact) {
+  // Show error if ID is invalid
+  if (!isValidId) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
+        <div className="text-center">
+          <h1 className="text-2xl font-black uppercase tracking-wide text-foreground mb-4" style={{ fontWeight: '900' }}>
+            Invalid Contact ID
+          </h1>
+          <p className="text-foreground/60 mb-4">The contact ID is invalid.</p>
+          <Link
+            href="/admin/email-marketing"
+            className="text-accent hover:underline font-bold uppercase tracking-wider"
+          >
+            ← Back to Email Marketing
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state
+  if (contact === undefined) {
     return (
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
         <div className="text-center">
           <p className="text-foreground/60">Loading contact...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show not found state
+  if (contact === null) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
+        <div className="text-center">
+          <h1 className="text-2xl font-black uppercase tracking-wide text-foreground mb-4" style={{ fontWeight: '900' }}>
+            Contact Not Found
+          </h1>
+          <p className="text-foreground/60 mb-4">The contact you're looking for doesn't exist.</p>
+          <Link
+            href="/admin/email-marketing"
+            className="text-accent hover:underline font-bold uppercase tracking-wider"
+          >
+            ← Back to Email Marketing
+          </Link>
         </div>
       </div>
     );

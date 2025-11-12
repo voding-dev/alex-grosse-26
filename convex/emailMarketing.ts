@@ -95,21 +95,33 @@ export const getContact = query({
     email: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Development mode: check admin by email
-    if (args.email) {
-      const user = await ctx.db
-        .query("users")
-        .withIndex("by_email", (q: any) => q.eq("email", args.email!))
-        .first();
-      
-      if (!user || user.role !== "admin") {
-        throw new Error("Unauthorized - admin access required");
+    try {
+      // Development mode: check admin by email
+      if (args.email) {
+        const user = await ctx.db
+          .query("users")
+          .withIndex("by_email", (q: any) => q.eq("email", args.email!))
+          .first();
+        
+        if (!user || user.role !== "admin") {
+          throw new Error("Unauthorized - admin access required");
+        }
+      } else {
+        // Production mode: use requireAdmin
+        await requireAdmin(ctx);
       }
-    } else {
-      // Production mode: use requireAdmin
-      await requireAdmin(ctx);
+      
+      const contact = await ctx.db.get(args.id);
+      return contact;
+    } catch (error: any) {
+      // If it's an authorization error, re-throw it
+      if (error?.message?.includes("Unauthorized")) {
+        throw error;
+      }
+      // For invalid ID format or other errors, return null instead of throwing
+      console.error("Error getting contact:", error);
+      return null;
     }
-    return await ctx.db.get(args.id);
   },
 });
 
@@ -1053,38 +1065,48 @@ export const getContactSends = query({
     email: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Development mode: check admin by email
-    if (args.email) {
-      const user = await ctx.db
-        .query("users")
-        .withIndex("by_email", (q: any) => q.eq("email", args.email!))
-        .first();
-      
-      if (!user || user.role !== "admin") {
-        throw new Error("Unauthorized - admin access required");
+    try {
+      // Development mode: check admin by email
+      if (args.email) {
+        const user = await ctx.db
+          .query("users")
+          .withIndex("by_email", (q: any) => q.eq("email", args.email!))
+          .first();
+        
+        if (!user || user.role !== "admin") {
+          throw new Error("Unauthorized - admin access required");
+        }
+      } else {
+        // Production mode: use requireAdmin
+        await requireAdmin(ctx);
       }
-    } else {
-      // Production mode: use requireAdmin
-      await requireAdmin(ctx);
+      
+      const sends = await ctx.db
+        .query("emailSends")
+        .withIndex("by_contact", (q: any) => q.eq("contactId", args.contactId))
+        .collect();
+      
+      // Get campaign details for each send
+      const sendsWithCampaigns = await Promise.all(
+        sends.map(async (send) => {
+          const campaign = await ctx.db.get(send.campaignId);
+          return {
+            ...send,
+            campaign,
+          };
+        })
+      );
+      
+      return sendsWithCampaigns;
+    } catch (error: any) {
+      // If it's an authorization error, re-throw it
+      if (error?.message?.includes("Unauthorized")) {
+        throw error;
+      }
+      // For invalid ID format or other errors, return empty array instead of throwing
+      console.error("Error getting contact sends:", error);
+      return [];
     }
-    
-    const sends = await ctx.db
-      .query("emailSends")
-      .withIndex("by_contact", (q: any) => q.eq("contactId", args.contactId))
-      .collect();
-    
-    // Get campaign details for each send
-    const sendsWithCampaigns = await Promise.all(
-      sends.map(async (send) => {
-        const campaign = await ctx.db.get(send.campaignId);
-        return {
-          ...send,
-          campaign,
-        };
-      })
-    );
-    
-    return sendsWithCampaigns;
   },
 });
 
