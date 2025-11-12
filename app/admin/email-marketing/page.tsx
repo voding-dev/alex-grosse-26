@@ -17,21 +17,29 @@ import { Plus, Mail, Users, TrendingUp, Send, Eye, MousePointerClick, X, AlertTr
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useSearchParams } from "next/navigation";
+
+// Valid tab values
+const VALID_TABS = ["overview", "contacts", "campaigns", "journeys", "triggers"] as const;
+type TabValue = typeof VALID_TABS[number];
 
 export default function EmailMarketingPage() {
   const { adminEmail } = useAdminAuth();
   const { toast } = useToast();
-  const searchParams = useSearchParams();
-  const tabFromUrl = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState(tabFromUrl || "overview");
   
-  // Update tab when URL param changes
-  useEffect(() => {
-    if (tabFromUrl && ["overview", "contacts", "campaigns", "journeys", "triggers"].includes(tabFromUrl)) {
-      setActiveTab(tabFromUrl);
+  // Get initial tab from URL param using lazy initializer (only called once)
+  const [activeTab, setActiveTab] = useState<TabValue>(() => {
+    try {
+      // Use window.location to avoid useSearchParams issues
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get("tab");
+        return (tab && VALID_TABS.includes(tab as TabValue)) ? (tab as TabValue) : "overview";
+      }
+    } catch {
+      // Fallback on error
     }
-  }, [tabFromUrl]);
+    return "overview";
+  });
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const [contactFormData, setContactFormData] = useState({
     email: "",
