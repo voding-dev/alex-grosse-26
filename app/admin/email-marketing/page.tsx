@@ -40,6 +40,13 @@ export default function EmailMarketingPage() {
     }
     return "overview";
   });
+
+  // Wrapper function to handle tab changes with type safety
+  const handleTabChange = (value: string) => {
+    if (VALID_TABS.includes(value as TabValue)) {
+      setActiveTab(value as TabValue);
+    }
+  };
   const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
   const [contactFormData, setContactFormData] = useState({
     email: "",
@@ -230,7 +237,7 @@ export default function EmailMarketingPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="grid w-full grid-cols-5 max-w-2xl bg-foreground/5 border border-foreground/20 rounded-lg p-1.5 h-auto items-center gap-1">
           <TabsTrigger 
             value="overview" 
