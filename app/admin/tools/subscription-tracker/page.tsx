@@ -129,7 +129,7 @@ export default function SubscriptionTrackerPage() {
     currency: "USD",
     billingCycle: "monthly" as "monthly" | "yearly" | "quarterly" | "weekly",
     startDate: "",
-    paymentMethodId: "none" as string | Id<"subscriptionPaymentMethods"> | "none",
+    paymentMethodId: "none" as string | Id<"subscriptionPaymentMethods"> | "none" | undefined,
     notes: "",
     tags: [] as string[],
   });
@@ -140,7 +140,7 @@ export default function SubscriptionTrackerPage() {
   const [paymentFormData, setPaymentFormData] = useState({
     paidDate: "",
     amount: "",
-    paymentMethodId: "none" as string | Id<"subscriptionPaymentMethods"> | "none",
+    paymentMethodId: "none" as string | Id<"subscriptionPaymentMethods"> | "none" | undefined,
     notes: "",
   });
   
@@ -238,7 +238,7 @@ export default function SubscriptionTrackerPage() {
           currency: sub.currency,
           billingCycle: sub.billingCycle,
           startDate: format(new Date(sub.startDate), "yyyy-MM-dd"),
-          paymentMethodId: sub.paymentMethodId || "",
+          paymentMethodId: sub.paymentMethodId || "none",
           notes: sub.notes || "",
           tags: sub.tags || [],
         });
