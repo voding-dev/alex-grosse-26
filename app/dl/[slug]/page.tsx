@@ -63,6 +63,18 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
     delivery?._id && isVerified ? { deliveryId: delivery._id } : ("skip" as const)
   );
 
+  // Deliveries are now standalone - no project needed
+  // Filter and sort assets by sortOrder (top to bottom)
+  // IMPORTANT: This hook must be called before any conditional returns
+  const filteredAssets = useMemo(() => {
+    if (!assets || !delivery) return [];
+    const allowedAssetIds = delivery.allowedAssetIds || [];
+    if (allowedAssetIds.length === 0) return [];
+    const filtered = assets.filter((asset) => allowedAssetIds.includes(asset._id));
+    // Sort by sortOrder ascending (top to bottom) - create new array to avoid mutation
+    return [...filtered].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  }, [assets, delivery?._id, delivery?.allowedAssetIds?.length]);
+
   useEffect(() => {
     if (!delivery) return;
     // Auto-verify if delivery has no PIN requirement
@@ -227,15 +239,6 @@ export default function DeliveryPage({ params }: { params: Promise<{ slug: strin
       </div>
     );
   }
-
-  // Deliveries are now standalone - no project needed
-  // Filter and sort assets by sortOrder (top to bottom)
-  const filteredAssets = useMemo(() => {
-    if (!assets || !delivery) return [];
-    const filtered = assets.filter((asset) => (delivery.allowedAssetIds || []).includes(asset._id));
-    // Sort by sortOrder ascending (top to bottom)
-    return filtered.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-  }, [assets, delivery]);
 
   // Calculate expiration status
   const now = Date.now();
