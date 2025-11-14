@@ -35,6 +35,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ResizableTextarea } from "@/components/ui/resizable-textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AdminTabs, AdminTab, TabsContent } from "@/components/admin/admin-tabs";
@@ -880,13 +881,16 @@ export default function TasksPage() {
                 <label className="text-xs font-black uppercase tracking-wider text-foreground/70 mb-2.5 block" style={{ fontWeight: '900' }}>
                   Description
                 </label>
-                <Textarea
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
-                  placeholder="Optional description or notes"
-                  rows={4}
-                  className="border-foreground/20 focus:border-accent/40 bg-background resize-none"
-                />
+                <div className="group">
+                  <ResizableTextarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="Optional description or notes"
+                    minRows={4}
+                    maxRows={20}
+                    className="pr-8"
+                  />
+                </div>
               </div>
               <div>
                 <label className="text-xs font-black uppercase tracking-wider text-foreground/70 mb-2.5 block" style={{ fontWeight: '900' }}>
@@ -1792,7 +1796,20 @@ function TaskCard({
                   {task.title}
                 </h3>
                 {task.description && (
-                  <p className="text-sm text-foreground/60 mt-2 leading-relaxed">{task.description}</p>
+                  <div className="mt-2">
+                    <p 
+                      className="text-sm text-foreground/60 leading-relaxed whitespace-pre-line line-clamp-3"
+                      style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {task.description}
+                    </p>
+                  </div>
                 )}
                 {formatDateTime && (
                   <div className="flex items-center gap-2 mt-3 text-sm text-foreground/70">
