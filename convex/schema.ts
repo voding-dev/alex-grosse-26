@@ -883,12 +883,31 @@ export default defineSchema({
       v.literal("none"),
       v.literal("deadline"),
       v.literal("date_range"),
-      v.literal("scheduled_time")
+      v.literal("scheduled_time"),
+      v.literal("recurring")
     ),
     deadlineAt: v.optional(v.number()), // Timestamp for "deadline"
     rangeStartDate: v.optional(v.number()), // Timestamp (date only) for "date_range"
     rangeEndDate: v.optional(v.number()), // Timestamp (date only) for "date_range"
     scheduledAt: v.optional(v.number()), // Timestamp for "scheduled_time"
+    // Recurrence fields
+    recurrencePattern: v.optional(v.union(
+      v.literal("daily"),
+      v.literal("weekly"),
+      v.literal("monthly"),
+      v.literal("yearly"),
+      v.literal("specific_dates")
+    )),
+    recurrenceDaysOfWeek: v.optional(v.array(v.number())), // 0-6 for Sunday-Saturday, for daily/weekly
+    recurrenceWeekInterval: v.optional(v.number()), // Every N weeks (for weekly pattern)
+    recurrenceSpecificDates: v.optional(v.array(v.number())), // Array of timestamps for specific dates
+    recurrenceStartDate: v.optional(v.number()), // When recurrence starts
+    recurrenceEndDate: v.optional(v.number()), // Optional end date for recurrence
+    recurrenceDayOfMonth: v.optional(v.number()), // Day of month (1-31) for monthly
+    recurrenceMonth: v.optional(v.number()), // Month (0-11) for yearly
+    recurrenceDayOfYear: v.optional(v.number()), // Day of month for yearly
+    parentTaskId: v.optional(v.id("tasks")), // Reference to parent recurring task
+    isRecurringInstance: v.optional(v.boolean()), // True if this is an instance of a recurring task
     isCompleted: v.boolean(),
     pinnedToday: v.boolean(),
     pinnedTomorrow: v.boolean(),

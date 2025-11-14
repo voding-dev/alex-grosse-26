@@ -3,14 +3,201 @@ import { v } from "convex/values";
 import { requireAdminWithSession } from "./adminAuth";
 import { Id } from "./_generated/dataModel";
 
+// Helper: Generate recurring task instances
+function generateRecurringInstances(
+  task: any,
+  now: number,
+  maxFutureDays: number = 90 // Generate instances up to 90 days in the future
+): any[] {
+  if (task.taskType !== "recurring" || !task.recurrencePattern || !task.recurrenceStartDate) {
+    return [];
+  }
+
+  const instances: any[] = [];
+  const startDate = new Date(task.recurrenceStartDate);
+  const endDate = task.recurrenceEndDate ? new Date(task.recurrenceEndDate) : null;
+  const maxDate = new Date(now + maxFutureDays * 24 * 60 * 60 * 1000);
+  const cutoffDate = endDate && endDate < maxDate ? endDate : maxDate;
+
+  // Generate instances from start date, including past dates (they may be needed for overdue view)
+  // But for most views, we'll filter to only show future/current instances
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  
+  // Generate instances up to 2 weeks in the past for overdue detection, but not before recurrence start
+  const pastCutoff = new Date(today);
+  pastCutoff.setDate(pastCutoff.getDate() - 14); // 2 weeks ago
+  const actualStartFrom = startDate < pastCutoff ? pastCutoff : startDate;
+  
+  if (actualStartFrom > cutoffDate) {
+    return [];
+  }
+
+  switch (task.recurrencePattern) {
+    case "daily": {
+      // Generate instances for selected days of week
+      const daysOfWeek = task.recurrenceDaysOfWeek || [];
+      if (daysOfWeek.length === 0) return [];
+
+      let current = new Date(actualStartFrom);
+      while (current <= cutoffDate) {
+        const dayOfWeek = current.getDay();
+        if (daysOfWeek.includes(dayOfWeek)) {
+          const instanceDate = new Date(current);
+          instanceDate.setHours(0, 0, 0, 0);
+          instances.push({
+            ...task,
+            _id: `${task._id}_${instanceDate.getTime()}` as any, // Virtual ID
+            scheduledAt: instanceDate.getTime(),
+            isRecurringInstance: true,
+            parentTaskId: task._id,
+            taskType: "scheduled_time" as const, // Instances appear as scheduled tasks
+          });
+        }
+        current.setDate(current.getDate() + 1);
+      }
+      break;
+    }
+
+    case "weekly": {
+      const daysOfWeek = task.recurrenceDaysOfWeek || [];
+      const weekInterval = task.recurrenceWeekInterval || 1;
+      if (daysOfWeek.length === 0) return [];
+
+      // Find the first occurrence after start date
+      let current = new Date(actualStartFrom);
+      const startWeekStart = new Date(current);
+      startWeekStart.setDate(startWeekStart.getDate() - startWeekStart.getDay()); // Start of week (Sunday)
+
+      let weekOffset = 0;
+      while (current <= cutoffDate) {
+        const weekStart = new Date(startWeekStart);
+        weekStart.setDate(weekStart.getDate() + weekOffset * 7 * weekInterval);
+
+        for (const dayOfWeek of daysOfWeek) {
+          const instanceDate = new Date(weekStart);
+          instanceDate.setDate(instanceDate.getDate() + dayOfWeek);
+          instanceDate.setHours(0, 0, 0, 0);
+
+          if (instanceDate >= actualStartFrom && instanceDate <= cutoffDate) {
+            instances.push({
+              ...task,
+              _id: `${task._id}_${instanceDate.getTime()}` as any,
+              scheduledAt: instanceDate.getTime(),
+              isRecurringInstance: true,
+              parentTaskId: task._id,
+              taskType: "scheduled_time" as const,
+            });
+          }
+        }
+
+        weekOffset++;
+        // Move to next interval
+        current = new Date(weekStart);
+        current.setDate(current.getDate() + 7 * weekInterval);
+        if (current > cutoffDate) break;
+      }
+      break;
+    }
+
+    case "monthly": {
+      const dayOfMonth = task.recurrenceDayOfMonth || 1;
+      let current = new Date(actualStartFrom);
+
+      while (current <= cutoffDate) {
+        const instanceDate = new Date(current.getFullYear(), current.getMonth(), dayOfMonth);
+        instanceDate.setHours(0, 0, 0, 0);
+
+        if (instanceDate >= actualStartFrom && instanceDate <= cutoffDate) {
+          instances.push({
+            ...task,
+            _id: `${task._id}_${instanceDate.getTime()}` as any,
+            scheduledAt: instanceDate.getTime(),
+            isRecurringInstance: true,
+            parentTaskId: task._id,
+            taskType: "scheduled_time" as const,
+          });
+        }
+
+        // Move to next month
+        current.setMonth(current.getMonth() + 1);
+        current.setDate(1); // Reset to first day of month
+      }
+      break;
+    }
+
+    case "yearly": {
+      const month = task.recurrenceMonth ?? 0;
+      const dayOfYear = task.recurrenceDayOfYear || 1;
+      let current = new Date(actualStartFrom);
+
+      while (current <= cutoffDate) {
+        const instanceDate = new Date(current.getFullYear(), month, dayOfYear);
+        instanceDate.setHours(0, 0, 0, 0);
+
+        if (instanceDate >= actualStartFrom && instanceDate <= cutoffDate) {
+          instances.push({
+            ...task,
+            _id: `${task._id}_${instanceDate.getTime()}` as any,
+            scheduledAt: instanceDate.getTime(),
+            isRecurringInstance: true,
+            parentTaskId: task._id,
+            taskType: "scheduled_time" as const,
+          });
+        }
+
+        // Move to next year
+        current.setFullYear(current.getFullYear() + 1);
+        current.setMonth(0);
+        current.setDate(1);
+      }
+      break;
+    }
+
+    case "specific_dates": {
+      if (!task.recurrenceSpecificDates || task.recurrenceSpecificDates.length === 0) {
+        return [];
+      }
+
+      for (const dateTimestamp of task.recurrenceSpecificDates) {
+        const instanceDate = new Date(dateTimestamp);
+        instanceDate.setHours(0, 0, 0, 0);
+
+        if (instanceDate >= actualStartFrom && instanceDate <= cutoffDate) {
+          instances.push({
+            ...task,
+            _id: `${task._id}_${instanceDate.getTime()}` as any,
+            scheduledAt: instanceDate.getTime(),
+            isRecurringInstance: true,
+            parentTaskId: task._id,
+            taskType: "scheduled_time" as const,
+          });
+        }
+      }
+      break;
+    }
+  }
+
+  return instances;
+}
+
 // Helper: Get computed task state based on current time and timezone
 export function getComputedTaskState(
   task: {
-    taskType: "none" | "deadline" | "date_range" | "scheduled_time";
+    taskType: "none" | "deadline" | "date_range" | "scheduled_time" | "recurring";
     deadlineAt?: number;
     rangeStartDate?: number;
     rangeEndDate?: number;
     scheduledAt?: number;
+    recurrencePattern?: "daily" | "weekly" | "monthly" | "yearly" | "specific_dates";
+    recurrenceDaysOfWeek?: number[];
+    recurrenceWeekInterval?: number;
+    recurrenceSpecificDates?: number[];
+    recurrenceStartDate?: number;
+    recurrenceEndDate?: number;
+    recurrenceDayOfMonth?: number;
+    recurrenceMonth?: number;
+    recurrenceDayOfYear?: number;
     isCompleted: boolean;
     pinnedToday: boolean;
     pinnedTomorrow: boolean;
@@ -110,49 +297,51 @@ export function getComputedTaskState(
     }
   }
 
-  // Scheduled time tasks
-  if (task.taskType === "scheduled_time" && task.scheduledAt) {
-    const scheduledDate = new Date(task.scheduledAt);
-    const scheduledDay = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
-    scheduledDay.setHours(0, 0, 0, 0);
-    const scheduledDayStart = scheduledDay.getTime();
+    // Scheduled time tasks (including recurring instances)
+    if (task.taskType === "scheduled_time" && task.scheduledAt) {
+      const scheduledDate = new Date(task.scheduledAt);
+      const scheduledDay = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
+      scheduledDay.setHours(0, 0, 0, 0);
+      const scheduledDayStart = scheduledDay.getTime();
+      const scheduledDayEnd = scheduledDayStart + 24 * 60 * 60 * 1000 - 1;
 
-    // Overdue: if now > T and not done → add Overdue tag
-    if (now > task.scheduledAt) {
-      result.isOverdue = true;
-    }
+      // Overdue: if now > T and not done → add Overdue tag
+      if (now > task.scheduledAt) {
+        result.isOverdue = true;
+      }
 
-    // Today: appears at midnight on date(T) and shows its time
-    if (todayStart >= scheduledDayStart && todayStart < scheduledDayStart + 24 * 60 * 60 * 1000) {
-      result.inToday = true;
-    }
+      // Today: appears at midnight on date(T) and shows its time
+      // Check if today falls on the scheduled day
+      if (todayStart >= scheduledDayStart && todayStart <= scheduledDayEnd) {
+        result.inToday = true;
+      }
 
-    // Tomorrow: appears at midnight the day before date(T)
-    const dayBeforeScheduled = new Date(scheduledDay);
-    dayBeforeScheduled.setDate(dayBeforeScheduled.getDate() - 1);
-    dayBeforeScheduled.setHours(0, 0, 0, 0);
-    const dayBeforeStart = dayBeforeScheduled.getTime();
-    const dayBeforeEnd = dayBeforeStart + 24 * 60 * 60 * 1000 - 1;
+      // Tomorrow: appears at midnight the day before date(T)
+      const dayBeforeScheduled = new Date(scheduledDay);
+      dayBeforeScheduled.setDate(dayBeforeScheduled.getDate() - 1);
+      dayBeforeScheduled.setHours(0, 0, 0, 0);
+      const dayBeforeStart = dayBeforeScheduled.getTime();
+      const dayBeforeEnd = dayBeforeStart + 24 * 60 * 60 * 1000 - 1;
 
-    if (todayStart >= dayBeforeStart && todayStart <= dayBeforeEnd) {
-      result.inTomorrow = true;
-    }
+      if (todayStart >= dayBeforeStart && todayStart <= dayBeforeEnd) {
+        result.inTomorrow = true;
+      }
 
-    // This Week / Next Week: shows based on the week of T
-    // Also, if task appears in Today or Tomorrow, it should show in This Week
-    if (scheduledDayStart >= weekStartTime && scheduledDayStart <= weekEndTime) {
-      result.inThisWeek = true;
-    }
-    if (scheduledDayStart >= nextWeekStart && scheduledDayStart <= nextWeekEnd) {
-      result.inNextWeek = true;
-    }
-    // If task appears in Today or Tomorrow, it should also appear in This Week
-    if (result.inToday || result.inTomorrow) {
-      if (todayStart >= weekStartTime && todayStart <= weekEndTime) {
+      // This Week / Next Week: shows based on the week of T
+      // Check if scheduled day falls within the week range
+      if (scheduledDayStart >= weekStartTime && scheduledDayStart <= weekEndTime) {
         result.inThisWeek = true;
       }
+      if (scheduledDayStart >= nextWeekStart && scheduledDayStart <= nextWeekEnd) {
+        result.inNextWeek = true;
+      }
+      // If task appears in Today or Tomorrow, it should also appear in This Week
+      if (result.inToday || result.inTomorrow) {
+        if (todayStart >= weekStartTime && todayStart <= weekEndTime) {
+          result.inThisWeek = true;
+        }
+      }
     }
-  }
 
   // Date range tasks
   if (task.taskType === "date_range" && task.rangeStartDate && task.rangeEndDate) {
@@ -263,6 +452,30 @@ export const list = query({
     
     let tasks = await ctx.db.query("tasks").order("desc").collect();
     const now = Date.now();
+
+    // Generate instances for recurring tasks
+    const recurringTasks = tasks.filter((t) => t.taskType === "recurring" && !t.isRecurringInstance);
+    const recurringInstances: any[] = [];
+    
+    for (const recurringTask of recurringTasks) {
+      const instances = generateRecurringInstances(recurringTask, now);
+      recurringInstances.push(...instances);
+    }
+
+    // Combine regular tasks with recurring instances
+    // For Bank view: show parent recurring tasks only (not instances)
+    // For other views: show instances only (not parent recurring tasks)
+    const shouldShowParentRecurring = args.view === "bank" || !args.view;
+    if (!shouldShowParentRecurring) {
+      // Filter out parent recurring tasks for non-Bank views
+      tasks = tasks.filter((t) => t.taskType !== "recurring" || t.isRecurringInstance);
+      // Add instances for non-Bank views
+      tasks = [...tasks, ...recurringInstances];
+    } else {
+      // For Bank view: filter out instances, keep parent recurring tasks
+      tasks = tasks.filter((t) => !t.isRecurringInstance);
+      // Don't add instances to Bank view - only show the parent recurring task
+    }
 
     // Filter by view
     if (args.view) {
@@ -406,12 +619,29 @@ export const create = mutation({
       v.literal("none"),
       v.literal("deadline"),
       v.literal("date_range"),
-      v.literal("scheduled_time")
+      v.literal("scheduled_time"),
+      v.literal("recurring")
     ),
     deadlineAt: v.optional(v.number()),
     rangeStartDate: v.optional(v.number()),
     rangeEndDate: v.optional(v.number()),
     scheduledAt: v.optional(v.number()),
+    // Recurrence fields
+    recurrencePattern: v.optional(v.union(
+      v.literal("daily"),
+      v.literal("weekly"),
+      v.literal("monthly"),
+      v.literal("yearly"),
+      v.literal("specific_dates")
+    )),
+    recurrenceDaysOfWeek: v.optional(v.array(v.number())),
+    recurrenceWeekInterval: v.optional(v.number()),
+    recurrenceSpecificDates: v.optional(v.array(v.number())),
+    recurrenceStartDate: v.optional(v.number()),
+    recurrenceEndDate: v.optional(v.number()),
+    recurrenceDayOfMonth: v.optional(v.number()),
+    recurrenceMonth: v.optional(v.number()),
+    recurrenceDayOfYear: v.optional(v.number()),
     pinnedToday: v.optional(v.boolean()),
     pinnedTomorrow: v.optional(v.boolean()),
     folderId: v.optional(v.id("folders")),
@@ -431,6 +661,15 @@ export const create = mutation({
       rangeStartDate: args.rangeStartDate,
       rangeEndDate: args.rangeEndDate,
       scheduledAt: args.scheduledAt,
+      recurrencePattern: args.recurrencePattern,
+      recurrenceDaysOfWeek: args.recurrenceDaysOfWeek,
+      recurrenceWeekInterval: args.recurrenceWeekInterval,
+      recurrenceSpecificDates: args.recurrenceSpecificDates,
+      recurrenceStartDate: args.recurrenceStartDate,
+      recurrenceEndDate: args.recurrenceEndDate,
+      recurrenceDayOfMonth: args.recurrenceDayOfMonth,
+      recurrenceMonth: args.recurrenceMonth,
+      recurrenceDayOfYear: args.recurrenceDayOfYear,
       isCompleted: false,
       pinnedToday: args.pinnedToday || false,
       pinnedTomorrow: args.pinnedTomorrow || false,
@@ -452,12 +691,29 @@ export const update = mutation({
       v.literal("none"),
       v.literal("deadline"),
       v.literal("date_range"),
-      v.literal("scheduled_time")
+      v.literal("scheduled_time"),
+      v.literal("recurring")
     )),
     deadlineAt: v.optional(v.number()),
     rangeStartDate: v.optional(v.number()),
     rangeEndDate: v.optional(v.number()),
     scheduledAt: v.optional(v.number()),
+    // Recurrence fields
+    recurrencePattern: v.optional(v.union(
+      v.literal("daily"),
+      v.literal("weekly"),
+      v.literal("monthly"),
+      v.literal("yearly"),
+      v.literal("specific_dates")
+    )),
+    recurrenceDaysOfWeek: v.optional(v.array(v.number())),
+    recurrenceWeekInterval: v.optional(v.number()),
+    recurrenceSpecificDates: v.optional(v.array(v.number())),
+    recurrenceStartDate: v.optional(v.number()),
+    recurrenceEndDate: v.optional(v.number()),
+    recurrenceDayOfMonth: v.optional(v.number()),
+    recurrenceMonth: v.optional(v.number()),
+    recurrenceDayOfYear: v.optional(v.number()),
     pinnedToday: v.optional(v.boolean()),
     pinnedTomorrow: v.optional(v.boolean()),
     folderId: v.optional(v.id("folders")),
@@ -479,6 +735,15 @@ export const update = mutation({
     if (updates.rangeStartDate !== undefined) updateData.rangeStartDate = updates.rangeStartDate;
     if (updates.rangeEndDate !== undefined) updateData.rangeEndDate = updates.rangeEndDate;
     if (updates.scheduledAt !== undefined) updateData.scheduledAt = updates.scheduledAt;
+    if (updates.recurrencePattern !== undefined) updateData.recurrencePattern = updates.recurrencePattern;
+    if (updates.recurrenceDaysOfWeek !== undefined) updateData.recurrenceDaysOfWeek = updates.recurrenceDaysOfWeek;
+    if (updates.recurrenceWeekInterval !== undefined) updateData.recurrenceWeekInterval = updates.recurrenceWeekInterval;
+    if (updates.recurrenceSpecificDates !== undefined) updateData.recurrenceSpecificDates = updates.recurrenceSpecificDates;
+    if (updates.recurrenceStartDate !== undefined) updateData.recurrenceStartDate = updates.recurrenceStartDate;
+    if (updates.recurrenceEndDate !== undefined) updateData.recurrenceEndDate = updates.recurrenceEndDate;
+    if (updates.recurrenceDayOfMonth !== undefined) updateData.recurrenceDayOfMonth = updates.recurrenceDayOfMonth;
+    if (updates.recurrenceMonth !== undefined) updateData.recurrenceMonth = updates.recurrenceMonth;
+    if (updates.recurrenceDayOfYear !== undefined) updateData.recurrenceDayOfYear = updates.recurrenceDayOfYear;
     if (updates.pinnedToday !== undefined) updateData.pinnedToday = updates.pinnedToday;
     if (updates.pinnedTomorrow !== undefined) updateData.pinnedTomorrow = updates.pinnedTomorrow;
     if (updates.folderId !== undefined) updateData.folderId = updates.folderId;
@@ -498,6 +763,26 @@ export const deleteTask = mutation({
   handler: async (ctx, args) => {
     await requireAdminWithSession(ctx, args.sessionToken);
     await ctx.db.delete(args.id);
+  },
+});
+
+// Delete all completed tasks
+export const deleteAllCompleted = mutation({
+  args: {
+    sessionToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdminWithSession(ctx, args.sessionToken);
+    
+    const allTasks = await ctx.db.query("tasks").collect();
+    const completedTasks = allTasks.filter((task) => task.isCompleted);
+    
+    // Delete all completed tasks
+    for (const task of completedTasks) {
+      await ctx.db.delete(task._id);
+    }
+    
+    return { deletedCount: completedTasks.length };
   },
 });
 

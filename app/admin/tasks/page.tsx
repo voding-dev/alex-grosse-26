@@ -47,6 +47,7 @@ import { CustomTimePicker } from "@/components/ui/custom-time-picker";
 import { TagInput } from "@/components/notes/tag-input";
 import { FolderSelectorNested } from "@/components/tasks/folder-selector-nested";
 import { FolderNavigation } from "@/components/tasks/folder-navigation";
+import { RecurrenceSelector, RecurrencePattern } from "@/components/tasks/recurrence-selector";
 import { cn } from "@/lib/utils";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addDays, isToday, isTomorrow } from "date-fns";
 import {
@@ -72,6 +73,7 @@ export default function TasksPage() {
   const [editingTask, setEditingTask] = useState<Id<"tasks"> | null>(null);
   const [creatingTask, setCreatingTask] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; taskId: Id<"tasks"> | null }>({ open: false, taskId: null });
+  const [deleteAllCompletedDialog, setDeleteAllCompletedDialog] = useState(false);
   const [weekViewMode, setWeekViewMode] = useState<"list" | "week">("week");
   
   // Bank view filters
@@ -121,6 +123,7 @@ export default function TasksPage() {
   const createTask = useMutation(api.tasks.create);
   const updateTask = useMutation(api.tasks.update);
   const deleteTask = useMutation(api.tasks.deleteTask);
+  const deleteAllCompleted = useMutation(api.tasks.deleteAllCompleted);
   const toggleComplete = useMutation(api.tasks.toggleComplete);
   const togglePinToday = useMutation(api.tasks.togglePinToday);
   const togglePinTomorrow = useMutation(api.tasks.togglePinTomorrow);
@@ -179,13 +182,23 @@ export default function TasksPage() {
   // Edit form state
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [editTaskType, setEditTaskType] = useState<"none" | "deadline" | "date_range" | "scheduled_time">("none");
+  const [editTaskType, setEditTaskType] = useState<"none" | "deadline" | "date_range" | "scheduled_time" | "recurring">("none");
   const [editDeadlineDate, setEditDeadlineDate] = useState("");
   const [editDeadlineTime, setEditDeadlineTime] = useState("");
   const [editRangeStartDate, setEditRangeStartDate] = useState("");
   const [editRangeEndDate, setEditRangeEndDate] = useState("");
   const [editScheduledDate, setEditScheduledDate] = useState("");
   const [editScheduledTime, setEditScheduledTime] = useState("");
+  // Recurrence state
+  const [editRecurrencePattern, setEditRecurrencePattern] = useState<RecurrencePattern>(null);
+  const [editRecurrenceDaysOfWeek, setEditRecurrenceDaysOfWeek] = useState<number[]>([]);
+  const [editRecurrenceWeekInterval, setEditRecurrenceWeekInterval] = useState<number>(1);
+  const [editRecurrenceSpecificDates, setEditRecurrenceSpecificDates] = useState<string[]>([]);
+  const [editRecurrenceStartDate, setEditRecurrenceStartDate] = useState("");
+  const [editRecurrenceEndDate, setEditRecurrenceEndDate] = useState("");
+  const [editRecurrenceDayOfMonth, setEditRecurrenceDayOfMonth] = useState<number>(1);
+  const [editRecurrenceMonth, setEditRecurrenceMonth] = useState<number>(0);
+  const [editRecurrenceDayOfYear, setEditRecurrenceDayOfYear] = useState<number>(1);
   const [editTagIds, setEditTagIds] = useState<string[]>([]);
   const [editFolderId, setEditFolderId] = useState<Id<"folders"> | undefined>(undefined);
 
@@ -227,6 +240,63 @@ export default function TasksPage() {
         setEditScheduledDate("");
         setEditScheduledTime("");
       }
+
+      // Load recurrence data
+      if (editingTaskData.recurrencePattern) {
+        setEditRecurrencePattern(editingTaskData.recurrencePattern);
+        setEditRecurrenceDaysOfWeek(editingTaskData.recurrenceDaysOfWeek || []);
+        setEditRecurrenceWeekInterval(editingTaskData.recurrenceWeekInterval || 1);
+        setEditRecurrenceDayOfMonth(editingTaskData.recurrenceDayOfMonth || 1);
+        setEditRecurrenceMonth(editingTaskData.recurrenceMonth || 0);
+        setEditRecurrenceDayOfYear(editingTaskData.recurrenceDayOfYear || 1);
+        
+        if (editingTaskData.recurrenceStartDate) {
+          // Use local date components to avoid timezone shifting
+          const date = new Date(editingTaskData.recurrenceStartDate);
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          setEditRecurrenceStartDate(`${year}-${month}-${day}`);
+        } else {
+          setEditRecurrenceStartDate("");
+        }
+        
+        if (editingTaskData.recurrenceEndDate) {
+          // Use local date components to avoid timezone shifting
+          const date = new Date(editingTaskData.recurrenceEndDate);
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          setEditRecurrenceEndDate(`${year}-${month}-${day}`);
+        } else {
+          setEditRecurrenceEndDate("");
+        }
+        
+        if (editingTaskData.recurrenceSpecificDates && editingTaskData.recurrenceSpecificDates.length > 0) {
+          setEditRecurrenceSpecificDates(
+            editingTaskData.recurrenceSpecificDates.map((ts) => {
+              // Use local date components to avoid timezone shifting
+              const date = new Date(ts);
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            })
+          );
+        } else {
+          setEditRecurrenceSpecificDates([]);
+        }
+      } else {
+        setEditRecurrencePattern(null);
+        setEditRecurrenceDaysOfWeek([]);
+        setEditRecurrenceWeekInterval(1);
+        setEditRecurrenceSpecificDates([]);
+        setEditRecurrenceStartDate("");
+        setEditRecurrenceEndDate("");
+        setEditRecurrenceDayOfMonth(1);
+        setEditRecurrenceMonth(0);
+        setEditRecurrenceDayOfYear(1);
+      }
     }
   }, [editingTaskData]);
 
@@ -242,6 +312,15 @@ export default function TasksPage() {
       setEditRangeEndDate("");
       setEditScheduledDate("");
       setEditScheduledTime("");
+      setEditRecurrencePattern(null);
+      setEditRecurrenceDaysOfWeek([]);
+      setEditRecurrenceWeekInterval(1);
+      setEditRecurrenceSpecificDates([]);
+      setEditRecurrenceStartDate("");
+      setEditRecurrenceEndDate("");
+      setEditRecurrenceDayOfMonth(1);
+      setEditRecurrenceMonth(0);
+      setEditRecurrenceDayOfYear(1);
       setEditTagIds([]);
       setEditFolderId(undefined);
     }
@@ -309,6 +388,34 @@ export default function TasksPage() {
         scheduledAt = scheduled.getTime();
       }
 
+      // Recurrence data
+      let recurrenceStartDate: number | undefined;
+      let recurrenceEndDate: number | undefined;
+      let recurrenceSpecificDates: number[] | undefined;
+      
+      if (editTaskType === "recurring" && editRecurrencePattern && editRecurrenceStartDate) {
+        // Parse date string in local timezone to avoid shifting
+        const [year, month, day] = editRecurrenceStartDate.split('-').map(Number);
+        const start = new Date(year, month - 1, day, 0, 0, 0, 0);
+        recurrenceStartDate = start.getTime();
+        
+        if (editRecurrenceEndDate) {
+          // Parse date string in local timezone to avoid shifting
+          const [endYear, endMonth, endDay] = editRecurrenceEndDate.split('-').map(Number);
+          const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
+          recurrenceEndDate = end.getTime();
+        }
+        
+        if (editRecurrencePattern === "specific_dates" && editRecurrenceSpecificDates.length > 0) {
+          recurrenceSpecificDates = editRecurrenceSpecificDates.map((dateStr) => {
+            // Parse date string in local timezone to avoid shifting
+            const [y, m, d] = dateStr.split('-').map(Number);
+            const date = new Date(y, m - 1, d, 0, 0, 0, 0);
+            return date.getTime();
+          });
+        }
+      }
+
       if (creatingTask) {
         await createTask({
           sessionToken: sessionToken ?? undefined,
@@ -319,6 +426,15 @@ export default function TasksPage() {
           rangeStartDate,
           rangeEndDate,
           scheduledAt,
+          recurrencePattern: editRecurrencePattern || undefined,
+          recurrenceDaysOfWeek: editRecurrenceDaysOfWeek.length > 0 ? editRecurrenceDaysOfWeek : undefined,
+          recurrenceWeekInterval: editRecurrenceWeekInterval > 1 ? editRecurrenceWeekInterval : undefined,
+          recurrenceSpecificDates,
+          recurrenceStartDate,
+          recurrenceEndDate,
+          recurrenceDayOfMonth: editRecurrenceDayOfMonth > 1 ? editRecurrenceDayOfMonth : undefined,
+          recurrenceMonth: editRecurrenceMonth > 0 ? editRecurrenceMonth : undefined,
+          recurrenceDayOfYear: editRecurrenceDayOfYear > 1 ? editRecurrenceDayOfYear : undefined,
           tagIds: editTagIds,
           folderId: editFolderId,
         });
@@ -337,6 +453,15 @@ export default function TasksPage() {
           rangeStartDate,
           rangeEndDate,
           scheduledAt,
+          recurrencePattern: editRecurrencePattern || undefined,
+          recurrenceDaysOfWeek: editRecurrenceDaysOfWeek.length > 0 ? editRecurrenceDaysOfWeek : undefined,
+          recurrenceWeekInterval: editRecurrenceWeekInterval > 1 ? editRecurrenceWeekInterval : undefined,
+          recurrenceSpecificDates,
+          recurrenceStartDate,
+          recurrenceEndDate,
+          recurrenceDayOfMonth: editRecurrenceDayOfMonth > 1 ? editRecurrenceDayOfMonth : undefined,
+          recurrenceMonth: editRecurrenceMonth > 0 ? editRecurrenceMonth : undefined,
+          recurrenceDayOfYear: editRecurrenceDayOfYear > 1 ? editRecurrenceDayOfYear : undefined,
           tagIds: editTagIds,
           folderId: editFolderId,
         });
@@ -372,6 +497,23 @@ export default function TasksPage() {
       toast({
         title: "Error",
         description: "Failed to delete task",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteAllCompleted = async () => {
+    try {
+      const result = await deleteAllCompleted({ sessionToken: sessionToken ?? undefined });
+      setDeleteAllCompletedDialog(false);
+      toast({
+        title: "Completed tasks deleted",
+        description: `${result.deletedCount} completed task${result.deletedCount === 1 ? "" : "s"} deleted.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete completed tasks",
         variant: "destructive",
       });
     }
@@ -540,15 +682,27 @@ export default function TasksPage() {
               Manage your tasks and deadlines with time-light organization
             </p>
           </div>
-          <Button
-            onClick={handleCreate}
-            className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors w-full sm:w-auto"
-            style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">New Task</span>
-            <span className="sm:hidden">New</span>
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <Button
+              onClick={() => setDeleteAllCompletedDialog(true)}
+              variant="outline"
+              className="font-black uppercase tracking-wider border-foreground/20 hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive transition-colors w-full sm:w-auto"
+              style={{ fontWeight: '900' }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Delete Completed</span>
+              <span className="sm:hidden">Delete Done</span>
+            </Button>
+            <Button
+              onClick={handleCreate}
+              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors w-full sm:w-auto"
+              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">New Task</span>
+              <span className="sm:hidden">New</span>
+            </Button>
+          </div>
         </div>
 
 
@@ -700,7 +854,8 @@ export default function TasksPage() {
             setCreatingTask(false);
           }
         }}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+          <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 sm:p-0">
+            <div className="overflow-y-auto p-4 sm:p-6 flex-1" onWheel={(e) => e.stopPropagation()} onTouchMove={(e) => e.stopPropagation()}>
             <DialogHeader>
               <DialogTitle className="font-black uppercase tracking-wider text-xl" style={{ fontWeight: '900' }}>
                 {creatingTask ? "Create New Task" : "Edit Task"}
@@ -746,6 +901,7 @@ export default function TasksPage() {
                     <SelectItem value="deadline">Deadline</SelectItem>
                     <SelectItem value="date_range">Date Range</SelectItem>
                     <SelectItem value="scheduled_time">Scheduled Time</SelectItem>
+                    <SelectItem value="recurring">Recurring</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -834,6 +990,29 @@ export default function TasksPage() {
                 </div>
               )}
 
+              {editTaskType === "recurring" && (
+                <RecurrenceSelector
+                  pattern={editRecurrencePattern}
+                  onPatternChange={setEditRecurrencePattern}
+                  daysOfWeek={editRecurrenceDaysOfWeek}
+                  onDaysOfWeekChange={setEditRecurrenceDaysOfWeek}
+                  weekInterval={editRecurrenceWeekInterval}
+                  onWeekIntervalChange={setEditRecurrenceWeekInterval}
+                  specificDates={editRecurrenceSpecificDates}
+                  onSpecificDatesChange={setEditRecurrenceSpecificDates}
+                  startDate={editRecurrenceStartDate}
+                  onStartDateChange={setEditRecurrenceStartDate}
+                  endDate={editRecurrenceEndDate}
+                  onEndDateChange={setEditRecurrenceEndDate}
+                  dayOfMonth={editRecurrenceDayOfMonth}
+                  onDayOfMonthChange={setEditRecurrenceDayOfMonth}
+                  month={editRecurrenceMonth}
+                  onMonthChange={setEditRecurrenceMonth}
+                  dayOfYear={editRecurrenceDayOfYear}
+                  onDayOfYearChange={setEditRecurrenceDayOfYear}
+                />
+              )}
+
               <div>
                 <label className="text-xs font-black uppercase tracking-wider text-foreground/70 mb-2.5 block" style={{ fontWeight: '900' }}>
                   Tags
@@ -879,6 +1058,7 @@ export default function TasksPage() {
                 </Button>
               </div>
             </div>
+            </div>
           </DialogContent>
         </Dialog>
 
@@ -899,6 +1079,36 @@ export default function TasksPage() {
                 style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
               >
                 Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete All Completed Dialog */}
+        <AlertDialog open={deleteAllCompletedDialog} onOpenChange={setDeleteAllCompletedDialog}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-black uppercase tracking-wider text-xl" style={{ fontWeight: '900' }}>
+                Delete All Completed Tasks
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-foreground/70 pt-2">
+                This will permanently delete all tasks marked as completed. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
+              <AlertDialogCancel 
+                className="font-black uppercase tracking-wider border-foreground/20 hover:border-foreground/40 w-full sm:w-auto" 
+                style={{ fontWeight: '900' }}
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeleteAllCompleted}
+                className="font-black uppercase tracking-wider w-full sm:w-auto"
+                style={{ backgroundColor: '#dc2626', fontWeight: '900' }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete All Completed
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1051,7 +1261,7 @@ function BankView({
                 </span>
               </label>
             </div>
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            <div className="space-y-2 max-h-[400px] overflow-y-auto" onWheel={(e) => e.stopPropagation()} onTouchMove={(e) => e.stopPropagation()}>
               {allTags.length === 0 ? (
                 <p className="text-xs text-foreground/40 text-center py-4">No tags yet</p>
               ) : (
