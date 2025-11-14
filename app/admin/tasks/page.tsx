@@ -659,9 +659,8 @@ export default function TasksPage() {
                         No tasks in this view
                       </p>
                       <p className="text-sm text-foreground/50">
-                        {activeView === "this_week" && "Tasks for this week will appear here"}
-                        {activeView === "next_week" && "Tasks for next week will appear here"}
-                        {activeView === "someday" && "Tag tasks with 'Someday' to see them here"}
+                        {activeView === "this_week" && weekViewMode === "list" && "Tasks for this week will appear here"}
+                        {activeView === "next_week" && weekViewMode === "list" && "Tasks for next week will appear here"}
                         {activeView === "overdue" && "Overdue tasks will appear here"}
                       </p>
                     </CardContent>
