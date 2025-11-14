@@ -66,8 +66,9 @@ export default function TasksPage() {
   const { sessionToken } = useAdminAuth();
   const { toast } = useToast();
   const [activeView, setActiveView] = useState<TaskView>("dashboard");
-  const [quickAddMode, setQuickAddMode] = useState<"today" | "tomorrow">("today");
-  const [quickAddText, setQuickAddText] = useState("");
+  // Quick Add state for Today and Tomorrow
+  const [todayQuickAddText, setTodayQuickAddText] = useState("");
+  const [tomorrowQuickAddText, setTomorrowQuickAddText] = useState("");
   const [editingTask, setEditingTask] = useState<Id<"tasks"> | null>(null);
   const [creatingTask, setCreatingTask] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; taskId: Id<"tasks"> | null }>({ open: false, taskId: null });
@@ -124,22 +125,47 @@ export default function TasksPage() {
   const togglePinToday = useMutation(api.tasks.togglePinToday);
   const togglePinTomorrow = useMutation(api.tasks.togglePinTomorrow);
 
-  // Quick Add
-  const handleQuickAdd = async () => {
-    if (!quickAddText.trim()) return;
+  // Quick Add handlers
+  const handleQuickAddToday = async () => {
+    if (!todayQuickAddText.trim()) return;
 
     try {
       await createTask({
         sessionToken: sessionToken ?? undefined,
-        title: quickAddText.trim(),
+        title: todayQuickAddText.trim(),
         taskType: "none",
-        pinnedToday: quickAddMode === "today",
-        pinnedTomorrow: quickAddMode === "tomorrow",
+        pinnedToday: true,
+        pinnedTomorrow: false,
       });
-      setQuickAddText("");
+      setTodayQuickAddText("");
       toast({
         title: "Task added",
-        description: `Added to ${quickAddMode === "today" ? "Today" : "Tomorrow"}`,
+        description: "Added to Today",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create task",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleQuickAddTomorrow = async () => {
+    if (!tomorrowQuickAddText.trim()) return;
+
+    try {
+      await createTask({
+        sessionToken: sessionToken ?? undefined,
+        title: tomorrowQuickAddText.trim(),
+        taskType: "none",
+        pinnedToday: false,
+        pinnedTomorrow: true,
+      });
+      setTomorrowQuickAddText("");
+      toast({
+        title: "Task added",
+        description: "Added to Tomorrow",
       });
     } catch (error) {
       toast({
@@ -525,50 +551,6 @@ export default function TasksPage() {
           </Button>
         </div>
 
-        {/* Quick Add */}
-        <Card className="mb-8 sm:mb-12 border border-foreground/10 hover:border-accent/40 transition-all bg-foreground/5 shadow-sm">
-          <CardContent className="p-5 sm:p-6">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Input
-                  value={quickAddText}
-                  onChange={(e) => setQuickAddText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleQuickAdd();
-                    }
-                  }}
-                  placeholder={`Quick add to ${quickAddMode === "today" ? "Today" : "Tomorrow"}...`}
-                  className="w-full h-11 border-foreground/20 focus:border-accent/40 bg-background text-base placeholder:text-foreground/50"
-                />
-              </div>
-              <div className="flex gap-2.5">
-                <Button
-                  onClick={() => setQuickAddMode(quickAddMode === "today" ? "tomorrow" : "today")}
-                  variant={quickAddMode === "today" ? "default" : "outline"}
-                  className={`min-w-[100px] sm:min-w-[120px] h-11 font-black uppercase tracking-wider transition-all text-sm ${
-                    quickAddMode === "today" 
-                      ? "shadow-sm" 
-                      : "border-foreground/20 hover:border-accent/40 hover:bg-foreground/5"
-                  }`}
-                  style={quickAddMode === "today" ? { backgroundColor: '#FFA617', fontWeight: '900' } : {}}
-                >
-                  {quickAddMode === "today" ? "Today" : "Tomorrow"}
-                </Button>
-                <Button 
-                  onClick={handleQuickAdd} 
-                  disabled={!quickAddText.trim()}
-                  className="font-black uppercase tracking-wider min-w-[90px] sm:min-w-[110px] h-11 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all text-sm"
-                  style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
-                >
-                  <Plus className="h-4 w-4 mr-1.5 sm:mr-2" />
-                  <span className="hidden sm:inline">Add</span>
-                  <span className="sm:hidden">+</span>
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Tabs */}
         <AdminTabs
@@ -622,6 +604,12 @@ export default function TasksPage() {
                   onEdit={handleEdit}
                   onDelete={(id) => setDeleteDialog({ open: true, taskId: id })}
                   formatTaskDateTime={formatTaskDateTime}
+                  todayQuickAddText={todayQuickAddText}
+                  onTodayQuickAddTextChange={setTodayQuickAddText}
+                  onQuickAddToday={handleQuickAddToday}
+                  tomorrowQuickAddText={tomorrowQuickAddText}
+                  onTomorrowQuickAddTextChange={setTomorrowQuickAddText}
+                  onQuickAddTomorrow={handleQuickAddTomorrow}
                 />
               ) : activeView === "bank" || activeView === "someday" ? (
               <BankView
@@ -1354,6 +1342,12 @@ function DashboardView({
   onEdit,
   onDelete,
   formatTaskDateTime,
+  todayQuickAddText,
+  onTodayQuickAddTextChange,
+  onQuickAddToday,
+  tomorrowQuickAddText,
+  onTomorrowQuickAddTextChange,
+  onQuickAddTomorrow,
 }: {
   todayTasks: any[];
   tomorrowTasks: any[];
@@ -1365,6 +1359,12 @@ function DashboardView({
   onEdit: (id: Id<"tasks">) => void;
   onDelete: (id: Id<"tasks">) => void;
   formatTaskDateTime: (task: any) => string | null;
+  todayQuickAddText: string;
+  onTodayQuickAddTextChange: (text: string) => void;
+  onQuickAddToday: () => void;
+  tomorrowQuickAddText: string;
+  onTomorrowQuickAddTextChange: (text: string) => void;
+  onQuickAddTomorrow: () => void;
 }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
@@ -1390,6 +1390,32 @@ function DashboardView({
           </div>
         </CardHeader>
         <CardContent className="p-5 sm:p-6">
+          {/* Quick Add for Today */}
+          <div className="mb-4 pb-4 border-b border-foreground/10">
+            <div className="flex gap-2">
+              <Input
+                value={todayQuickAddText}
+                onChange={(e) => onTodayQuickAddTextChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    onQuickAddToday();
+                  }
+                }}
+                placeholder="Quick add task..."
+                className="flex-1 h-10 border-foreground/20 focus:border-accent/40 bg-background text-sm placeholder:text-foreground/50"
+              />
+              <Button 
+                onClick={onQuickAddToday} 
+                disabled={!todayQuickAddText.trim()}
+                className="font-black uppercase tracking-wider h-10 px-4 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all text-xs"
+                style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Add
+              </Button>
+            </div>
+          </div>
+
           {todayTasks.length === 0 ? (
             <div className="py-12 text-center">
               <CalendarDays className="mx-auto h-12 w-12 text-foreground/30 mb-4" />
@@ -1443,6 +1469,32 @@ function DashboardView({
           </div>
         </CardHeader>
         <CardContent className="p-5 sm:p-6">
+          {/* Quick Add for Tomorrow */}
+          <div className="mb-4 pb-4 border-b border-foreground/10">
+            <div className="flex gap-2">
+              <Input
+                value={tomorrowQuickAddText}
+                onChange={(e) => onTomorrowQuickAddTextChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    onQuickAddTomorrow();
+                  }
+                }}
+                placeholder="Quick add task..."
+                className="flex-1 h-10 border-foreground/20 focus:border-accent/40 bg-background text-sm placeholder:text-foreground/50"
+              />
+              <Button 
+                onClick={onQuickAddTomorrow} 
+                disabled={!tomorrowQuickAddText.trim()}
+                className="font-black uppercase tracking-wider h-10 px-4 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all text-xs"
+                style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Add
+              </Button>
+            </div>
+          </div>
+
           {tomorrowTasks.length === 0 ? (
             <div className="py-12 text-center">
               <CalendarClock className="mx-auto h-12 w-12 text-foreground/30 mb-4" />
