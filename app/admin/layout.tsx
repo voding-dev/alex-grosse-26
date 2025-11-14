@@ -960,6 +960,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {mobileDropdownsOpen.tools && (
                   <div className="ml-4 mt-1 space-y-1 border-l-2 border-accent/20 pl-4 animate-in slide-in-from-left duration-200">
                     <Link
+                      href="/admin/tasks"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
+                        isActive("/admin/tasks")
+                          ? "text-accent bg-accent/10 shadow-sm"
+                          : "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
+                      )}
+                    >
+                      <CheckSquare className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tasks") && "text-accent")} />
+                      Tasks
+                    </Link>
+                    <Link
                       href="/admin/scheduling"
                       onClick={() => {
                         setMobileMenuOpen(false);
@@ -1054,22 +1070,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     >
                       <Sliders className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/pitch-deck-builder") && "text-accent")} />
                       Pitch Deck Builder
-                    </Link>
-                    <Link
-                      href="/admin/tasks"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
-                      }}
-                      className={cn(
-                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
-                        isActive("/admin/tasks")
-                          ? "text-accent bg-accent/10 shadow-sm"
-                          : "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
-                      )}
-                    >
-                      <CheckSquare className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tasks") && "text-accent")} />
-                      Tasks
                     </Link>
                   </div>
                 )}
