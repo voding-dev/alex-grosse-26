@@ -21,6 +21,7 @@ import type * as designGallery from "../designGallery.js";
 import type * as designHeroCarousel from "../designHeroCarousel.js";
 import type * as emailMarketing from "../emailMarketing.js";
 import type * as feedback from "../feedback.js";
+import type * as folders from "../folders.js";
 import type * as graphicDesigner from "../graphicDesigner.js";
 import type * as graphicDesignerBrandGallery from "../graphicDesignerBrandGallery.js";
 import type * as graphicDesignerCategoryGallery from "../graphicDesignerCategoryGallery.js";
@@ -51,6 +52,7 @@ import type * as storageMutations from "../storageMutations.js";
 import type * as storageQueries from "../storageQueries.js";
 import type * as stripe from "../stripe.js";
 import type * as subscriptions from "../subscriptions.js";
+import type * as tasks from "../tasks.js";
 
 import type {
   ApiFromModules,
@@ -80,6 +82,7 @@ declare const fullApi: ApiFromModules<{
   designHeroCarousel: typeof designHeroCarousel;
   emailMarketing: typeof emailMarketing;
   feedback: typeof feedback;
+  folders: typeof folders;
   graphicDesigner: typeof graphicDesigner;
   graphicDesignerBrandGallery: typeof graphicDesignerBrandGallery;
   graphicDesignerCategoryGallery: typeof graphicDesignerCategoryGallery;
@@ -110,6 +113,7 @@ declare const fullApi: ApiFromModules<{
   storageQueries: typeof storageQueries;
   stripe: typeof stripe;
   subscriptions: typeof subscriptions;
+  tasks: typeof tasks;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 

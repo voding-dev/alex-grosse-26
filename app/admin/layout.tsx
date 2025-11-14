@@ -31,7 +31,8 @@ import {
   Users,
   CreditCard,
   Sparkles,
-  TrendingUp
+  TrendingUp,
+  CheckSquare
 } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -159,7 +160,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         isActive("/admin/tools/subscription-tracker") || 
                         isActive("/admin/scheduling") || 
                         isActive("/admin/email-marketing") || 
-                        isActive("/admin/qr-codes");
+                        isActive("/admin/qr-codes") ||
+                        isActive("/admin/tasks");
   const isMediaActive = isActive("/admin/tools/media-library") || isActive("/admin/image-compressor") || isActive("/admin/file-converter");
   const isWebsiteActive = isActive("/admin/website-editor") || isActive("/admin/page-builder") || isActive("/admin/portraits") || isActive("/admin/design") || isActive("/admin/landing-pages") || isActive("/admin/graphic-designer");
 
@@ -446,6 +448,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {toolsOpen && (
                   <div className="absolute top-full left-0 mt-2 bg-background/95 backdrop-blur-xl border border-foreground/10 rounded-xl shadow-2xl py-2 min-w-[260px] z-100 animate-in fade-in slide-in-from-top-2 duration-200" data-dropdown>
                     <div className="px-2 py-1.5">
+                      <Link
+                        href="/admin/tasks"
+                        onClick={(e) => {
+                          setTimeout(() => setToolsOpen(false), 0);
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                          isActive("/admin/tasks")
+                            ? "text-accent bg-accent/10 shadow-sm"
+                            : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
+                        )}
+                      >
+                        <CheckSquare className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tasks") && "text-accent")} />
+                        Tasks
+                      </Link>
                       <Link
                         href="/admin/scheduling"
                         onClick={(e) => {
@@ -1037,6 +1054,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     >
                       <Sliders className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tools/pitch-deck-builder") && "text-accent")} />
                       Pitch Deck Builder
+                    </Link>
+                    <Link
+                      href="/admin/tasks"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
+                        isActive("/admin/tasks")
+                          ? "text-accent bg-accent/10 shadow-sm"
+                          : "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
+                      )}
+                    >
+                      <CheckSquare className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/tasks") && "text-accent")} />
+                      Tasks
                     </Link>
                   </div>
                 )}

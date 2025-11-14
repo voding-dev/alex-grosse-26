@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PitchDeckPreview } from "@/components/pitch-deck/PitchDeckPreview";
 import { use } from "react";
+import { notFound } from "next/navigation";
 
 export default function PitchDeckPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -27,18 +28,7 @@ export default function PitchDeckPage({ params }: { params: Promise<{ slug: stri
 
   // Not found state
   if (!pitchDeck || pitchDeck === null) {
-    return (
-      <main className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-black uppercase tracking-wide text-foreground mb-4" style={{ fontWeight: '900' }}>
-            Pitch Deck Not Found
-          </h1>
-          <p className="text-foreground/70">
-            The pitch deck you're looking for doesn't exist.
-          </p>
-        </div>
-      </main>
-    );
+    notFound();
   }
 
   return (

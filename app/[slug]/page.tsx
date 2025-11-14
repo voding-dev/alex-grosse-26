@@ -8,6 +8,7 @@ import { Gallery } from "@/components/gallery";
 import { BookingModal } from "@/components/booking-modal";
 import Image from "next/image";
 import { use } from "react";
+import { notFound } from "next/navigation";
 
 export default function LandingPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -40,18 +41,7 @@ export default function LandingPage({ params }: { params: Promise<{ slug: string
 
   // If landing page not found, return 404
   if (landingPage === null) {
-    return (
-      <main className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-black uppercase tracking-wide text-foreground mb-4" style={{ fontWeight: '900' }}>
-            Page Not Found
-          </h1>
-          <p className="text-foreground/70">
-            The page you're looking for doesn't exist.
-          </p>
-        </div>
-      </main>
-    );
+    notFound();
   }
 
   // Loading state

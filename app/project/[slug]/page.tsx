@@ -11,6 +11,7 @@ import { MasonryGrid } from "@/components/masonry-grid";
 import { MasonryImage } from "@/components/masonry-image";
 import Image from "next/image";
 import { getVideoThumbnailUrl } from "@/lib/video-utils";
+import { notFound } from "next/navigation";
 
 export default function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -69,16 +70,7 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
 
   // Only show approved/delivered projects publicly
   if (!project || (project.status !== "approved" && project.status !== "delivered")) {
-    return (
-      <>
-        <Nav />
-        <main className="min-h-screen bg-background pt-16">
-          <div className="mx-auto max-w-7xl px-6 py-24">
-            <p className="text-foreground/60">Project not found.</p>
-          </div>
-        </main>
-      </>
-    );
+    notFound();
   }
 
   return (

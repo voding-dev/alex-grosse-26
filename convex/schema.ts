@@ -864,6 +864,47 @@ export default defineSchema({
     .index("by_tags", ["tags"])
     .index("by_pinned", ["isPinned"]),
 
+  // Folders - nested folder system for tasks and notes
+  folders: defineTable({
+    name: v.string(),
+    parentFolderId: v.optional(v.id("folders")), // For nested folders
+    color: v.optional(v.string()), // Optional color tag
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_parent", ["parentFolderId"])
+    .index("by_name", ["name"]),
+
+  // Tasks - time-light task manager
+  tasks: defineTable({
+    title: v.string(),
+    description: v.optional(v.string()),
+    taskType: v.union(
+      v.literal("none"),
+      v.literal("deadline"),
+      v.literal("date_range"),
+      v.literal("scheduled_time")
+    ),
+    deadlineAt: v.optional(v.number()), // Timestamp for "deadline"
+    rangeStartDate: v.optional(v.number()), // Timestamp (date only) for "date_range"
+    rangeEndDate: v.optional(v.number()), // Timestamp (date only) for "date_range"
+    scheduledAt: v.optional(v.number()), // Timestamp for "scheduled_time"
+    isCompleted: v.boolean(),
+    pinnedToday: v.boolean(),
+    pinnedTomorrow: v.boolean(),
+    folderId: v.optional(v.id("folders")),
+    tagIds: v.array(v.string()), // Array of tag strings (using same tag system as notes)
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_completed", ["isCompleted"])
+    .index("by_folder", ["folderId"])
+    .index("by_tags", ["tagIds"])
+    .index("by_created_at", ["createdAt"])
+    .index("by_updated_at", ["updatedAt"])
+    .index("by_deadline", ["deadlineAt"])
+    .index("by_scheduled", ["scheduledAt"]),
+
   // Prospect Industries - reusable industry categories
   prospectIndustries: defineTable({
     name: v.string(),
