@@ -84,12 +84,12 @@ export default function TasksPage() {
   // Queries
   const allTasks = useQuery(
     api.tasks.list,
-    sessionToken ? { sessionToken } : "skip"
+    sessionToken ? { sessionToken: sessionToken ?? undefined } : "skip"
   ) || [];
   const tasks = useQuery(
     api.tasks.list,
     sessionToken ? { 
-      sessionToken, 
+      sessionToken: sessionToken ?? undefined, 
       view: activeView === "dashboard" ? undefined : activeView,
       folderId: (activeView === "bank" || activeView === "someday") ? selectedFolderId : undefined,
       tagIds: (activeView === "bank" || activeView === "someday") && selectedTags.length > 0 ? selectedTags : undefined,
@@ -102,18 +102,18 @@ export default function TasksPage() {
   // Separate queries for dashboard view
   const todayTasks = useQuery(
     api.tasks.list,
-    sessionToken && activeView === "dashboard" ? { sessionToken, view: "today" } : "skip"
+    sessionToken && activeView === "dashboard" ? { sessionToken: sessionToken ?? undefined, view: "today" } : "skip"
   ) || [];
   
   const tomorrowTasks = useQuery(
     api.tasks.list,
-    sessionToken && activeView === "dashboard" ? { sessionToken, view: "tomorrow" } : "skip"
+    sessionToken && activeView === "dashboard" ? { sessionToken: sessionToken ?? undefined, view: "tomorrow" } : "skip"
   ) || [];
-  const allTags = useQuery(api.tasks.getAllTags, sessionToken ? { sessionToken } : "skip") || [];
-  const folders = useQuery(api.folders.getHierarchy, sessionToken ? { sessionToken } : "skip") || [];
+  const allTags = useQuery(api.tasks.getAllTags, sessionToken ? { sessionToken: sessionToken ?? undefined } : "skip") || [];
+  const folders = useQuery(api.folders.getHierarchy, sessionToken ? { sessionToken: sessionToken ?? undefined } : "skip") || [];
   const editingTaskData = useQuery(
     api.tasks.get,
-    editingTask && sessionToken ? { id: editingTask, sessionToken } : "skip"
+    editingTask && sessionToken ? { id: editingTask, sessionToken: sessionToken ?? undefined } : "skip"
   );
 
   // Mutations
@@ -130,7 +130,7 @@ export default function TasksPage() {
 
     try {
       await createTask({
-        sessionToken,
+        sessionToken: sessionToken ?? undefined,
         title: quickAddText.trim(),
         taskType: "none",
         pinnedToday: quickAddMode === "today",
@@ -276,7 +276,7 @@ export default function TasksPage() {
 
       if (creatingTask) {
         await createTask({
-          sessionToken,
+          sessionToken: sessionToken ?? undefined,
           title: editTitle,
           description: editDescription || undefined,
           taskType: editTaskType,
@@ -293,7 +293,7 @@ export default function TasksPage() {
         });
       } else if (editingTask) {
         await updateTask({
-          sessionToken,
+          sessionToken: sessionToken ?? undefined,
           id: editingTask,
           title: editTitle,
           description: editDescription || undefined,
@@ -327,7 +327,7 @@ export default function TasksPage() {
     if (!deleteDialog.taskId) return;
 
     try {
-      await deleteTask({ sessionToken, id: deleteDialog.taskId });
+      await deleteTask({ sessionToken: sessionToken ?? undefined, id: deleteDialog.taskId });
       setDeleteDialog({ open: false, taskId: null });
       toast({
         title: "Task deleted",
@@ -378,7 +378,7 @@ export default function TasksPage() {
   // Get all tasks for week view
   const weekTasks = useQuery(
     api.tasks.list,
-    sessionToken && (activeView === "this_week" || activeView === "next_week") ? { sessionToken, view: activeView } : "skip"
+    sessionToken && (activeView === "this_week" || activeView === "next_week") ? { sessionToken: sessionToken ?? undefined, view: activeView } : "skip"
   ) || [];
 
   const tasksByDay = useMemo(() => {
@@ -607,9 +607,9 @@ export default function TasksPage() {
                   tomorrowTasks={tomorrowTasks}
                   folders={flattenFolders}
                   allTags={allTags}
-                  onToggleComplete={(id) => toggleComplete({ sessionToken, id })}
-                  onTogglePinToday={(id) => togglePinToday({ sessionToken, id })}
-                  onTogglePinTomorrow={(id) => togglePinTomorrow({ sessionToken, id })}
+                  onToggleComplete={(id) => toggleComplete({ sessionToken: sessionToken ?? undefined, id })}
+                  onTogglePinToday={(id) => togglePinToday({ sessionToken: sessionToken ?? undefined, id })}
+                  onTogglePinTomorrow={(id) => togglePinTomorrow({ sessionToken: sessionToken ?? undefined, id })}
                   onEdit={handleEdit}
                   onDelete={(id) => setDeleteDialog({ open: true, taskId: id })}
                   formatTaskDateTime={formatTaskDateTime}
@@ -640,9 +640,9 @@ export default function TasksPage() {
                   }
                   setExpandedFolders(newExpanded);
                 }}
-                onToggleComplete={(id) => toggleComplete({ sessionToken, id })}
-                onTogglePinToday={(id) => togglePinToday({ sessionToken, id })}
-                onTogglePinTomorrow={(id) => togglePinTomorrow({ sessionToken, id })}
+                onToggleComplete={(id) => toggleComplete({ sessionToken: sessionToken ?? undefined, id })}
+                onTogglePinToday={(id) => togglePinToday({ sessionToken: sessionToken ?? undefined, id })}
+                onTogglePinTomorrow={(id) => togglePinTomorrow({ sessionToken: sessionToken ?? undefined, id })}
                 onEdit={handleEdit}
                 onDelete={(id) => setDeleteDialog({ open: true, taskId: id })}
                 formatTaskDateTime={formatTaskDateTime}
@@ -678,9 +678,9 @@ export default function TasksPage() {
                         <TaskCard
                           key={task._id}
                           task={task}
-                          onToggleComplete={() => toggleComplete({ sessionToken, id: task._id })}
-                          onTogglePinToday={() => togglePinToday({ sessionToken, id: task._id })}
-                          onTogglePinTomorrow={() => togglePinTomorrow({ sessionToken, id: task._id })}
+                          onToggleComplete={() => toggleComplete({ sessionToken: sessionToken ?? undefined, id: task._id })}
+                          onTogglePinToday={() => togglePinToday({ sessionToken: sessionToken ?? undefined, id: task._id })}
+                          onTogglePinTomorrow={() => togglePinTomorrow({ sessionToken: sessionToken ?? undefined, id: task._id })}
                           onEdit={() => handleEdit(task._id)}
                           onDelete={() => setDeleteDialog({ open: true, taskId: task._id })}
                           formatDateTime={formatTaskDateTime(task)}
