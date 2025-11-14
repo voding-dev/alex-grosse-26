@@ -323,10 +323,39 @@ export const list = query({
       );
     }
 
-    // Sort: incomplete first, then by updatedAt
+    // Sort: incomplete first, then by due date (sooner first) for bank view, otherwise by updatedAt
     tasks.sort((a, b) => {
+      // Always put incomplete tasks first
       if (!a.isCompleted && b.isCompleted) return -1;
       if (a.isCompleted && !b.isCompleted) return 1;
+      
+      // For bank view, sort by due date (sooner first)
+      if (args.view === "bank") {
+        // Get the earliest relevant date for each task
+        const getEarliestDate = (task: typeof a): number | null => {
+          if (task.deadlineAt) return task.deadlineAt;
+          if (task.scheduledAt) return task.scheduledAt;
+          if (task.rangeStartDate) return task.rangeStartDate;
+          return null;
+        };
+        
+        const aDate = getEarliestDate(a);
+        const bDate = getEarliestDate(b);
+        
+        // Tasks with dates come before tasks without dates
+        if (aDate !== null && bDate === null) return -1;
+        if (aDate === null && bDate !== null) return 1;
+        
+        // If both have dates, sort by date (sooner first)
+        if (aDate !== null && bDate !== null) {
+          return aDate - bDate;
+        }
+        
+        // If neither has a date, sort by updatedAt (most recent first)
+        return b.updatedAt - a.updatedAt;
+      }
+      
+      // For other views, sort by updatedAt (most recent first)
       return b.updatedAt - a.updatedAt;
     });
 
