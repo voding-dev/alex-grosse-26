@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay, isAfter, isBefore } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ interface CustomDatePickerProps {
   min?: string; // yyyy-mm-dd format
   max?: string; // yyyy-mm-dd format
   className?: string;
+  rangeStartDate?: string; // yyyy-mm-dd format - for showing range selection
 }
 
 export function CustomDatePicker({
@@ -23,19 +24,25 @@ export function CustomDatePicker({
   min,
   max,
   className,
+  rangeStartDate,
 }: CustomDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(value ? new Date(value + "T00:00:00") : new Date());
+  const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
 
   useEffect(() => {
     if (value) {
       setCurrentMonth(new Date(value + "T00:00:00"));
+    } else if (rangeStartDate && isOpen) {
+      // If no value but rangeStartDate is set and popover is open, navigate to start date month
+      setCurrentMonth(new Date(rangeStartDate + "T00:00:00"));
     }
-  }, [value]);
+  }, [value, rangeStartDate, isOpen]);
 
   const selectedDate = value ? new Date(value + "T00:00:00") : null;
   const minDate = min ? new Date(min + "T00:00:00") : null;
   const maxDate = max ? new Date(max + "T00:00:00") : null;
+  const rangeStart = rangeStartDate ? new Date(rangeStartDate + "T00:00:00") : null;
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -73,7 +80,43 @@ export function CustomDatePicker({
     return false;
   };
 
+  // Check if a date is in the range between start date and hovered/selected date
+  const isInRange = (date: Date) => {
+    if (!rangeStart) return false;
+    
+    // Use hovered date if available (for preview), otherwise use selected date
+    const endDate = hoveredDate || selectedDate;
+    if (!endDate) return false;
+    
+    const dateTime = new Date(date);
+    dateTime.setHours(0, 0, 0, 0);
+    
+    const rangeStartTime = rangeStart.getTime();
+    const rangeEndTime = endDate.getTime();
+    const dateTimeValue = dateTime.getTime();
+    
+    // Ensure we compare dates correctly (start should be <= end)
+    const actualStart = Math.min(rangeStartTime, rangeEndTime);
+    const actualEnd = Math.max(rangeStartTime, rangeEndTime);
+    
+    // Check if date is between actualStart and actualEnd (inclusive)
+    return dateTimeValue >= actualStart && dateTimeValue <= actualEnd;
+  };
+
+  // Check if a date is the start of the range
+  const isRangeStart = (date: Date) => {
+    if (!rangeStart) return false;
+    return isSameDay(date, rangeStart);
+  };
+
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  // Clear hover state when popover closes
+  useEffect(() => {
+    if (!isOpen) {
+      setHoveredDate(null);
+    }
+  }, [isOpen]);
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -139,19 +182,27 @@ export function CustomDatePicker({
               const isSelected = selectedDate && isSameDay(date, selectedDate);
               const isDisabled = isDateDisabled(date);
               const isCurrentMonth = isSameMonth(date, currentMonth);
+              const inRange = isInRange(date);
+              const isStart = isRangeStart(date);
 
               return (
                 <button
                   key={date.toISOString()}
                   type="button"
                   onClick={() => !isDisabled && handleDateSelect(date)}
+                  onMouseEnter={() => !isDisabled && rangeStart && setHoveredDate(date)}
+                  onMouseLeave={() => setHoveredDate(null)}
                   disabled={isDisabled}
                   className={cn(
-                    "h-10 w-10 rounded border text-sm font-bold uppercase tracking-wider transition-colors",
+                    "h-10 w-10 rounded border text-sm font-bold uppercase tracking-wider transition-colors relative",
                     !isCurrentMonth && "text-foreground/30",
                     isDisabled && "opacity-30 cursor-not-allowed",
-                    !isDisabled && !isSelected && "border-foreground/20 hover:border-accent/50 hover:bg-accent/10",
-                    isSelected && "border-accent bg-accent text-background",
+                    // Range highlighting
+                    inRange && !isSelected && "bg-accent/20 border-accent/40",
+                    isStart && !isSelected && "bg-accent/30 border-accent/60 ring-2 ring-accent/30",
+                    // Normal states
+                    !isDisabled && !isSelected && !inRange && !isStart && "border-foreground/20 hover:border-accent/50 hover:bg-accent/10",
+                    isSelected && "border-accent bg-accent text-background z-10",
                     isCurrentMonth && !isSelected && !isDisabled && "text-foreground"
                   )}
                   style={isSelected ? {} : { fontWeight: '900' }}

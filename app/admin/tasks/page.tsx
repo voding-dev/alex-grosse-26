@@ -221,6 +221,15 @@ export default function TasksPage() {
     }
   }, [creatingTask]);
 
+  // Handle date range start date change
+  const handleRangeStartDateChange = (date: string) => {
+    setEditRangeStartDate(date);
+    // If end date is set and is before the new start date, clear it
+    if (editRangeEndDate && date && editRangeEndDate < date) {
+      setEditRangeEndDate("");
+    }
+  };
+
   // Open edit dialog
   const handleEdit = (taskId: Id<"tasks">) => {
     setEditingTask(taskId);
@@ -763,6 +772,7 @@ export default function TasksPage() {
                       value={editDeadlineDate}
                       onChange={setEditDeadlineDate}
                       placeholder="Select deadline date"
+                      min={format(new Date(), "yyyy-MM-dd")}
                     />
                   </div>
                   {editDeadlineDate && (
@@ -788,8 +798,9 @@ export default function TasksPage() {
                     </label>
                     <CustomDatePicker
                       value={editRangeStartDate}
-                      onChange={setEditRangeStartDate}
+                      onChange={handleRangeStartDateChange}
                       placeholder="Select start date"
+                      min={format(new Date(), "yyyy-MM-dd")}
                     />
                   </div>
                   <div>
@@ -800,7 +811,8 @@ export default function TasksPage() {
                       value={editRangeEndDate}
                       onChange={setEditRangeEndDate}
                       placeholder="Select end date"
-                      min={editRangeStartDate}
+                      min={editRangeStartDate || format(new Date(), "yyyy-MM-dd")}
+                      rangeStartDate={editRangeStartDate}
                     />
                   </div>
                 </div>
@@ -816,6 +828,7 @@ export default function TasksPage() {
                       value={editScheduledDate}
                       onChange={setEditScheduledDate}
                       placeholder="Select date"
+                      min={format(new Date(), "yyyy-MM-dd")}
                     />
                   </div>
                   {editScheduledDate && (
