@@ -852,7 +852,7 @@ export default function TasksPage() {
                   folderId={editFolderId}
                   onFolderChange={setEditFolderId}
                   availableFolders={folders}
-                  sessionToken={sessionToken}
+                  sessionToken={sessionToken ?? undefined}
                 />
               </div>
 
