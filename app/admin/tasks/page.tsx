@@ -64,6 +64,37 @@ import {
 
 type TaskView = "dashboard" | "today" | "tomorrow" | "this_week" | "next_week" | "bank" | "someday" | "overdue";
 
+// Helper: Build client time context from device timezone
+function buildClientTimeContext(): {
+  now: number;
+  todayStart: number;
+  tomorrowStart: number;
+  weekStart: number;
+  nextWeekStart: number;
+} {
+  const nowDate = new Date();
+  const now = nowDate.getTime();
+
+  const today = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), 0, 0, 0, 0);
+  const todayStart = today.getTime();
+
+  const tomorrow = addDays(today, 1);
+  const tomorrowStart = tomorrow.getTime();
+
+  const weekStartDate = startOfWeek(today, { weekStartsOn: 0 });
+  const weekStart = weekStartDate.getTime();
+
+  const nextWeekStart = addDays(weekStartDate, 7).getTime();
+
+  return {
+    now,
+    todayStart,
+    tomorrowStart,
+    weekStart,
+    nextWeekStart,
+  };
+}
+
 export default function TasksPage() {
   const { sessionToken } = useAdminAuth();
   const { toast } = useToast();
@@ -85,10 +116,18 @@ export default function TasksPage() {
   const [filterNotTagged, setFilterNotTagged] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<Id<"folders">>>(new Set());
 
+  // Midnight reset / carryover dialog state
+  const [carryoverDialogOpen, setCarryoverDialogOpen] = useState(false);
+  const [carryoverTasks, setCarryoverTasks] = useState<any[]>([]);
+  const [carryoverTimeContext, setCarryoverTimeContext] = useState<ReturnType<typeof buildClientTimeContext> | null>(null);
+
+  // Build time context from client device timezone (memoized on mount)
+  const timeContext = useMemo(() => buildClientTimeContext(), []);
+
   // Queries
   const allTasks = useQuery(
     api.tasks.list,
-    sessionToken ? { sessionToken: sessionToken ?? undefined } : "skip"
+    sessionToken ? { sessionToken: sessionToken ?? undefined, timeContext } : "skip"
   ) || [];
   const tasks = useQuery(
     api.tasks.list,
@@ -100,25 +139,38 @@ export default function TasksPage() {
       search: (activeView === "bank" || activeView === "someday") && searchQuery ? searchQuery : undefined,
       filterNotInFolder: (activeView === "bank" || activeView === "someday") ? filterNotInFolder : undefined,
       filterNotTagged: (activeView === "bank" || activeView === "someday") ? filterNotTagged : undefined,
+      timeContext,
     } : "skip"
   ) || [];
   
   // Separate queries for dashboard view
   const todayTasks = useQuery(
     api.tasks.list,
-    sessionToken && activeView === "dashboard" ? { sessionToken: sessionToken ?? undefined, view: "today" } : "skip"
+    sessionToken && activeView === "dashboard" ? { sessionToken: sessionToken ?? undefined, view: "today", timeContext } : "skip"
   ) || [];
   
   const tomorrowTasks = useQuery(
     api.tasks.list,
-    sessionToken && activeView === "dashboard" ? { sessionToken: sessionToken ?? undefined, view: "tomorrow" } : "skip"
+    sessionToken && activeView === "dashboard" ? { sessionToken: sessionToken ?? undefined, view: "tomorrow", timeContext } : "skip"
   ) || [];
   const allTags = useQuery(api.tasks.getAllTags, sessionToken ? { sessionToken: sessionToken ?? undefined } : "skip") || [];
   const folders = useQuery(api.folders.getHierarchy, sessionToken ? { sessionToken: sessionToken ?? undefined } : "skip") || [];
   const editingTaskData = useQuery(
     api.tasks.get,
-    editingTask && sessionToken ? { id: editingTask, sessionToken: sessionToken ?? undefined } : "skip"
+    editingTask && sessionToken ? { id: editingTask, sessionToken: sessionToken ?? undefined, timeContext } : "skip"
   );
+
+  // Query yesterday's "Today" tasks for carryover detection
+  const carryoverQueryTasks = useQuery(
+    api.tasks.list,
+    sessionToken && carryoverTimeContext
+      ? {
+          sessionToken: sessionToken ?? undefined,
+          view: "today",
+          timeContext: carryoverTimeContext,
+        }
+      : "skip"
+  ) || [];
 
   // Mutations
   const createTask = useMutation(api.tasks.create);
@@ -134,11 +186,17 @@ export default function TasksPage() {
     if (!todayQuickAddText.trim()) return;
 
     try {
+      // Set deadline to end of today (23:59:59)
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      const deadlineAt = today.getTime();
+
       await createTask({
         sessionToken: sessionToken ?? undefined,
         title: todayQuickAddText.trim(),
-        taskType: "none",
-        pinnedToday: true,
+        taskType: "deadline",
+        deadlineAt,
+        pinnedToday: false, // Don't need to pin since it's already a deadline for today
         pinnedTomorrow: false,
       });
       setTodayQuickAddText("");
@@ -159,12 +217,18 @@ export default function TasksPage() {
     if (!tomorrowQuickAddText.trim()) return;
 
     try {
+      // Set deadline to end of tomorrow (23:59:59)
+      const tomorrow = addDays(new Date(), 1);
+      tomorrow.setHours(23, 59, 59, 999);
+      const deadlineAt = tomorrow.getTime();
+
       await createTask({
         sessionToken: sessionToken ?? undefined,
         title: tomorrowQuickAddText.trim(),
-        taskType: "none",
+        taskType: "deadline",
+        deadlineAt,
         pinnedToday: false,
-        pinnedTomorrow: true,
+        pinnedTomorrow: false, // Don't need to pin since it's already a deadline for tomorrow
       });
       setTomorrowQuickAddText("");
       toast({
@@ -326,6 +390,48 @@ export default function TasksPage() {
       setEditFolderId(undefined);
     }
   }, [creatingTask]);
+
+  // Midnight reset detection - check if we've opened on a new calendar day
+  useEffect(() => {
+    if (!sessionToken) return;
+
+    const storageKey = "task_tool_last_opened_date";
+    const now = new Date();
+    const todayKey = format(now, "yyyy-MM-dd");
+    const lastOpened = typeof window !== "undefined"
+      ? window.localStorage.getItem(storageKey)
+      : null;
+
+    // If we've opened on a new calendar day, prepare a yesterday timeContext
+    if (lastOpened && lastOpened !== todayKey) {
+      const yesterday = addDays(now, -1);
+      const yesterdayContext = {
+        now: yesterday.getTime(),
+        todayStart: new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0, 0).getTime(),
+        tomorrowStart: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime(),
+        weekStart: startOfWeek(yesterday, { weekStartsOn: 0 }).getTime(),
+        nextWeekStart: addDays(startOfWeek(yesterday, { weekStartsOn: 0 }), 7).getTime(),
+      };
+
+      setCarryoverTimeContext(yesterdayContext);
+    }
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(storageKey, todayKey);
+    }
+  }, [sessionToken]);
+
+  // Watch carryover query and open dialog with unfinished tasks
+  useEffect(() => {
+    if (!carryoverTimeContext || !sessionToken) return;
+    if (!carryoverQueryTasks || carryoverQueryTasks.length === 0) return;
+
+    const unfinished = carryoverQueryTasks.filter((t: any) => !t.isCompleted);
+    if (unfinished.length > 0) {
+      setCarryoverTasks(unfinished);
+      setCarryoverDialogOpen(true);
+    }
+  }, [carryoverTimeContext, carryoverQueryTasks, sessionToken]);
 
   // Handle date range start date change
   const handleRangeStartDateChange = (date: string) => {
@@ -556,7 +662,7 @@ export default function TasksPage() {
   // Get all tasks for week view
   const weekTasks = useQuery(
     api.tasks.list,
-    sessionToken && (activeView === "this_week" || activeView === "next_week") ? { sessionToken: sessionToken ?? undefined, view: activeView } : "skip"
+    sessionToken && (activeView === "this_week" || activeView === "next_week") ? { sessionToken: sessionToken ?? undefined, view: activeView, timeContext } : "skip"
   ) || [];
 
   const tasksByDay = useMemo(() => {
@@ -753,6 +859,7 @@ export default function TasksPage() {
                   tomorrowTasks={tomorrowTasks}
                   folders={flattenFolders}
                   allTags={allTags}
+                  timeContext={timeContext}
                   onToggleComplete={(id) => toggleComplete({ sessionToken: sessionToken ?? undefined, id })}
                   onTogglePinToday={(id) => togglePinToday({ sessionToken: sessionToken ?? undefined, id })}
                   onTogglePinTomorrow={(id) => togglePinTomorrow({ sessionToken: sessionToken ?? undefined, id })}
@@ -1117,6 +1224,107 @@ export default function TasksPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Carryover Dialog - Midnight Reset */}
+        <Dialog open={carryoverDialogOpen} onOpenChange={setCarryoverDialogOpen}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle className="font-black uppercase tracking-wider text-lg" style={{ fontWeight: '900' }}>
+                New day, old tasks
+              </DialogTitle>
+              <DialogDescription className="text-foreground/70">
+                Hey, you didn&apos;t do these yesterday. Now you&apos;ve got a bit more on your plate today.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 space-y-3 max-h-80 overflow-y-auto">
+              {carryoverTasks.map((task) => (
+                <div
+                  key={String(task._id)}
+                  className="flex items-start justify-between gap-3 rounded-lg border border-foreground/15 bg-foreground/5 px-3 py-2.5"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground break-words">
+                      {task.title}
+                    </p>
+                    {task.description && (
+                      <p className="text-xs text-foreground/60 mt-1 line-clamp-2">
+                        {task.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-7 w-7 border-foreground/20"
+                      onClick={() => {
+                        toggleComplete({ sessionToken: sessionToken ?? undefined, id: task._id });
+                        setCarryoverTasks(carryoverTasks.filter((t) => t._id !== task._id));
+                      }}
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-7 w-7 border-foreground/20"
+                      onClick={() => {
+                        setEditingTask(task._id);
+                        setCarryoverDialogOpen(false);
+                      }}
+                    >
+                      <Calendar className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-7 w-7 border-red-500 text-red-600"
+                      onClick={() => {
+                        setDeleteDialog({ open: true, taskId: task._id });
+                        setCarryoverTasks(carryoverTasks.filter((t) => t._id !== task._id));
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Batch actions */}
+            {carryoverTasks.length > 0 && (
+              <div className="mt-4 flex flex-col sm:flex-row justify-between gap-3">
+                <div className="text-xs text-foreground/60">
+                  These tasks are now treated as <span className="font-semibold text-red-600">overdue</span> and still appear in Today until you move, complete, or delete them.
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="font-black uppercase tracking-wider border-foreground/20"
+                    style={{ fontWeight: '900' }}
+                    onClick={async () => {
+                      // Batch mark all carryover as complete
+                      for (const t of carryoverTasks) {
+                        await toggleComplete({ sessionToken: sessionToken ?? undefined, id: t._id });
+                      }
+                      setCarryoverDialogOpen(false);
+                    }}
+                  >
+                    Mark All Done
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="font-black uppercase tracking-wider"
+                    style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+                    onClick={() => setCarryoverDialogOpen(false)}
+                  >
+                    Deal With It Later
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
@@ -1550,6 +1758,7 @@ function DashboardView({
   tomorrowTasks,
   folders,
   allTags,
+  timeContext,
   onToggleComplete,
   onTogglePinToday,
   onTogglePinTomorrow,
@@ -1567,6 +1776,7 @@ function DashboardView({
   tomorrowTasks: any[];
   folders: Array<{ _id: Id<"folders">; name: string }>;
   allTags: string[];
+  timeContext: { now: number; todayStart: number; tomorrowStart: number; weekStart: number; nextWeekStart: number };
   onToggleComplete: (id: Id<"tasks">) => void;
   onTogglePinToday: (id: Id<"tasks">) => void;
   onTogglePinTomorrow: (id: Id<"tasks">) => void;
@@ -1580,6 +1790,10 @@ function DashboardView({
   onTomorrowQuickAddTextChange: (text: string) => void;
   onQuickAddTomorrow: () => void;
 }) {
+  // Calculate today and tomorrow dates for display
+  const todayDate = new Date(timeContext.todayStart);
+  const tomorrowDate = new Date(timeContext.tomorrowStart);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
       {/* Today Container */}
@@ -1590,9 +1804,14 @@ function DashboardView({
               <div className="p-2 sm:p-2.5 rounded-lg bg-accent/20 border border-accent/30 shadow-sm flex-shrink-0">
                 <CalendarDays className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
               </div>
-              <h2 className="text-lg sm:text-xl font-black uppercase tracking-wider text-foreground truncate" style={{ fontWeight: '900' }}>
-                Today
-              </h2>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg sm:text-xl font-black uppercase tracking-wider text-foreground truncate" style={{ fontWeight: '900' }}>
+                  Today
+                </h2>
+                <p className="text-xs font-medium text-foreground/60">
+                  {format(todayDate, "EEEE, MMMM d")}
+                </p>
+              </div>
             </div>
             <Badge 
               variant="secondary" 
@@ -1669,9 +1888,14 @@ function DashboardView({
               <div className="p-2 sm:p-2.5 rounded-lg bg-accent/20 border border-accent/30 shadow-sm flex-shrink-0">
                 <CalendarClock className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
               </div>
-              <h2 className="text-lg sm:text-xl font-black uppercase tracking-wider text-foreground truncate" style={{ fontWeight: '900' }}>
-                Tomorrow
-              </h2>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg sm:text-xl font-black uppercase tracking-wider text-foreground truncate" style={{ fontWeight: '900' }}>
+                  Tomorrow
+                </h2>
+                <p className="text-xs font-medium text-foreground/60">
+                  {format(tomorrowDate, "EEEE, MMMM d")}
+                </p>
+              </div>
             </div>
             <Badge 
               variant="secondary" 
@@ -1755,7 +1979,7 @@ function TaskCard({
   folders,
   allTags,
 }: {
-  task: any;
+  task: any; // task.computedState is present
   onToggleComplete: () => void;
   onTogglePinToday: () => void;
   onTogglePinTomorrow: () => void;
@@ -1766,9 +1990,19 @@ function TaskCard({
   allTags: string[];
 }) {
   const folder = task.folderId ? folders.find((f) => f._id === task.folderId) : null;
+  const isOverdue = task.computedState?.isOverdue;
 
   return (
-    <Card className={`border transition-all ${task.isCompleted ? "opacity-60 border-foreground/10 bg-foreground/5" : "border-foreground/10 hover:border-accent/40 bg-background"}`}>
+    <Card
+      className={cn(
+        "border transition-all",
+        task.isCompleted
+          ? "opacity-60 border-foreground/10 bg-foreground/5"
+          : isOverdue
+            ? "border-red-500/80 bg-background ring-1 ring-red-500/60"
+            : "border-foreground/10 hover:border-accent/40 bg-background"
+      )}
+    >
       <CardContent className="p-4 sm:p-6">
         <div className="flex items-start gap-4">
           <Tooltip>

@@ -3,6 +3,47 @@ import { v } from "convex/values";
 import { requireAdminWithSession } from "./adminAuth";
 import { Id } from "./_generated/dataModel";
 
+// TimeContext type - shared between backend and frontend
+export type TimeContext = {
+  now: number;
+  todayStart: number;
+  tomorrowStart: number;
+  weekStart: number;
+  nextWeekStart: number;
+};
+
+// Helper: Build server time context (fallback when client doesn't provide one)
+function buildServerTimeContext(now: number): TimeContext {
+  const nowDate = new Date(now);
+  const today = new Date(
+    nowDate.getFullYear(),
+    nowDate.getMonth(),
+    nowDate.getDate(),
+    0, 0, 0, 0
+  );
+  const todayStart = today.getTime();
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStart = tomorrow.getTime();
+
+  const dayOfWeek = today.getDay(); // Sunday = 0
+  const weekStart = new Date(today);
+  weekStart.setDate(weekStart.getDate() - dayOfWeek);
+  weekStart.setHours(0, 0, 0, 0);
+  const weekStartTime = weekStart.getTime();
+
+  const nextWeekStartTime = weekStartTime + 7 * 24 * 60 * 60 * 1000;
+
+  return {
+    now,
+    todayStart,
+    tomorrowStart,
+    weekStart: weekStartTime,
+    nextWeekStart: nextWeekStartTime,
+  };
+}
+
 // Helper: Generate recurring task instances
 function generateRecurringInstances(
   task: any,
@@ -181,7 +222,7 @@ function generateRecurringInstances(
   return instances;
 }
 
-// Helper: Get computed task state based on current time and timezone
+// Helper: Get computed task state using TimeContext
 export function getComputedTaskState(
   task: {
     taskType: "none" | "deadline" | "date_range" | "scheduled_time" | "recurring";
@@ -203,29 +244,13 @@ export function getComputedTaskState(
     pinnedTomorrow: boolean;
     tagIds: string[];
   },
-  now: number, // Current timestamp
-  timezone: string = "America/New_York" // Default timezone, can be made configurable
+  timeContext: TimeContext
 ) {
-  const nowDate = new Date(now);
-  const today = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
-  const todayStart = today.getTime();
+  const { now, todayStart, tomorrowStart, weekStart, nextWeekStart } = timeContext;
+
   const todayEnd = todayStart + 24 * 60 * 60 * 1000 - 1;
-  
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStart = tomorrow.getTime();
   const tomorrowEnd = tomorrowStart + 24 * 60 * 60 * 1000 - 1;
-
-  // Get start of week (Sunday)
-  const dayOfWeek = nowDate.getDay();
-  const weekStart = new Date(today);
-  weekStart.setDate(weekStart.getDate() - dayOfWeek);
-  weekStart.setHours(0, 0, 0, 0);
-  const weekStartTime = weekStart.getTime();
-  const weekEndTime = weekStartTime + 7 * 24 * 60 * 60 * 1000 - 1;
-
-  // Next week
-  const nextWeekStart = weekStartTime + 7 * 24 * 60 * 60 * 1000;
+  const weekEnd = weekStart + 7 * 24 * 60 * 60 * 1000 - 1;
   const nextWeekEnd = nextWeekStart + 7 * 24 * 60 * 60 * 1000 - 1;
 
   const result = {
@@ -237,181 +262,130 @@ export function getComputedTaskState(
     isSomeday: false,
   };
 
-  // Check if task has Someday tag
+  // Someday tag
   result.isSomeday = task.tagIds.includes("Someday");
 
-  // Manual pinning overrides
-  if (task.pinnedToday) {
-    result.inToday = true;
-  }
-  if (task.pinnedTomorrow) {
-    result.inTomorrow = true;
-  }
+  // Manual pins override views
+  if (task.pinnedToday) result.inToday = true;
+  if (task.pinnedTomorrow) result.inTomorrow = true;
 
-  // If completed, don't compute auto-logic (but keep manual pins)
+  // Completed: keep manual pins only, no auto logic
   if (task.isCompleted) {
+    if (result.inToday && todayStart >= weekStart && todayStart <= weekEnd) {
+      result.inThisWeek = true;
+    }
     return result;
   }
 
-  // Deadline tasks
-  if (task.taskType === "deadline" && task.deadlineAt) {
-    const deadlineDate = new Date(task.deadlineAt);
-    const deadlineDay = new Date(deadlineDate.getFullYear(), deadlineDate.getMonth(), deadlineDate.getDate());
-    deadlineDay.setHours(0, 0, 0, 0);
-    const deadlineDayStart = deadlineDay.getTime();
+  // Helper to normalize a timestamp to 00:00 local (based on timeContext, not server tz)
+  const startOfDay = (ts: number) => {
+    const d = new Date(ts);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0).getTime();
+  };
 
-    // Overdue: if current time > deadline and task not done → add Overdue tag
+  // DEADLINE TASKS
+  if (task.taskType === "deadline" && task.deadlineAt) {
+    const deadlineDayStart = startOfDay(task.deadlineAt);
+
+    // Overdue: now past deadline time
     if (now > task.deadlineAt) {
       result.isOverdue = true;
     }
 
-    // Today: task appears here starting at local midnight on D
-    if (todayStart >= deadlineDayStart && todayStart < deadlineDayStart + 24 * 60 * 60 * 1000) {
+    // Today:
+    // - On the due date
+    // - OR any day after due date while still incomplete (overdue stays in Today)
+    if (todayStart >= deadlineDayStart) {
       result.inToday = true;
     }
 
-    // Tomorrow: task appears here starting at local midnight the day before D
-    const dayBeforeDeadline = new Date(deadlineDay);
-    dayBeforeDeadline.setDate(dayBeforeDeadline.getDate() - 1);
-    dayBeforeDeadline.setHours(0, 0, 0, 0);
-    const dayBeforeStart = dayBeforeDeadline.getTime();
+    // Tomorrow: the day before the due date
+    const dayBeforeStart = deadlineDayStart - 24 * 60 * 60 * 1000;
     const dayBeforeEnd = dayBeforeStart + 24 * 60 * 60 * 1000 - 1;
 
     if (todayStart >= dayBeforeStart && todayStart <= dayBeforeEnd) {
       result.inTomorrow = true;
     }
 
-    // This Week / Next Week: shows in the appropriate week based on D
-    // Also, if task appears in Today or Tomorrow, it should show in This Week
-    if (deadlineDayStart >= weekStartTime && deadlineDayStart <= weekEndTime) {
+    // Week views based on the actual due day
+    if (deadlineDayStart >= weekStart && deadlineDayStart <= weekEnd) {
       result.inThisWeek = true;
     }
     if (deadlineDayStart >= nextWeekStart && deadlineDayStart <= nextWeekEnd) {
       result.inNextWeek = true;
     }
-    // If task appears in Today or Tomorrow, it should also appear in This Week
-    if (result.inToday || result.inTomorrow) {
-      if (todayStart >= weekStartTime && todayStart <= weekEndTime) {
-        result.inThisWeek = true;
-      }
-    }
   }
 
-    // Scheduled time tasks (including recurring instances)
-    if (task.taskType === "scheduled_time" && task.scheduledAt) {
-      const scheduledDate = new Date(task.scheduledAt);
-      const scheduledDay = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
-      scheduledDay.setHours(0, 0, 0, 0);
-      const scheduledDayStart = scheduledDay.getTime();
-      const scheduledDayEnd = scheduledDayStart + 24 * 60 * 60 * 1000 - 1;
+  // SCHEDULED TIME TASKS (including recurring instances)
+  if (task.taskType === "scheduled_time" && task.scheduledAt) {
+    const scheduledDayStart = startOfDay(task.scheduledAt);
 
-      // Overdue: if now > T and not done → add Overdue tag
-      if (now > task.scheduledAt) {
-        result.isOverdue = true;
-      }
-
-      // Today: appears at midnight on date(T) and shows its time
-      // Check if today falls on the scheduled day
-      if (todayStart >= scheduledDayStart && todayStart <= scheduledDayEnd) {
-        result.inToday = true;
-      }
-
-      // Tomorrow: appears at midnight the day before date(T)
-      const dayBeforeScheduled = new Date(scheduledDay);
-      dayBeforeScheduled.setDate(dayBeforeScheduled.getDate() - 1);
-      dayBeforeScheduled.setHours(0, 0, 0, 0);
-      const dayBeforeStart = dayBeforeScheduled.getTime();
-      const dayBeforeEnd = dayBeforeStart + 24 * 60 * 60 * 1000 - 1;
-
-      if (todayStart >= dayBeforeStart && todayStart <= dayBeforeEnd) {
-        result.inTomorrow = true;
-      }
-
-      // This Week / Next Week: shows based on the week of T
-      // Check if scheduled day falls within the week range
-      if (scheduledDayStart >= weekStartTime && scheduledDayStart <= weekEndTime) {
-        result.inThisWeek = true;
-      }
-      if (scheduledDayStart >= nextWeekStart && scheduledDayStart <= nextWeekEnd) {
-        result.inNextWeek = true;
-      }
-      // If task appears in Today or Tomorrow, it should also appear in This Week
-      if (result.inToday || result.inTomorrow) {
-        if (todayStart >= weekStartTime && todayStart <= weekEndTime) {
-          result.inThisWeek = true;
-        }
-      }
+    if (now > task.scheduledAt) {
+      result.isOverdue = true;
     }
 
-  // Date range tasks
-  if (task.taskType === "date_range" && task.rangeStartDate && task.rangeEndDate) {
-    const startDate = new Date(task.rangeStartDate);
-    const endDate = new Date(task.rangeEndDate);
-    const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-    const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-    const startDayTime = startDay.getTime();
-    const endDayTime = endDay.getTime();
-
-    // Today: from S through E inclusive
-    // Key rule: While in range and not done → always in Today
-    if (todayStart >= startDayTime && todayStart <= endDayTime) {
+    // Today: scheduled day AND any day after while incomplete
+    if (todayStart >= scheduledDayStart) {
       result.inToday = true;
     }
 
-    // Tomorrow: starting at midnight the day before S, through E - 1
-    // From S through E - 1, it stays in Tomorrow
-    const dayBeforeStart = new Date(startDay);
-    dayBeforeStart.setDate(dayBeforeStart.getDate() - 1);
-    dayBeforeStart.setHours(0, 0, 0, 0);
-    const dayBeforeStartTime = dayBeforeStart.getTime();
+    // Tomorrow: day before scheduled day
+    const dayBeforeStart = scheduledDayStart - 24 * 60 * 60 * 1000;
+    const dayBeforeEnd = dayBeforeStart + 24 * 60 * 60 * 1000 - 1;
 
-    const endMinusOne = new Date(endDay);
-    endMinusOne.setDate(endMinusOne.getDate() - 1);
-    endMinusOne.setHours(23, 59, 59, 999);
-    const endMinusOneTime = endMinusOne.getTime();
-
-    // Key rule: While in range and not done → always in Today AND Tomorrow until completed or today > E
-    if (todayStart >= dayBeforeStartTime && todayStart <= endMinusOneTime) {
+    if (todayStart >= dayBeforeStart && todayStart <= dayBeforeEnd) {
       result.inTomorrow = true;
     }
 
-    // This Week / Next Week: shows if the date range overlaps with the week
-    // A range overlaps with a week if: rangeStart <= weekEnd AND rangeEnd >= weekStart
-    // This ensures tasks show in the week view if ANY day in the range falls within that week
-    if (startDayTime <= weekEndTime && endDayTime >= weekStartTime) {
+    if (scheduledDayStart >= weekStart && scheduledDayStart <= weekEnd) {
       result.inThisWeek = true;
     }
-    if (startDayTime <= nextWeekEnd && endDayTime >= nextWeekStart) {
+    if (scheduledDayStart >= nextWeekStart && scheduledDayStart <= nextWeekEnd) {
       result.inNextWeek = true;
     }
-    // If task appears in Today or Tomorrow, it should also appear in This Week
-    if (result.inToday || result.inTomorrow) {
-      if (todayStart >= weekStartTime && todayStart <= weekEndTime) {
-        result.inThisWeek = true;
-      }
-    }
   }
 
-  // None type: automatically in Someday (unless manually pinned)
-  // Tasks with no time logic automatically go to Someday
-  if (task.taskType === "none") {
-    // Automatically mark as Someday
-    result.isSomeday = true;
-    // Manual pinning is already handled above, so it can appear in Today/Tomorrow if pinned
-    // If task appears in Today or Tomorrow (via manual pinning), it should also appear in This Week
-    if (result.inToday || result.inTomorrow) {
-      if (todayStart >= weekStartTime && todayStart <= weekEndTime) {
-        result.inThisWeek = true;
-      }
-    }
-  }
+  // DATE RANGE TASKS
+  if (task.taskType === "date_range" && task.rangeStartDate && task.rangeEndDate) {
+    const startDay = startOfDay(task.rangeStartDate);
+    const endDay = startOfDay(task.rangeEndDate);
 
-  // Final check: ALL tasks that appear in Today or Tomorrow should also appear in This Week
-  // This ensures consistency across all task types
-  if ((result.inToday || result.inTomorrow) && !result.inThisWeek) {
-    if (todayStart >= weekStartTime && todayStart <= weekEndTime) {
+    // In-range: always in Today
+    if (todayStart >= startDay && todayStart <= endDay) {
+      result.inToday = true;
+    }
+
+    // Tomorrow: from day before start through end - 1 day
+    const dayBeforeStart = startDay - 24 * 60 * 60 * 1000;
+    const endMinusOne = endDay - 24 * 60 * 60 * 1000 + (24 * 60 * 60 * 1000 - 1);
+
+    if (todayStart >= dayBeforeStart && todayStart <= endMinusOne) {
+      result.inTomorrow = true;
+    }
+
+    // Once range is past and still incomplete → overdue + stays in Today
+    if (todayStart > endDay) {
+      result.isOverdue = true;
+      result.inToday = true;
+    }
+
+    // Week overlaps
+    if (startDay <= weekEnd && endDay >= weekStart) {
       result.inThisWeek = true;
     }
+    if (startDay <= nextWeekEnd && endDay >= nextWeekStart) {
+      result.inNextWeek = true;
+    }
+  }
+
+  // NONE TYPE → Someday by default (unless manually pinned)
+  if (task.taskType === "none") {
+    result.isSomeday = true;
+  }
+
+  // If it appears in Today or Tomorrow, also mark This Week when we are in that week
+  if (todayStart >= weekStart && todayStart <= weekEnd && (result.inToday || result.inTomorrow)) {
+    result.inThisWeek = true;
   }
 
   return result;
@@ -446,12 +420,20 @@ export const list = query({
     filterNotInFolder: v.optional(v.boolean()),
     filterNotTagged: v.optional(v.boolean()),
     sessionToken: v.optional(v.string()),
+    timeContext: v.optional(v.object({
+      now: v.number(),
+      todayStart: v.number(),
+      tomorrowStart: v.number(),
+      weekStart: v.number(),
+      nextWeekStart: v.number(),
+    })),
   },
   handler: async (ctx, args) => {
     await requireAdminWithSession(ctx, args.sessionToken);
     
     let tasks = await ctx.db.query("tasks").order("desc").collect();
-    const now = Date.now();
+    const now = args.timeContext?.now ?? Date.now();
+    const timeContext = args.timeContext ?? buildServerTimeContext(now);
 
     // Generate instances for recurring tasks
     const recurringTasks = tasks.filter((t) => t.taskType === "recurring" && !t.isRecurringInstance);
@@ -477,10 +459,16 @@ export const list = query({
       // Don't add instances to Bank view - only show the parent recurring task
     }
 
+    // Map tasks to include computedState, then filter by view
+    let tasksWithState = tasks.map((task) => {
+      const computedState = getComputedTaskState(task, timeContext);
+      return { ...task, computedState };
+    });
+
     // Filter by view
     if (args.view) {
-      tasks = tasks.filter((task) => {
-        const state = getComputedTaskState(task, now);
+      tasksWithState = tasksWithState.filter((taskWithState) => {
+        const state = taskWithState.computedState;
         
         switch (args.view) {
           case "today":
@@ -507,37 +495,37 @@ export const list = query({
 
     // Filter by folder
     if (args.folderId) {
-      tasks = tasks.filter((t) => t.folderId === args.folderId);
+      tasksWithState = tasksWithState.filter((t) => t.folderId === args.folderId);
     }
 
     // Filter: Not in a folder
     if (args.filterNotInFolder) {
-      tasks = tasks.filter((t) => !t.folderId);
+      tasksWithState = tasksWithState.filter((t) => !t.folderId);
     }
 
     // Filter by tags
     if (args.tagIds && args.tagIds.length > 0) {
-      tasks = tasks.filter((t) => {
+      tasksWithState = tasksWithState.filter((t) => {
         return args.tagIds!.some((tagId) => t.tagIds.includes(tagId));
       });
     }
 
     // Filter: Not tagged
     if (args.filterNotTagged) {
-      tasks = tasks.filter((t) => !t.tagIds || t.tagIds.length === 0);
+      tasksWithState = tasksWithState.filter((t) => !t.tagIds || t.tagIds.length === 0);
     }
 
     // Search
     if (args.search && args.search.trim().length > 0) {
       const searchLower = args.search.toLowerCase();
-      tasks = tasks.filter((t) =>
+      tasksWithState = tasksWithState.filter((t) =>
         t.title.toLowerCase().includes(searchLower) ||
         (t.description && t.description.toLowerCase().includes(searchLower))
       );
     }
 
     // Sort: incomplete first, then by due date (sooner first) for bank view, otherwise by updatedAt
-    tasks.sort((a, b) => {
+    tasksWithState.sort((a, b) => {
       // Always put incomplete tasks first
       if (!a.isCompleted && b.isCompleted) return -1;
       if (a.isCompleted && !b.isCompleted) return 1;
@@ -572,7 +560,7 @@ export const list = query({
       return b.updatedAt - a.updatedAt;
     });
 
-    return tasks;
+    return tasksWithState;
   },
 });
 
@@ -581,14 +569,22 @@ export const get = query({
   args: {
     id: v.id("tasks"),
     sessionToken: v.optional(v.string()),
+    timeContext: v.optional(v.object({
+      now: v.number(),
+      todayStart: v.number(),
+      tomorrowStart: v.number(),
+      weekStart: v.number(),
+      nextWeekStart: v.number(),
+    })),
   },
   handler: async (ctx, args) => {
     await requireAdminWithSession(ctx, args.sessionToken);
     const task = await ctx.db.get(args.id);
     if (!task) return null;
     
-    const now = Date.now();
-    const state = getComputedTaskState(task, now);
+    const now = args.timeContext?.now ?? Date.now();
+    const timeContext = args.timeContext ?? buildServerTimeContext(now);
+    const state = getComputedTaskState(task, timeContext);
     
     return { ...task, computedState: state };
   },
@@ -599,14 +595,22 @@ export const getTaskState = query({
   args: {
     id: v.id("tasks"),
     sessionToken: v.optional(v.string()),
+    timeContext: v.optional(v.object({
+      now: v.number(),
+      todayStart: v.number(),
+      tomorrowStart: v.number(),
+      weekStart: v.number(),
+      nextWeekStart: v.number(),
+    })),
   },
   handler: async (ctx, args) => {
     await requireAdminWithSession(ctx, args.sessionToken);
     const task = await ctx.db.get(args.id);
     if (!task) return null;
     
-    const now = Date.now();
-    return getComputedTaskState(task, now);
+    const now = args.timeContext?.now ?? Date.now();
+    const timeContext = args.timeContext ?? buildServerTimeContext(now);
+    return getComputedTaskState(task, timeContext);
   },
 });
 
@@ -877,16 +881,24 @@ export const getAllTags = query({
 export const syncOverdueTags = mutation({
   args: {
     sessionToken: v.optional(v.string()),
+    timeContext: v.optional(v.object({
+      now: v.number(),
+      todayStart: v.number(),
+      tomorrowStart: v.number(),
+      weekStart: v.number(),
+      nextWeekStart: v.number(),
+    })),
   },
   handler: async (ctx, args) => {
     await requireAdminWithSession(ctx, args.sessionToken);
     
     const tasks = await ctx.db.query("tasks").collect();
-    const now = Date.now();
+    const now = args.timeContext?.now ?? Date.now();
+    const timeContext = args.timeContext ?? buildServerTimeContext(now);
     let updated = 0;
     
     for (const task of tasks) {
-      const state = getComputedTaskState(task, now);
+      const state = getComputedTaskState(task, timeContext);
       const hasOverdueTag = task.tagIds.includes("Overdue");
       
       if (state.isOverdue && !hasOverdueTag) {
@@ -907,4 +919,5 @@ export const syncOverdueTags = mutation({
     return { updated };
   },
 });
+
 
