@@ -347,7 +347,7 @@ export default function TasksPage() {
         
         if (editingTaskData.recurrenceSpecificDates && editingTaskData.recurrenceSpecificDates.length > 0) {
           setEditRecurrenceSpecificDates(
-            editingTaskData.recurrenceSpecificDates.map((ts) => {
+            editingTaskData.recurrenceSpecificDates.map((ts: number) => {
               // Use local date components to avoid timezone shifting
               const date = new Date(ts);
               const year = date.getFullYear();
