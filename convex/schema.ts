@@ -1088,6 +1088,7 @@ export default defineSchema({
     nextDueDate: v.number(), // Timestamp - calculated next due date
     lastPaidDate: v.optional(v.number()), // Timestamp - when last marked as paid
     paymentMethodId: v.optional(v.id("subscriptionPaymentMethods")), // Link to payment method
+    periodsPaid: v.optional(v.number()), // Number of billing periods that have been paid (default: 0)
     balance: v.optional(v.number()), // Remaining balance after covering full periods (default: 0)
     notes: v.optional(v.string()),
     tags: v.array(v.string()),

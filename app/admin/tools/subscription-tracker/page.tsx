@@ -188,6 +188,22 @@ export default function SubscriptionTrackerPage() {
   const overdueSubscriptions = useQuery(api.subscriptions.subscriptionsGetOverdue) || [];
   const upcomingSubscriptions = useQuery(api.subscriptions.subscriptionsGetUpcoming, { days: 7 }) || [];
   
+  // Preview payment calculation (uses backend logic for consistency)
+  const paymentAmount = paymentFormData.amount ? parseFloat(paymentFormData.amount) : undefined;
+  const previewPayment = useQuery(
+    api.subscriptions.subscriptionPreviewPayment,
+    selectedSubscriptionForPayment && paymentAmount && !isNaN(paymentAmount) && paymentAmount > 0
+      ? {
+          id: selectedSubscriptionForPayment,
+          amount: paymentAmount,
+        }
+      : selectedSubscriptionForPayment
+      ? {
+          id: selectedSubscriptionForPayment,
+        }
+      : "skip"
+  );
+  
   // Filter subscriptions based on overdue/dueSoon
   const filteredSubscriptions = useMemo(() => {
     if (filterStatus === "overdue") {
@@ -1218,41 +1234,17 @@ export default function SubscriptionTrackerPage() {
               const sub = subscriptions.find((s) => s._id === selectedSubscriptionForPayment);
               if (!sub) return null;
               
-              // Get current balance
-              const currentBalance = sub.balance || 0;
-              
               // Calculate payment amount
               const paymentAmount = paymentFormData.amount ? parseFloat(paymentFormData.amount) : sub.amount;
               const validPaymentAmount = paymentAmount && !isNaN(paymentAmount) && paymentAmount > 0 ? paymentAmount : sub.amount;
               
-              // Total available: payment + existing balance
+              // Use backend preview endpoint for consistent calculation
+              // Fallback values while loading
+              const periodsCovered = previewPayment?.periodsCovered ?? 0;
+              const newBalance = previewPayment?.newBalance ?? 0;
+              const previewNextDue = previewPayment?.nextDueDate ? new Date(previewPayment.nextDueDate) : new Date(sub.nextDueDate);
+              const currentBalance = previewPayment?.currentBalance ?? (sub.balance || 0);
               const totalAvailable = validPaymentAmount + currentBalance;
-              
-              // Calculate periods covered
-              const periodsCovered = Math.floor(totalAvailable / sub.amount);
-              
-              // Calculate amount used for periods and new balance
-              const amountUsedForPeriods = periodsCovered * sub.amount;
-              const newBalance = totalAvailable - amountUsedForPeriods;
-              
-              // Calculate next due date preview
-              const currentDueDate = sub.nextDueDate || sub.startDate;
-              let previewNextDue = new Date(currentDueDate);
-              const periodsToAdvance = Math.max(1, periodsCovered);
-              
-              if (sub.billingCycle === "weekly") {
-                previewNextDue.setDate(previewNextDue.getDate() + (7 * periodsToAdvance));
-              } else if (sub.billingCycle === "monthly") {
-                previewNextDue.setMonth(previewNextDue.getMonth() + periodsToAdvance);
-              } else if (sub.billingCycle === "quarterly") {
-                previewNextDue.setMonth(previewNextDue.getMonth() + (3 * periodsToAdvance));
-              } else if (sub.billingCycle === "yearly") {
-                previewNextDue.setFullYear(previewNextDue.getFullYear() + periodsToAdvance);
-              }
-              
-              const daysInMonth = new Date(previewNextDue.getFullYear(), previewNextDue.getMonth() + 1, 0).getDate();
-              const targetDay = Math.min(sub.dueDay, daysInMonth);
-              previewNextDue.setDate(targetDay);
               
               const cycleSingular = sub.billingCycle === "monthly" ? "month" : 
                                    sub.billingCycle === "yearly" ? "year" : 
@@ -1262,6 +1254,8 @@ export default function SubscriptionTrackerPage() {
                                  sub.billingCycle === "quarterly" ? "quarters" : "weeks";
               const periodsText = periodsCovered === 1 
                 ? `1 ${cycleSingular}` 
+                : periodsCovered === 0
+                ? "0 periods (partial payment)"
                 : `${periodsCovered} ${cyclePlural}`;
               
               return (
@@ -1298,12 +1292,22 @@ export default function SubscriptionTrackerPage() {
                             <span className="text-sm text-foreground/60">Covers:</span>
                             <span className="text-sm font-bold">{periodsText}</span>
                           </div>
-                          <div className="flex items-center justify-between mt-1">
-                            <span className="text-sm text-foreground/60">Next Due Date:</span>
-                            <span className="text-sm font-bold text-green-600 dark:text-green-400">
-                              {format(previewNextDue, "MMM d, yyyy")}
-                            </span>
-                          </div>
+                          {periodsCovered > 0 && (
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-sm text-foreground/60">Next Due Date:</span>
+                              <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                                {format(previewNextDue, "MMM d, yyyy")}
+                              </span>
+                            </div>
+                          )}
+                          {periodsCovered === 0 && (
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-sm text-foreground/60">Next Due Date:</span>
+                              <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                                {format(new Date(sub.nextDueDate), "MMM d, yyyy")} (unchanged)
+                              </span>
+                            </div>
+                          )}
                           {newBalance > 0 && (
                             <div className="flex items-center justify-between mt-1 pt-1 border-t border-foreground/10">
                               <span className="text-sm text-foreground/60">New Balance:</span>

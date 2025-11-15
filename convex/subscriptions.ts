@@ -6,25 +6,142 @@ import { Id } from "./_generated/dataModel";
 
 /**
  * Extract day of month from a timestamp
- * Uses UTC to get consistent calendar date regardless of server timezone
+ * Normalizes to noon UTC before extraction to avoid timezone edge cases
+ * where local midnight could be the previous day in UTC.
  */
 function getDayOfMonth(timestamp: number): number {
-  return new Date(timestamp).getUTCDate();
+  const date = new Date(timestamp);
+  // Normalize to noon UTC to avoid timezone shifts
+  const normalized = new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+    12, 0, 0, 0
+  ));
+  return normalized.getUTCDate();
 }
 
 /**
  * Calculate how many billing periods a payment amount covers
+ * Note: billingCycle parameter is kept for API consistency but not used in calculation
  */
 function calculatePeriodsCovered(
   paymentAmount: number,
   subscriptionAmount: number,
-  billingCycle: "monthly" | "yearly" | "quarterly" | "weekly"
+  billingCycle?: "monthly" | "yearly" | "quarterly" | "weekly"
 ): number {
   // Calculate how many periods the payment covers
   const periods = paymentAmount / subscriptionAmount;
   
   // Round down to whole periods (you can't pay for 1.5 months)
+  // If payment doesn't cover a full period, return 0 (don't force it to 1)
   return Math.floor(periods);
+}
+
+/**
+ * Single source of truth for applying a payment to a subscription.
+ * 
+ * State model:
+ * - startDate: Original start date
+ * - dueDay: Day of month anchor (from startDate)
+ * - billingCycle: Frequency
+ * - periodsPaid: Number of periods that have been paid
+ * - balance: Remaining balance (partial payment remainder)
+ * 
+ * Calculation:
+ * - nextDueDate = addBillingPeriods(startDate, periodsPaid, dueDay, billingCycle)
+ * - startDate IS the first due date (periodsPaid = 0 means nextDueDate = startDate)
+ * 
+ * @param subscription - The subscription object
+ * @param paymentAmount - Amount being paid
+ * @returns Object with periodsAdded, newBalance, and nextDueDate
+ */
+function applyPayment(
+  subscription: {
+    startDate: number;
+    dueDay: number;
+    billingCycle: "monthly" | "yearly" | "quarterly" | "weekly";
+    amount: number;
+    periodsPaid?: number;
+    balance?: number;
+  },
+  paymentAmount: number
+): { periodsAdded: number; newBalance: number; nextDueDate: number } {
+  const currentBalance = subscription.balance || 0;
+  const currentPeriodsPaid = subscription.periodsPaid || 0;
+  
+  // Total available: payment + existing balance
+  const totalAvailable = paymentAmount + currentBalance;
+  
+  // Calculate how many periods this covers (can be 0 if partial payment)
+  const periodsAdded = Math.floor(totalAvailable / subscription.amount);
+  
+  // Calculate new balance (remainder after covering periods)
+  const newBalance = totalAvailable - (periodsAdded * subscription.amount);
+  
+  // Calculate next due date: startDate + (periodsPaid + periodsAdded)
+  // startDate IS the first due date, so periodsPaid = 0 means nextDueDate = startDate
+  const newPeriodsPaid = currentPeriodsPaid + periodsAdded;
+  const nextDueDate = addBillingPeriods(
+    subscription.startDate,
+    newPeriodsPaid,
+    subscription.dueDay,
+    subscription.billingCycle
+  );
+  
+  return {
+    periodsAdded,
+    newBalance,
+    nextDueDate,
+  };
+}
+
+/**
+ * Rebuild subscription state from all payments.
+ * This ensures consistency when payments are created, updated, or deleted.
+ * 
+ * @param subscription - The subscription object
+ * @param payments - Array of all payment records for this subscription
+ * @returns Object with periodsPaid, balance, nextDueDate, and lastPaidDate
+ */
+function rebuildSubscriptionState(
+  subscription: {
+    startDate: number;
+    dueDay: number;
+    billingCycle: "monthly" | "yearly" | "quarterly" | "weekly";
+    amount: number;
+  },
+  payments: Array<{ amount: number; paidDate: number }>
+): { periodsPaid: number; balance: number; nextDueDate: number; lastPaidDate: number | undefined } {
+  // Sum all payment amounts
+  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+  
+  // Calculate how many periods have been paid
+  const periodsPaid = Math.floor(totalPaid / subscription.amount);
+  
+  // Calculate balance (remainder after covering periods)
+  const balance = totalPaid - (periodsPaid * subscription.amount);
+  
+  // Calculate next due date: startDate + periodsPaid
+  // startDate IS the first due date, so periodsPaid = 0 means nextDueDate = startDate
+  const nextDueDate = addBillingPeriods(
+    subscription.startDate,
+    periodsPaid,
+    subscription.dueDay,
+    subscription.billingCycle
+  );
+  
+  // Find the latest payment date
+  const lastPaidDate = payments.length > 0
+    ? Math.max(...payments.map(p => p.paidDate))
+    : undefined;
+  
+  return {
+    periodsPaid,
+    balance,
+    nextDueDate,
+    lastPaidDate,
+  };
 }
 
 /**
@@ -507,13 +624,13 @@ export const subscriptionCreate = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const dueDay = getDayOfMonth(args.startDate);
-    // Calculate the next upcoming due date in the schedule
-    // For backdated subscriptions, this will advance to the first date after now
-    const nextDueDate = calculateInitialNextDueDate(
+    // startDate IS the first due date (no auto-advancement)
+    // If start date is in the past, subscription will show as overdue
+    const nextDueDate = addBillingPeriods(
       args.startDate,
-      args.billingCycle,
+      0, // 0 periods paid so far, so nextDueDate = startDate
       dueDay,
-      now
+      args.billingCycle
     );
     
     return await ctx.db.insert("subscriptions", {
@@ -526,6 +643,8 @@ export const subscriptionCreate = mutation({
       status: "active",
       nextDueDate,
       lastPaidDate: undefined,
+      periodsPaid: 0, // Initialize to 0 periods paid
+      balance: 0, // Initialize balance to 0
       paymentMethodId: args.paymentMethodId,
       notes: args.notes,
       tags: args.tags || [],
@@ -559,9 +678,11 @@ export const subscriptionUpdate = mutation({
       throw new Error("Subscription not found");
     }
     
-    // If startDate or billingCycle changes, recalculate dueDay and nextDueDate
+    // If startDate or billingCycle changes, recalculate dueDay, nextDueDate, and reset payment state
     let dueDay = existing.dueDay;
     let nextDueDate = existing.nextDueDate;
+    let periodsPaid = existing.periodsPaid;
+    let balance = existing.balance;
     
     if (updates.startDate || updates.billingCycle) {
       const newStartDate = updates.startDate ?? existing.startDate;
@@ -569,20 +690,27 @@ export const subscriptionUpdate = mutation({
 
       dueDay = getDayOfMonth(newStartDate);
 
-      // Recalculate nextDueDate as the next upcoming billing date
-      // in the schedule anchored to the new start date + cycle.
-      nextDueDate = calculateInitialNextDueDate(
+      // startDate IS the first due date (no auto-advancement)
+      // If start date is in the past, subscription will show as overdue
+      nextDueDate = addBillingPeriods(
         newStartDate,
-        newBillingCycle,
+        0, // Reset to 0 periods paid when schedule is re-anchored
         dueDay,
-        Date.now()
+        newBillingCycle
       );
+      
+      // Reset payment state when schedule is re-anchored
+      // User will need to re-enter payments or they'll be recalculated from payment history
+      periodsPaid = 0;
+      balance = 0;
     }
     
     await ctx.db.patch(id, {
       ...updates,
       dueDay,
       nextDueDate,
+      periodsPaid,
+      balance,
       updatedAt: Date.now(),
     });
   },
@@ -628,42 +756,25 @@ export const subscriptionMarkAsPaid = mutation({
     const paidDate = args.paidDate;
     const paymentAmount = args.amount || subscription.amount;
     
-    // Get current balance (default to 0 if not set)
-    const currentBalance = subscription.balance || 0;
-    
-    // Total available: payment + existing balance
-    const totalAvailable = paymentAmount + currentBalance;
-    
-    // Calculate how many periods this covers
-    const periodsCovered = calculatePeriodsCovered(
-      totalAvailable,
-      subscription.amount,
-      subscription.billingCycle
+    // Use the single source of truth for payment application
+    const result = applyPayment(
+      {
+        startDate: subscription.startDate,
+        dueDay: subscription.dueDay,
+        billingCycle: subscription.billingCycle,
+        amount: subscription.amount,
+        periodsPaid: subscription.periodsPaid,
+        balance: subscription.balance,
+      },
+      paymentAmount
     );
     
-    // Calculate how much was used for periods
-    const amountUsedForPeriods = periodsCovered * subscription.amount;
-    
-    // Calculate new balance (remainder after covering periods)
-    const newBalance = totalAvailable - amountUsedForPeriods;
-    
-    // Calculate next due date based on periods covered
-    // Advance from current nextDueDate (not from now or payment date)
-    // This ensures clean sequence based on billing cycle
-    const currentDueDate = subscription.nextDueDate || subscription.startDate;
-    const periodsToAdvance = Math.max(1, periodsCovered); // At least 1 period
-    const nextDueDate = addBillingPeriods(
-      currentDueDate,
-      periodsToAdvance,
-      subscription.dueDay,
-      subscription.billingCycle
-    );
-    
-    // Update subscription with new balance
+    // Update subscription with new state
     await ctx.db.patch(args.id, {
       lastPaidDate: paidDate,
-      nextDueDate,
-      balance: newBalance, // Store the new balance
+      nextDueDate: result.nextDueDate,
+      periodsPaid: (subscription.periodsPaid || 0) + result.periodsAdded,
+      balance: result.newBalance,
       paymentMethodId: args.paymentMethodId || subscription.paymentMethodId,
       updatedAt: now,
     });
@@ -679,12 +790,12 @@ export const subscriptionMarkAsPaid = mutation({
     });
     
     return { 
-      nextDueDate,
-      periodsCovered,
+      nextDueDate: result.nextDueDate,
+      periodsCovered: result.periodsAdded,
       paymentAmount,
       subscriptionAmount: subscription.amount,
-      balanceApplied: currentBalance, // How much balance was used
-      newBalance, // New balance after payment
+      balanceApplied: subscription.balance || 0, // How much balance was used
+      newBalance: result.newBalance, // New balance after payment
     };
   },
 });
@@ -785,32 +896,30 @@ export const paymentCreate = mutation({
       createdAt: now,
     });
     
-    // Update subscription if this is the latest payment
-    // Advance from current nextDueDate, not from payment date
-    if (!subscription.lastPaidDate || args.paidDate >= subscription.lastPaidDate) {
-      // Calculate how many periods this payment covers
-      const periodsCovered = calculatePeriodsCovered(
-        args.amount,
-        subscription.amount,
-        subscription.billingCycle
-      );
-      const periodsToAdvance = Math.max(1, periodsCovered);
-      
-      const currentDueDate = subscription.nextDueDate || subscription.startDate;
-      const nextDueDate = addBillingPeriods(
-        currentDueDate,
-        periodsToAdvance,
-        subscription.dueDay,
-        subscription.billingCycle
-      );
-      
-      await ctx.db.patch(args.subscriptionId, {
-        lastPaidDate: args.paidDate,
-        nextDueDate,
-        paymentMethodId: args.paymentMethodId || subscription.paymentMethodId,
-        updatedAt: now,
-      });
-    }
+    // Rebuild subscription state from all payments to ensure consistency
+    const allPayments = await ctx.db
+      .query("subscriptionPayments")
+      .withIndex("by_subscription", (q) => q.eq("subscriptionId", args.subscriptionId))
+      .collect();
+    
+    const newState = rebuildSubscriptionState(
+      {
+        startDate: subscription.startDate,
+        dueDay: subscription.dueDay,
+        billingCycle: subscription.billingCycle,
+        amount: subscription.amount,
+      },
+      allPayments
+    );
+    
+    await ctx.db.patch(args.subscriptionId, {
+      periodsPaid: newState.periodsPaid,
+      balance: newState.balance,
+      nextDueDate: newState.nextDueDate,
+      lastPaidDate: newState.lastPaidDate,
+      paymentMethodId: args.paymentMethodId || subscription.paymentMethodId,
+      updatedAt: now,
+    });
   },
 });
 
@@ -831,31 +940,31 @@ export const paymentUpdate = mutation({
     
     await ctx.db.patch(id, updates);
     
-    // If paidDate or amount changed, recalculate subscription's nextDueDate if this is the latest payment
+    // If paidDate or amount changed, rebuild subscription state from all payments
     if (updates.paidDate || updates.amount) {
       const subscription = await ctx.db.get(existing.subscriptionId);
-      if (subscription && (!subscription.lastPaidDate || (updates.paidDate && updates.paidDate >= subscription.lastPaidDate))) {
-        // Calculate how many periods this payment covers
-        const paymentAmount = updates.amount !== undefined ? updates.amount : existing.amount;
-        const periodsCovered = calculatePeriodsCovered(
-          paymentAmount,
-          subscription.amount,
-          subscription.billingCycle
-        );
-        const periodsToAdvance = Math.max(1, periodsCovered);
+      if (subscription) {
+        // Get all payments (including the updated one)
+        const allPayments = await ctx.db
+          .query("subscriptionPayments")
+          .withIndex("by_subscription", (q) => q.eq("subscriptionId", existing.subscriptionId))
+          .collect();
         
-        // Advance from current nextDueDate, not from payment date
-        const currentDueDate = subscription.nextDueDate || subscription.startDate;
-        const nextDueDate = addBillingPeriods(
-          currentDueDate,
-          periodsToAdvance,
-          subscription.dueDay,
-          subscription.billingCycle
+        const newState = rebuildSubscriptionState(
+          {
+            startDate: subscription.startDate,
+            dueDay: subscription.dueDay,
+            billingCycle: subscription.billingCycle,
+            amount: subscription.amount,
+          },
+          allPayments
         );
         
         await ctx.db.patch(existing.subscriptionId, {
-          lastPaidDate: updates.paidDate || existing.paidDate,
-          nextDueDate,
+          periodsPaid: newState.periodsPaid,
+          balance: newState.balance,
+          nextDueDate: newState.nextDueDate,
+          lastPaidDate: newState.lastPaidDate,
           updatedAt: Date.now(),
         });
       }
@@ -879,61 +988,70 @@ export const paymentRemove = mutation({
     // Delete payment
     await ctx.db.delete(args.id);
     
-    // If this was the latest payment, recalculate subscription's nextDueDate
-    // CRITICAL: Always calculate from startDate + periods, never from paidDate
-    if (subscription.lastPaidDate === payment.paidDate) {
-      // Get all remaining payments
-      const remainingPayments = await ctx.db
-        .query("subscriptionPayments")
-        .withIndex("by_subscription", (q) => q.eq("subscriptionId", payment.subscriptionId))
-        .collect();
-      
-      // Sort by paidDate to find the latest
-      const sorted = remainingPayments.sort((a, b) => b.paidDate - a.paidDate);
-      const latestPayment = sorted[0];
-      
-      if (latestPayment) {
-        // Calculate total periods covered by all remaining payments
-        // Sum up periods covered by each payment
-        const totalPeriodsCovered = remainingPayments.reduce((sum, p) => {
-          const periods = calculatePeriodsCovered(
-            p.amount,
-            subscription.amount,
-            subscription.billingCycle
-          );
-          return sum + Math.max(1, periods); // At least 1 period per payment
-        }, 0);
-        
-        // Next due date = startDate + (periods covered + 1)
-        // The +1 is because we want the NEXT period after what's been paid
-        const nextDueDate = addBillingPeriods(
-          subscription.startDate,
-          totalPeriodsCovered + 1,
-          subscription.dueDay,
-          subscription.billingCycle
-        );
-        
-        await ctx.db.patch(payment.subscriptionId, {
-          lastPaidDate: latestPayment.paidDate, // Only used for tracking, not schedule
-          nextDueDate,
-          updatedAt: Date.now(),
-        });
-      } else {
-        // No remaining payments, reset to first due date
-        const nextDueDate = addBillingPeriods(
-          subscription.startDate,
-          1, // One billing period after start
-          subscription.dueDay,
-          subscription.billingCycle
-        );
-        
-        await ctx.db.patch(payment.subscriptionId, {
-          lastPaidDate: undefined,
-          nextDueDate,
-          updatedAt: Date.now(),
-        });
-      }
+    // Rebuild subscription state from all remaining payments
+    const remainingPayments = await ctx.db
+      .query("subscriptionPayments")
+      .withIndex("by_subscription", (q) => q.eq("subscriptionId", payment.subscriptionId))
+      .collect();
+    
+    const newState = rebuildSubscriptionState(
+      {
+        startDate: subscription.startDate,
+        dueDay: subscription.dueDay,
+        billingCycle: subscription.billingCycle,
+        amount: subscription.amount,
+      },
+      remainingPayments
+    );
+    
+    await ctx.db.patch(payment.subscriptionId, {
+      periodsPaid: newState.periodsPaid,
+      balance: newState.balance,
+      nextDueDate: newState.nextDueDate,
+      lastPaidDate: newState.lastPaidDate,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
+ * Preview what would happen if a payment is applied to a subscription.
+ * This uses the same logic as subscriptionMarkAsPaid to ensure consistency.
+ */
+export const subscriptionPreviewPayment = query({
+  args: {
+    id: v.id("subscriptions"),
+    amount: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const subscription = await ctx.db.get(args.id);
+    if (!subscription) {
+      throw new Error("Subscription not found");
     }
+    
+    const paymentAmount = args.amount || subscription.amount;
+    
+    // Use the same applyPayment logic as the backend
+    const result = applyPayment(
+      {
+        startDate: subscription.startDate,
+        dueDay: subscription.dueDay,
+        billingCycle: subscription.billingCycle,
+        amount: subscription.amount,
+        periodsPaid: subscription.periodsPaid || 0,
+        balance: subscription.balance || 0,
+      },
+      paymentAmount
+    );
+    
+    return {
+      periodsCovered: result.periodsAdded,
+      newBalance: result.newBalance,
+      nextDueDate: result.nextDueDate,
+      currentBalance: subscription.balance || 0,
+      paymentAmount,
+      subscriptionAmount: subscription.amount,
+    };
   },
 });
 
