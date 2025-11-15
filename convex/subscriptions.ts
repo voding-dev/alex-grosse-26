@@ -498,7 +498,7 @@ function calculateFirstDueDate(
     return firstDue.getTime();
   }
   
-  // For monthly, quarterly, yearly - add the period and set to the same day of month
+  // For monthly, quarterly, yearly - construct the date directly
   let year = start.getFullYear();
   let month = start.getMonth();
   let day = dueDay;
@@ -522,7 +522,7 @@ function calculateFirstDueDate(
   // Use the minimum of dueDay and daysInMonth to handle edge cases (e.g., Jan 31 -> Feb 28/29)
   const targetDay = Math.min(day, daysInMonth);
   
-  // Create the first due date
+  // Create the first due date directly with explicit year, month, day
   const firstDue = new Date(year, month, targetDay);
   
   return firstDue.getTime();
