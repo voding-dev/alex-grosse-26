@@ -460,9 +460,63 @@ export const list = query({
     }
 
     // Map tasks to include computedState, then filter by view
+    // Create clean serializable objects (Convex needs plain objects, not document objects with internal properties)
     let tasksWithState = tasks.map((task) => {
-      const computedState = getComputedTaskState(task, timeContext);
-      return { ...task, computedState };
+      // Ensure required fields have defaults to prevent errors
+      const taskForState = {
+        taskType: task.taskType || "none",
+        deadlineAt: task.deadlineAt,
+        rangeStartDate: task.rangeStartDate,
+        rangeEndDate: task.rangeEndDate,
+        scheduledAt: task.scheduledAt,
+        recurrencePattern: task.recurrencePattern,
+        recurrenceDaysOfWeek: task.recurrenceDaysOfWeek,
+        recurrenceWeekInterval: task.recurrenceWeekInterval,
+        recurrenceSpecificDates: task.recurrenceSpecificDates,
+        recurrenceStartDate: task.recurrenceStartDate,
+        recurrenceEndDate: task.recurrenceEndDate,
+        recurrenceDayOfMonth: task.recurrenceDayOfMonth,
+        recurrenceMonth: task.recurrenceMonth,
+        recurrenceDayOfYear: task.recurrenceDayOfYear,
+        isCompleted: task.isCompleted ?? false,
+        pinnedToday: task.pinnedToday ?? false,
+        pinnedTomorrow: task.pinnedTomorrow ?? false,
+        tagIds: task.tagIds || [],
+      };
+      
+      const computedState = getComputedTaskState(taskForState, timeContext);
+      
+      // Return a clean object with only the fields we need
+      return {
+        _id: task._id,
+        _creationTime: task._creationTime,
+        title: task.title,
+        description: task.description,
+        taskType: task.taskType,
+        deadlineAt: task.deadlineAt,
+        rangeStartDate: task.rangeStartDate,
+        rangeEndDate: task.rangeEndDate,
+        scheduledAt: task.scheduledAt,
+        recurrencePattern: task.recurrencePattern,
+        recurrenceDaysOfWeek: task.recurrenceDaysOfWeek,
+        recurrenceWeekInterval: task.recurrenceWeekInterval,
+        recurrenceSpecificDates: task.recurrenceSpecificDates,
+        recurrenceStartDate: task.recurrenceStartDate,
+        recurrenceEndDate: task.recurrenceEndDate,
+        recurrenceDayOfMonth: task.recurrenceDayOfMonth,
+        recurrenceMonth: task.recurrenceMonth,
+        recurrenceDayOfYear: task.recurrenceDayOfYear,
+        parentTaskId: task.parentTaskId,
+        isRecurringInstance: task.isRecurringInstance,
+        isCompleted: task.isCompleted ?? false,
+        pinnedToday: task.pinnedToday ?? false,
+        pinnedTomorrow: task.pinnedTomorrow ?? false,
+        folderId: task.folderId,
+        tagIds: task.tagIds || [],
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+        computedState,
+      };
     });
 
     // Filter by view
