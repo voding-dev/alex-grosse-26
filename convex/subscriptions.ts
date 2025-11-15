@@ -5,83 +5,6 @@ import { Id } from "./_generated/dataModel";
 // ============ Helper Functions ============
 
 /**
- * Calculate the next due date based on:
- * - Original start date's day of month (dueDay)
- * - Last paid date (or start date if never paid)
- * - Billing cycle
- * Always anchors to the dueDay (e.g., if started on 15th, always due on 15th)
- */
-function calculateNextDueDate(
-  startDate: number,
-  lastPaidDate: number | undefined,
-  dueDay: number,
-  billingCycle: "monthly" | "yearly" | "quarterly" | "weekly"
-): number {
-  const now = Date.now();
-  const referenceDate = lastPaidDate || startDate;
-  const reference = new Date(referenceDate);
-  
-  // For weekly, just add 7 days
-  if (billingCycle === "weekly") {
-    const nextDue = new Date(reference);
-    nextDue.setDate(nextDue.getDate() + 7);
-    return nextDue.getTime();
-  }
-  
-  // For monthly, quarterly, yearly - construct the date directly
-  let year = reference.getFullYear();
-  let month = reference.getMonth();
-  let day = dueDay;
-  
-  // Add one billing period
-  if (billingCycle === "monthly") {
-    month += 1;
-  } else if (billingCycle === "quarterly") {
-    month += 3;
-  } else if (billingCycle === "yearly") {
-    year += 1;
-  }
-  
-  // Handle month overflow (e.g., month 12 -> month 0 of next year)
-  if (month > 11) {
-    year += Math.floor(month / 12);
-    month = month % 12;
-  }
-  
-  // Get the number of days in the target month
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  // Use the minimum of dueDay and daysInMonth to handle edge cases (e.g., Jan 31 -> Feb 28/29)
-  const targetDay = Math.min(day, daysInMonth);
-  
-  // Create the next due date directly with explicit year, month, day
-  let nextDue = new Date(year, month, targetDay);
-  
-  // If the calculated date is in the past or today, move to next period
-  if (nextDue.getTime() <= now) {
-    if (billingCycle === "monthly") {
-      month += 1;
-    } else if (billingCycle === "quarterly") {
-      month += 3;
-    } else if (billingCycle === "yearly") {
-      year += 1;
-    }
-    
-    // Handle month overflow again
-    if (month > 11) {
-      year += Math.floor(month / 12);
-      month = month % 12;
-    }
-    
-    // Recalculate days in month after moving forward
-    const newDaysInMonth = new Date(year, month + 1, 0).getDate();
-    const newTargetDay = Math.min(dueDay, newDaysInMonth);
-    nextDue = new Date(year, month, newTargetDay);
-  }
-  
-  return nextDue.getTime();
-}
-
-/**
  * Extract day of month from a timestamp
  */
 function getDayOfMonth(timestamp: number): number {
@@ -104,51 +27,42 @@ function calculatePeriodsCovered(
 }
 
 /**
- * Calculate next due date based on payment amount and periods covered
- * Always anchors to the original dueDay
+ * Core helper: Add N billing periods to a reference date, anchoring to dueDay.
+ * This is the single source of truth for all due date calculations.
+ * No dependency on Date.now() - purely mathematical date advancement.
+ * 
+ * @param referenceDate - The date to advance from (startDate, currentDueDate, etc.)
+ * @param periods - Number of billing periods to add (must be >= 1)
+ * @param dueDay - The anchor day of month (from original startDate)
+ * @param billingCycle - The billing cycle
+ * @returns The new due date, anchored to dueDay
  */
-function calculateNextDueDateFromPayment(
-  currentDueDate: number, // Current nextDueDate or lastPaidDate
-  paymentDate: number,
-  paymentAmount: number,
-  subscriptionAmount: number,
+function addBillingPeriods(
+  referenceDate: number,
+  periods: number,
   dueDay: number,
-  billingCycle: "monthly" | "yearly" | "quarterly" | "weekly",
-  startDate: number
+  billingCycle: "monthly" | "yearly" | "quarterly" | "weekly"
 ): number {
-  // Calculate how many periods this payment covers
-  const periodsCovered = calculatePeriodsCovered(
-    paymentAmount,
-    subscriptionAmount,
-    billingCycle
-  );
-  
-  // If payment doesn't cover at least one period, advance by one period
-  const periodsToAdvance = Math.max(1, periodsCovered);
-  
-  // Start from current due date (or payment date if no current due date)
-  const referenceDate = currentDueDate || paymentDate;
   const reference = new Date(referenceDate);
   
-  // For weekly, just add weeks
+  // For weekly, just add days
   if (billingCycle === "weekly") {
     const nextDue = new Date(reference);
-    nextDue.setDate(nextDue.getDate() + (7 * periodsToAdvance));
+    nextDue.setDate(nextDue.getDate() + (7 * periods));
     return nextDue.getTime();
   }
   
   // For monthly, quarterly, yearly - construct the date directly
   let year = reference.getFullYear();
   let month = reference.getMonth();
-  let day = dueDay;
   
-  // Advance by the number of periods covered
+  // Add the billing periods
   if (billingCycle === "monthly") {
-    month += periodsToAdvance;
+    month += periods;
   } else if (billingCycle === "quarterly") {
-    month += (3 * periodsToAdvance);
+    month += (3 * periods);
   } else if (billingCycle === "yearly") {
-    year += periodsToAdvance;
+    year += periods;
   }
   
   // Handle month overflow (e.g., month 12 -> month 0 of next year)
@@ -160,7 +74,7 @@ function calculateNextDueDateFromPayment(
   // Get the number of days in the target month
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   // Use the minimum of dueDay and daysInMonth to handle edge cases (e.g., Jan 31 -> Feb 28/29)
-  const targetDay = Math.min(day, daysInMonth);
+  const targetDay = Math.min(dueDay, daysInMonth);
   
   // Create the next due date directly with explicit year, month, day
   const nextDue = new Date(year, month, targetDay);
@@ -514,54 +428,6 @@ export const subscriptionsGetStats = query({
   },
 });
 
-/**
- * Calculate the first due date after a start date (one billing period later)
- * This is used for new subscriptions - it always returns the date one period after start,
- * even if that date is in the past, so it shows as DUE
- */
-function calculateFirstDueDate(
-  startDate: number,
-  dueDay: number,
-  billingCycle: "monthly" | "yearly" | "quarterly" | "weekly"
-): number {
-  const start = new Date(startDate);
-  
-  // For weekly, just add 7 days
-  if (billingCycle === "weekly") {
-    const firstDue = new Date(start);
-    firstDue.setDate(firstDue.getDate() + 7);
-    return firstDue.getTime();
-  }
-  
-  // For monthly, quarterly, yearly - construct the date directly
-  let year = start.getFullYear();
-  let month = start.getMonth();
-  let day = dueDay;
-  
-  if (billingCycle === "monthly") {
-    month += 1;
-  } else if (billingCycle === "quarterly") {
-    month += 3;
-  } else if (billingCycle === "yearly") {
-    year += 1;
-  }
-  
-  // Handle month overflow (e.g., month 12 -> month 0 of next year)
-  if (month > 11) {
-    year += Math.floor(month / 12);
-    month = month % 12;
-  }
-  
-  // Get the number of days in the target month
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  // Use the minimum of dueDay and daysInMonth to handle edge cases (e.g., Jan 31 -> Feb 28/29)
-  const targetDay = Math.min(day, daysInMonth);
-  
-  // Create the first due date directly with explicit year, month, day
-  const firstDue = new Date(year, month, targetDay);
-  
-  return firstDue.getTime();
-}
 
 export const subscriptionCreate = mutation({
   args: {
@@ -584,8 +450,9 @@ export const subscriptionCreate = mutation({
     const dueDay = getDayOfMonth(args.startDate);
     // For new subscriptions, calculate the first due date (one period after start)
     // This allows past start dates to show as DUE immediately
-    const nextDueDate = calculateFirstDueDate(
+    const nextDueDate = addBillingPeriods(
       args.startDate,
+      1, // One billing period after start
       dueDay,
       args.billingCycle
     );
@@ -641,22 +508,14 @@ export const subscriptionUpdate = mutation({
       const newStartDate = updates.startDate || existing.startDate;
       const newBillingCycle = updates.billingCycle || existing.billingCycle;
       dueDay = getDayOfMonth(newStartDate);
-      // If there's no payment history, use first due date logic (allows past dates to show as DUE)
-      // Otherwise, use the regular calculation that skips past dates
-      if (!existing.lastPaidDate) {
-        nextDueDate = calculateFirstDueDate(
-          newStartDate,
-          dueDay,
-          newBillingCycle
-        );
-      } else {
-        nextDueDate = calculateNextDueDate(
-          newStartDate,
-          existing.lastPaidDate,
-          dueDay,
-          newBillingCycle
-        );
-      }
+      // Always calculate from start date: one billing period after start
+      // This ensures clean sequence regardless of payment history
+      nextDueDate = addBillingPeriods(
+        newStartDate,
+        1, // One billing period after start
+        dueDay,
+        newBillingCycle
+      );
     }
     
     await ctx.db.patch(id, {
@@ -728,16 +587,15 @@ export const subscriptionMarkAsPaid = mutation({
     const newBalance = totalAvailable - amountUsedForPeriods;
     
     // Calculate next due date based on periods covered
-    // Use current nextDueDate as reference, or startDate if never paid
+    // Advance from current nextDueDate (not from now or payment date)
+    // This ensures clean sequence: Sep 1 → Oct 1 → Nov 1 → Dec 1
     const currentDueDate = subscription.nextDueDate || subscription.startDate;
-    const nextDueDate = calculateNextDueDateFromPayment(
+    const periodsToAdvance = Math.max(1, periodsCovered); // At least 1 period
+    const nextDueDate = addBillingPeriods(
       currentDueDate,
-      paidDate,
-      totalAvailable, // Use total available for date calculation
-      subscription.amount,
+      periodsToAdvance,
       subscription.dueDay,
-      subscription.billingCycle,
-      subscription.startDate
+      subscription.billingCycle
     );
     
     // Update subscription with new balance
@@ -867,10 +725,20 @@ export const paymentCreate = mutation({
     });
     
     // Update subscription if this is the latest payment
+    // Advance from current nextDueDate, not from payment date
     if (!subscription.lastPaidDate || args.paidDate >= subscription.lastPaidDate) {
-      const nextDueDate = calculateNextDueDate(
-        subscription.startDate,
-        args.paidDate,
+      // Calculate how many periods this payment covers
+      const periodsCovered = calculatePeriodsCovered(
+        args.amount,
+        subscription.amount,
+        subscription.billingCycle
+      );
+      const periodsToAdvance = Math.max(1, periodsCovered);
+      
+      const currentDueDate = subscription.nextDueDate || subscription.startDate;
+      const nextDueDate = addBillingPeriods(
+        currentDueDate,
+        periodsToAdvance,
         subscription.dueDay,
         subscription.billingCycle
       );
@@ -902,19 +770,30 @@ export const paymentUpdate = mutation({
     
     await ctx.db.patch(id, updates);
     
-    // If paidDate changed, recalculate subscription's nextDueDate if this is the latest payment
-    if (updates.paidDate) {
+    // If paidDate or amount changed, recalculate subscription's nextDueDate if this is the latest payment
+    if (updates.paidDate || updates.amount) {
       const subscription = await ctx.db.get(existing.subscriptionId);
-      if (subscription && (!subscription.lastPaidDate || updates.paidDate >= subscription.lastPaidDate)) {
-        const nextDueDate = calculateNextDueDate(
-          subscription.startDate,
-          updates.paidDate,
+      if (subscription && (!subscription.lastPaidDate || (updates.paidDate && updates.paidDate >= subscription.lastPaidDate))) {
+        // Calculate how many periods this payment covers
+        const paymentAmount = updates.amount !== undefined ? updates.amount : existing.amount;
+        const periodsCovered = calculatePeriodsCovered(
+          paymentAmount,
+          subscription.amount,
+          subscription.billingCycle
+        );
+        const periodsToAdvance = Math.max(1, periodsCovered);
+        
+        // Advance from current nextDueDate, not from payment date
+        const currentDueDate = subscription.nextDueDate || subscription.startDate;
+        const nextDueDate = addBillingPeriods(
+          currentDueDate,
+          periodsToAdvance,
           subscription.dueDay,
           subscription.billingCycle
         );
         
         await ctx.db.patch(existing.subscriptionId, {
-          lastPaidDate: updates.paidDate,
+          lastPaidDate: updates.paidDate || existing.paidDate,
           nextDueDate,
           updatedAt: Date.now(),
         });
@@ -950,18 +829,44 @@ export const paymentRemove = mutation({
       const latestPayment = remainingPayments
         .sort((a, b) => b.paidDate - a.paidDate)[0];
       
-      const nextDueDate = calculateNextDueDate(
-        subscription.startDate,
-        latestPayment?.paidDate,
-        subscription.dueDay,
-        subscription.billingCycle
-      );
-      
-      await ctx.db.patch(payment.subscriptionId, {
-        lastPaidDate: latestPayment?.paidDate,
-        nextDueDate,
-        updatedAt: Date.now(),
-      });
+      if (latestPayment) {
+        // Recalculate from the most recent remaining payment
+        // Calculate how many periods that payment covered
+        const periodsCovered = calculatePeriodsCovered(
+          latestPayment.amount,
+          subscription.amount,
+          subscription.billingCycle
+        );
+        const periodsToAdvance = Math.max(1, periodsCovered);
+        
+        // Start from the payment date, advance by periods covered
+        const nextDueDate = addBillingPeriods(
+          latestPayment.paidDate,
+          periodsToAdvance,
+          subscription.dueDay,
+          subscription.billingCycle
+        );
+        
+        await ctx.db.patch(payment.subscriptionId, {
+          lastPaidDate: latestPayment.paidDate,
+          nextDueDate,
+          updatedAt: Date.now(),
+        });
+      } else {
+        // No remaining payments, reset to first due date
+        const nextDueDate = addBillingPeriods(
+          subscription.startDate,
+          1, // One billing period after start
+          subscription.dueDay,
+          subscription.billingCycle
+        );
+        
+        await ctx.db.patch(payment.subscriptionId, {
+          lastPaidDate: undefined,
+          nextDueDate,
+          updatedAt: Date.now(),
+        });
+      }
     }
   },
 });
