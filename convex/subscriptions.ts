@@ -49,8 +49,8 @@ function calculatePeriodsCovered(
  * - balance: Remaining balance (partial payment remainder)
  * 
  * Calculation:
- * - nextDueDate = addBillingPeriods(startDate, periodsPaid, dueDay, billingCycle)
- * - startDate IS the first due date (periodsPaid = 0 means nextDueDate = startDate)
+ * - nextDueDate = addBillingPeriods(startDate, periodsPaid + 1, dueDay, billingCycle)
+ * - First due date is one period after start date (periodsPaid = 0 means nextDueDate = startDate + 1 period)
  * 
  * @param subscription - The subscription object
  * @param paymentAmount - Amount being paid
@@ -79,12 +79,12 @@ function applyPayment(
   // Calculate new balance (remainder after covering periods)
   const newBalance = totalAvailable - (periodsAdded * subscription.amount);
   
-  // Calculate next due date: startDate + (periodsPaid + periodsAdded)
-  // startDate IS the first due date, so periodsPaid = 0 means nextDueDate = startDate
+  // Calculate next due date: startDate + (periodsPaid + periodsAdded + 1)
+  // The +1 is because first due date is one period after start date
   const newPeriodsPaid = currentPeriodsPaid + periodsAdded;
   const nextDueDate = addBillingPeriods(
     subscription.startDate,
-    newPeriodsPaid,
+    newPeriodsPaid + 1,
     subscription.dueDay,
     subscription.billingCycle
   );
@@ -122,11 +122,11 @@ function rebuildSubscriptionState(
   // Calculate balance (remainder after covering periods)
   const balance = totalPaid - (periodsPaid * subscription.amount);
   
-  // Calculate next due date: startDate + periodsPaid
-  // startDate IS the first due date, so periodsPaid = 0 means nextDueDate = startDate
+  // Calculate next due date: startDate + (periodsPaid + 1)
+  // The +1 is because first due date is one period after start date
   const nextDueDate = addBillingPeriods(
     subscription.startDate,
-    periodsPaid,
+    periodsPaid + 1,
     subscription.dueDay,
     subscription.billingCycle
   );
@@ -624,11 +624,11 @@ export const subscriptionCreate = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const dueDay = getDayOfMonth(args.startDate);
-    // startDate IS the first due date (no auto-advancement)
+    // First due date is one billing period after the start date
     // If start date is in the past, subscription will show as overdue
     const nextDueDate = addBillingPeriods(
       args.startDate,
-      0, // 0 periods paid so far, so nextDueDate = startDate
+      1, // First due date is one period after start date
       dueDay,
       args.billingCycle
     );
@@ -690,11 +690,11 @@ export const subscriptionUpdate = mutation({
 
       dueDay = getDayOfMonth(newStartDate);
 
-      // startDate IS the first due date (no auto-advancement)
+      // First due date is one billing period after the start date
       // If start date is in the past, subscription will show as overdue
       nextDueDate = addBillingPeriods(
         newStartDate,
-        0, // Reset to 0 periods paid when schedule is re-anchored
+        1, // First due date is one period after start date
         dueDay,
         newBillingCycle
       );
