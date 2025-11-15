@@ -44,6 +44,37 @@ function buildServerTimeContext(now: number): TimeContext {
   };
 }
 
+// Helper: Create a clean recurring instance object
+function createRecurringInstance(task: any, instanceDate: Date): any {
+  return {
+    _id: `${task._id}_${instanceDate.getTime()}` as any, // Virtual ID
+    _creationTime: task._creationTime,
+    title: task.title,
+    description: task.description,
+    taskType: "scheduled_time" as const, // Instances appear as scheduled tasks
+    scheduledAt: instanceDate.getTime(),
+    isRecurringInstance: true,
+    parentTaskId: task._id,
+    isCompleted: task.isCompleted ?? false,
+    pinnedToday: task.pinnedToday ?? false,
+    pinnedTomorrow: task.pinnedTomorrow ?? false,
+    folderId: task.folderId,
+    tagIds: Array.isArray(task.tagIds) ? task.tagIds : [],
+    createdAt: task.createdAt,
+    updatedAt: task.updatedAt,
+    // Include recurrence fields for reference (though instance uses scheduled_time)
+    recurrencePattern: task.recurrencePattern,
+    recurrenceDaysOfWeek: task.recurrenceDaysOfWeek,
+    recurrenceWeekInterval: task.recurrenceWeekInterval,
+    recurrenceSpecificDates: task.recurrenceSpecificDates,
+    recurrenceStartDate: task.recurrenceStartDate,
+    recurrenceEndDate: task.recurrenceEndDate,
+    recurrenceDayOfMonth: task.recurrenceDayOfMonth,
+    recurrenceMonth: task.recurrenceMonth,
+    recurrenceDayOfYear: task.recurrenceDayOfYear,
+  };
+}
+
 // Helper: Generate recurring task instances
 function generateRecurringInstances(
   task: any,
@@ -86,14 +117,7 @@ function generateRecurringInstances(
         if (daysOfWeek.includes(dayOfWeek)) {
           const instanceDate = new Date(current);
           instanceDate.setHours(0, 0, 0, 0);
-          instances.push({
-            ...task,
-            _id: `${task._id}_${instanceDate.getTime()}` as any, // Virtual ID
-            scheduledAt: instanceDate.getTime(),
-            isRecurringInstance: true,
-            parentTaskId: task._id,
-            taskType: "scheduled_time" as const, // Instances appear as scheduled tasks
-          });
+          instances.push(createRecurringInstance(task, instanceDate));
         }
         current.setDate(current.getDate() + 1);
       }
@@ -121,14 +145,7 @@ function generateRecurringInstances(
           instanceDate.setHours(0, 0, 0, 0);
 
           if (instanceDate >= actualStartFrom && instanceDate <= cutoffDate) {
-            instances.push({
-              ...task,
-              _id: `${task._id}_${instanceDate.getTime()}` as any,
-              scheduledAt: instanceDate.getTime(),
-              isRecurringInstance: true,
-              parentTaskId: task._id,
-              taskType: "scheduled_time" as const,
-            });
+            instances.push(createRecurringInstance(task, instanceDate));
           }
         }
 
@@ -205,14 +222,7 @@ function generateRecurringInstances(
         instanceDate.setHours(0, 0, 0, 0);
 
         if (instanceDate >= actualStartFrom && instanceDate <= cutoffDate) {
-          instances.push({
-            ...task,
-            _id: `${task._id}_${instanceDate.getTime()}` as any,
-            scheduledAt: instanceDate.getTime(),
-            isRecurringInstance: true,
-            parentTaskId: task._id,
-            taskType: "scheduled_time" as const,
-          });
+          instances.push(createRecurringInstance(task, instanceDate));
         }
       }
       break;
@@ -262,15 +272,16 @@ export function getComputedTaskState(
     isSomeday: false,
   };
 
-  // Someday tag
-  result.isSomeday = task.tagIds.includes("Someday");
+  // Someday tag - ensure tagIds is an array
+  const tagIds = Array.isArray(task.tagIds) ? task.tagIds : [];
+  result.isSomeday = tagIds.includes("Someday");
 
-  // Manual pins override views
-  if (task.pinnedToday) result.inToday = true;
-  if (task.pinnedTomorrow) result.inTomorrow = true;
+  // Manual pins override views - ensure booleans
+  if (task.pinnedToday === true) result.inToday = true;
+  if (task.pinnedTomorrow === true) result.inTomorrow = true;
 
   // Completed: keep manual pins only, no auto logic
-  if (task.isCompleted) {
+  if (task.isCompleted === true) {
     if (result.inToday && todayStart >= weekStart && todayStart <= weekEnd) {
       result.inThisWeek = true;
     }
@@ -462,62 +473,79 @@ export const list = query({
     // Map tasks to include computedState, then filter by view
     // Create clean serializable objects (Convex needs plain objects, not document objects with internal properties)
     let tasksWithState = tasks.map((task) => {
-      // Ensure required fields have defaults to prevent errors
-      const taskForState = {
-        taskType: task.taskType || "none",
-        deadlineAt: task.deadlineAt,
-        rangeStartDate: task.rangeStartDate,
-        rangeEndDate: task.rangeEndDate,
-        scheduledAt: task.scheduledAt,
-        recurrencePattern: task.recurrencePattern,
-        recurrenceDaysOfWeek: task.recurrenceDaysOfWeek,
-        recurrenceWeekInterval: task.recurrenceWeekInterval,
-        recurrenceSpecificDates: task.recurrenceSpecificDates,
-        recurrenceStartDate: task.recurrenceStartDate,
-        recurrenceEndDate: task.recurrenceEndDate,
-        recurrenceDayOfMonth: task.recurrenceDayOfMonth,
-        recurrenceMonth: task.recurrenceMonth,
-        recurrenceDayOfYear: task.recurrenceDayOfYear,
-        isCompleted: task.isCompleted ?? false,
-        pinnedToday: task.pinnedToday ?? false,
-        pinnedTomorrow: task.pinnedTomorrow ?? false,
-        tagIds: task.tagIds || [],
-      };
-      
-      const computedState = getComputedTaskState(taskForState, timeContext);
-      
-      // Return a clean object with only the fields we need
-      return {
-        _id: task._id,
-        _creationTime: task._creationTime,
-        title: task.title,
-        description: task.description,
-        taskType: task.taskType,
-        deadlineAt: task.deadlineAt,
-        rangeStartDate: task.rangeStartDate,
-        rangeEndDate: task.rangeEndDate,
-        scheduledAt: task.scheduledAt,
-        recurrencePattern: task.recurrencePattern,
-        recurrenceDaysOfWeek: task.recurrenceDaysOfWeek,
-        recurrenceWeekInterval: task.recurrenceWeekInterval,
-        recurrenceSpecificDates: task.recurrenceSpecificDates,
-        recurrenceStartDate: task.recurrenceStartDate,
-        recurrenceEndDate: task.recurrenceEndDate,
-        recurrenceDayOfMonth: task.recurrenceDayOfMonth,
-        recurrenceMonth: task.recurrenceMonth,
-        recurrenceDayOfYear: task.recurrenceDayOfYear,
-        parentTaskId: task.parentTaskId,
-        isRecurringInstance: task.isRecurringInstance,
-        isCompleted: task.isCompleted ?? false,
-        pinnedToday: task.pinnedToday ?? false,
-        pinnedTomorrow: task.pinnedTomorrow ?? false,
-        folderId: task.folderId,
-        tagIds: task.tagIds || [],
-        createdAt: task.createdAt,
-        updatedAt: task.updatedAt,
-        computedState,
-      };
-    });
+      try {
+        // Ensure required fields have defaults to prevent errors
+        const taskForState = {
+          taskType: task.taskType || "none",
+          deadlineAt: task.deadlineAt,
+          rangeStartDate: task.rangeStartDate,
+          rangeEndDate: task.rangeEndDate,
+          scheduledAt: task.scheduledAt,
+          recurrencePattern: task.recurrencePattern,
+          recurrenceDaysOfWeek: task.recurrenceDaysOfWeek,
+          recurrenceWeekInterval: task.recurrenceWeekInterval,
+          recurrenceSpecificDates: task.recurrenceSpecificDates,
+          recurrenceStartDate: task.recurrenceStartDate,
+          recurrenceEndDate: task.recurrenceEndDate,
+          recurrenceDayOfMonth: task.recurrenceDayOfMonth,
+          recurrenceMonth: task.recurrenceMonth,
+          recurrenceDayOfYear: task.recurrenceDayOfYear,
+          isCompleted: task.isCompleted ?? false,
+          pinnedToday: task.pinnedToday ?? false,
+          pinnedTomorrow: task.pinnedTomorrow ?? false,
+          tagIds: Array.isArray(task.tagIds) ? task.tagIds : [],
+        };
+        
+        const computedState = getComputedTaskState(taskForState, timeContext);
+        
+        // For virtual instances (recurring instances), use string ID instead of Convex ID
+        // For real tasks, use the Convex ID
+        const taskId = task.isRecurringInstance && typeof task._id === "string" 
+          ? task._id as any 
+          : task._id;
+        
+        // Return a clean object with only the fields we need
+        // Only include fields that have values (don't include undefined)
+        const result: any = {
+          _id: taskId,
+          _creationTime: task._creationTime ?? Date.now(),
+          title: task.title || "",
+          taskType: task.taskType || "none",
+          isRecurringInstance: task.isRecurringInstance ?? false,
+          isCompleted: task.isCompleted ?? false,
+          pinnedToday: task.pinnedToday ?? false,
+          pinnedTomorrow: task.pinnedTomorrow ?? false,
+          tagIds: Array.isArray(task.tagIds) ? task.tagIds : [],
+          createdAt: task.createdAt ?? Date.now(),
+          updatedAt: task.updatedAt ?? Date.now(),
+          computedState,
+        };
+        
+        // Only add optional fields if they exist
+        if (task.description !== undefined && task.description !== null) result.description = task.description;
+        if (task.deadlineAt !== undefined && task.deadlineAt !== null) result.deadlineAt = task.deadlineAt;
+        if (task.rangeStartDate !== undefined && task.rangeStartDate !== null) result.rangeStartDate = task.rangeStartDate;
+        if (task.rangeEndDate !== undefined && task.rangeEndDate !== null) result.rangeEndDate = task.rangeEndDate;
+        if (task.scheduledAt !== undefined && task.scheduledAt !== null) result.scheduledAt = task.scheduledAt;
+        if (task.recurrencePattern !== undefined && task.recurrencePattern !== null) result.recurrencePattern = task.recurrencePattern;
+        if (task.recurrenceDaysOfWeek !== undefined && task.recurrenceDaysOfWeek !== null) result.recurrenceDaysOfWeek = task.recurrenceDaysOfWeek;
+        if (task.recurrenceWeekInterval !== undefined && task.recurrenceWeekInterval !== null) result.recurrenceWeekInterval = task.recurrenceWeekInterval;
+        if (task.recurrenceSpecificDates !== undefined && task.recurrenceSpecificDates !== null) result.recurrenceSpecificDates = task.recurrenceSpecificDates;
+        if (task.recurrenceStartDate !== undefined && task.recurrenceStartDate !== null) result.recurrenceStartDate = task.recurrenceStartDate;
+        if (task.recurrenceEndDate !== undefined && task.recurrenceEndDate !== null) result.recurrenceEndDate = task.recurrenceEndDate;
+        if (task.recurrenceDayOfMonth !== undefined && task.recurrenceDayOfMonth !== null) result.recurrenceDayOfMonth = task.recurrenceDayOfMonth;
+        if (task.recurrenceMonth !== undefined && task.recurrenceMonth !== null) result.recurrenceMonth = task.recurrenceMonth;
+        if (task.recurrenceDayOfYear !== undefined && task.recurrenceDayOfYear !== null) result.recurrenceDayOfYear = task.recurrenceDayOfYear;
+        if (task.parentTaskId !== undefined && task.parentTaskId !== null) result.parentTaskId = task.parentTaskId;
+        if (task.folderId !== undefined && task.folderId !== null) result.folderId = task.folderId;
+        
+        return result;
+      } catch (error) {
+        // If there's an error processing a task, log it and skip it
+        console.error("Error processing task:", error, task);
+        return null;
+      }
+    }).filter((task): task is NonNullable<typeof task> => task !== null);
 
     // Filter by view
     if (args.view) {
@@ -638,9 +666,38 @@ export const get = query({
     
     const now = args.timeContext?.now ?? Date.now();
     const timeContext = args.timeContext ?? buildServerTimeContext(now);
-    const state = getComputedTaskState(task, timeContext);
     
-    return { ...task, computedState: state };
+    // Ensure required fields have defaults
+    const taskForState = {
+      taskType: task.taskType || "none",
+      deadlineAt: task.deadlineAt,
+      rangeStartDate: task.rangeStartDate,
+      rangeEndDate: task.rangeEndDate,
+      scheduledAt: task.scheduledAt,
+      recurrencePattern: task.recurrencePattern,
+      recurrenceDaysOfWeek: task.recurrenceDaysOfWeek,
+      recurrenceWeekInterval: task.recurrenceWeekInterval,
+      recurrenceSpecificDates: task.recurrenceSpecificDates,
+      recurrenceStartDate: task.recurrenceStartDate,
+      recurrenceEndDate: task.recurrenceEndDate,
+      recurrenceDayOfMonth: task.recurrenceDayOfMonth,
+      recurrenceMonth: task.recurrenceMonth,
+      recurrenceDayOfYear: task.recurrenceDayOfYear,
+      isCompleted: task.isCompleted ?? false,
+      pinnedToday: task.pinnedToday ?? false,
+      pinnedTomorrow: task.pinnedTomorrow ?? false,
+      tagIds: Array.isArray(task.tagIds) ? task.tagIds : [],
+    };
+    
+    const state = getComputedTaskState(taskForState, timeContext);
+    
+    // Return clean object without undefined values
+    const result: any = {
+      ...task,
+      computedState: state,
+    };
+    
+    return result;
   },
 });
 
