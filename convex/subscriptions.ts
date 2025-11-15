@@ -827,36 +827,41 @@ export const paymentRemove = mutation({
     await ctx.db.delete(args.id);
     
     // If this was the latest payment, recalculate subscription's nextDueDate
+    // CRITICAL: Always calculate from startDate + periods, never from paidDate
     if (subscription.lastPaidDate === payment.paidDate) {
-      // Find the most recent remaining payment
+      // Get all remaining payments
       const remainingPayments = await ctx.db
         .query("subscriptionPayments")
         .withIndex("by_subscription", (q) => q.eq("subscriptionId", payment.subscriptionId))
         .collect();
       
-      const latestPayment = remainingPayments
-        .sort((a, b) => b.paidDate - a.paidDate)[0];
+      // Sort by paidDate to find the latest
+      const sorted = remainingPayments.sort((a, b) => b.paidDate - a.paidDate);
+      const latestPayment = sorted[0];
       
       if (latestPayment) {
-        // Recalculate from the most recent remaining payment
-        // Calculate how many periods that payment covered
-        const periodsCovered = calculatePeriodsCovered(
-          latestPayment.amount,
-          subscription.amount,
-          subscription.billingCycle
-        );
-        const periodsToAdvance = Math.max(1, periodsCovered);
+        // Calculate total periods covered by all remaining payments
+        // Sum up periods covered by each payment
+        const totalPeriodsCovered = remainingPayments.reduce((sum, p) => {
+          const periods = calculatePeriodsCovered(
+            p.amount,
+            subscription.amount,
+            subscription.billingCycle
+          );
+          return sum + Math.max(1, periods); // At least 1 period per payment
+        }, 0);
         
-        // Start from the payment date, advance by periods covered
+        // Next due date = startDate + (periods covered + 1)
+        // The +1 is because we want the NEXT period after what's been paid
         const nextDueDate = addBillingPeriods(
-          latestPayment.paidDate,
-          periodsToAdvance,
+          subscription.startDate,
+          totalPeriodsCovered + 1,
           subscription.dueDay,
           subscription.billingCycle
         );
         
         await ctx.db.patch(payment.subscriptionId, {
-          lastPaidDate: latestPayment.paidDate,
+          lastPaidDate: latestPayment.paidDate, // Only used for tracking, not schedule
           nextDueDate,
           updatedAt: Date.now(),
         });
