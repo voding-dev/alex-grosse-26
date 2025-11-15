@@ -98,6 +98,14 @@ function buildClientTimeContext(): {
 export default function TasksPage() {
   const { sessionToken } = useAdminAuth();
   const { toast } = useToast();
+
+  // Helper: Get the real task ID (parent ID for recurring instances)
+  const getTaskId = (task: any): Id<"tasks"> => {
+    if (task.isRecurringInstance && task.parentTaskId) {
+      return task.parentTaskId;
+    }
+    return task._id;
+  };
   const [activeView, setActiveView] = useState<TaskView>("dashboard");
   // Quick Add state for Today and Tomorrow
   const [todayQuickAddText, setTodayQuickAddText] = useState("");
@@ -860,11 +868,11 @@ export default function TasksPage() {
                   folders={flattenFolders}
                   allTags={allTags}
                   timeContext={timeContext}
-                  onToggleComplete={(id) => toggleComplete({ sessionToken: sessionToken ?? undefined, id })}
-                  onTogglePinToday={(id) => togglePinToday({ sessionToken: sessionToken ?? undefined, id })}
-                  onTogglePinTomorrow={(id) => togglePinTomorrow({ sessionToken: sessionToken ?? undefined, id })}
-                  onEdit={handleEdit}
-                  onDelete={(id) => setDeleteDialog({ open: true, taskId: id })}
+                  onToggleComplete={(task) => toggleComplete({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
+                  onTogglePinToday={(task) => togglePinToday({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
+                  onTogglePinTomorrow={(task) => togglePinTomorrow({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
+                  onEdit={(task) => handleEdit(getTaskId(task))}
+                  onDelete={(task) => setDeleteDialog({ open: true, taskId: getTaskId(task) })}
                   formatTaskDateTime={formatTaskDateTime}
                   todayQuickAddText={todayQuickAddText}
                   onTodayQuickAddTextChange={setTodayQuickAddText}
@@ -899,11 +907,11 @@ export default function TasksPage() {
                   }
                   setExpandedFolders(newExpanded);
                 }}
-                onToggleComplete={(id) => toggleComplete({ sessionToken: sessionToken ?? undefined, id })}
-                onTogglePinToday={(id) => togglePinToday({ sessionToken: sessionToken ?? undefined, id })}
-                onTogglePinTomorrow={(id) => togglePinTomorrow({ sessionToken: sessionToken ?? undefined, id })}
-                onEdit={handleEdit}
-                onDelete={(id) => setDeleteDialog({ open: true, taskId: id })}
+                onToggleComplete={(task) => toggleComplete({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
+                onTogglePinToday={(task) => togglePinToday({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
+                onTogglePinTomorrow={(task) => togglePinTomorrow({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
+                onEdit={(task) => handleEdit(getTaskId(task))}
+                onDelete={(task) => setDeleteDialog({ open: true, taskId: getTaskId(task) })}
                 formatTaskDateTime={formatTaskDateTime}
               />
             ) : (activeView === "this_week" || activeView === "next_week") && weekViewMode === "week" ? (
@@ -936,11 +944,11 @@ export default function TasksPage() {
                         <TaskCard
                           key={task._id}
                           task={task}
-                          onToggleComplete={() => toggleComplete({ sessionToken: sessionToken ?? undefined, id: task._id })}
-                          onTogglePinToday={() => togglePinToday({ sessionToken: sessionToken ?? undefined, id: task._id })}
-                          onTogglePinTomorrow={() => togglePinTomorrow({ sessionToken: sessionToken ?? undefined, id: task._id })}
-                          onEdit={() => handleEdit(task._id)}
-                          onDelete={() => setDeleteDialog({ open: true, taskId: task._id })}
+                          onToggleComplete={() => toggleComplete({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
+                          onTogglePinToday={() => togglePinToday({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
+                          onTogglePinTomorrow={() => togglePinTomorrow({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
+                          onEdit={() => handleEdit(getTaskId(task))}
+                          onDelete={() => setDeleteDialog({ open: true, taskId: getTaskId(task) })}
                           formatDateTime={formatTaskDateTime(task)}
                           folders={flattenFolders}
                           allTags={allTags}
@@ -1243,7 +1251,7 @@ export default function TasksPage() {
                   className="flex items-start justify-between gap-3 rounded-lg border border-foreground/15 bg-foreground/5 px-3 py-2.5"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground break-words">
+                    <p className="text-sm font-medium text-foreground wrap-break-word">
                       {task.title}
                     </p>
                     {task.description && (
@@ -1258,7 +1266,7 @@ export default function TasksPage() {
                       variant="outline"
                       className="h-7 w-7 border-foreground/20"
                       onClick={() => {
-                        toggleComplete({ sessionToken: sessionToken ?? undefined, id: task._id });
+                        toggleComplete({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) });
                         setCarryoverTasks(carryoverTasks.filter((t) => t._id !== task._id));
                       }}
                     >
@@ -1269,7 +1277,7 @@ export default function TasksPage() {
                       variant="outline"
                       className="h-7 w-7 border-foreground/20"
                       onClick={() => {
-                        setEditingTask(task._id);
+                        setEditingTask(getTaskId(task));
                         setCarryoverDialogOpen(false);
                       }}
                     >
@@ -1280,7 +1288,7 @@ export default function TasksPage() {
                       variant="outline"
                       className="h-7 w-7 border-red-500 text-red-600"
                       onClick={() => {
-                        setDeleteDialog({ open: true, taskId: task._id });
+                        setDeleteDialog({ open: true, taskId: getTaskId(task) });
                         setCarryoverTasks(carryoverTasks.filter((t) => t._id !== task._id));
                       }}
                     >
@@ -1305,7 +1313,7 @@ export default function TasksPage() {
                     onClick={async () => {
                       // Batch mark all carryover as complete
                       for (const t of carryoverTasks) {
-                        await toggleComplete({ sessionToken: sessionToken ?? undefined, id: t._id });
+                        await toggleComplete({ sessionToken: sessionToken ?? undefined, id: getTaskId(t) });
                       }
                       setCarryoverDialogOpen(false);
                     }}
@@ -1371,11 +1379,11 @@ function BankView({
   onFilterNotTaggedChange: (value: boolean) => void;
   expandedFolders: Set<Id<"folders">>;
   onToggleExpand: (id: Id<"folders">) => void;
-  onToggleComplete: (id: Id<"tasks">) => void;
-  onTogglePinToday: (id: Id<"tasks">) => void;
-  onTogglePinTomorrow: (id: Id<"tasks">) => void;
-  onEdit: (id: Id<"tasks">) => void;
-  onDelete: (id: Id<"tasks">) => void;
+  onToggleComplete: (task: any) => void;
+  onTogglePinToday: (task: any) => void;
+  onTogglePinTomorrow: (task: any) => void;
+  onEdit: (task: any) => void;
+  onDelete: (task: any) => void;
   formatTaskDateTime: (task: any) => string | null;
 }) {
   const hasActiveFilters = selectedFolderId || selectedTags.length > 0 || searchQuery.trim().length > 0 || filterNotInFolder || filterNotTagged;
@@ -1419,7 +1427,7 @@ function BankView({
                   : "hover:bg-foreground/5 text-foreground/70 hover:text-foreground border border-transparent"
               )}
             >
-              <Home className="h-4 w-4 flex-shrink-0" />
+              <Home className="h-4 w-4 shrink-0" />
               <span className={cn("font-medium", !selectedFolderId && "font-bold")}>
                 All Tasks
               </span>
@@ -1669,11 +1677,11 @@ function BankView({
                   <TaskCard
                     key={task._id}
                     task={task}
-                    onToggleComplete={() => onToggleComplete(task._id)}
-                    onTogglePinToday={() => onTogglePinToday(task._id)}
-                    onTogglePinTomorrow={() => onTogglePinTomorrow(task._id)}
-                    onEdit={() => onEdit(task._id)}
-                    onDelete={() => onDelete(task._id)}
+                    onToggleComplete={() => onToggleComplete(task)}
+                    onTogglePinToday={() => onTogglePinToday(task)}
+                    onTogglePinTomorrow={() => onTogglePinTomorrow(task)}
+                    onEdit={() => onEdit(task)}
+                    onDelete={() => onDelete(task)}
                     formatDateTime={formatTaskDateTime(task)}
                     folders={flattenFolders}
                     allTags={allTags}
@@ -1726,9 +1734,9 @@ function WeekView({ tasks, weekDays, tasksByDay }: { tasks: any[]; weekDays: Dat
                   >
                     <div className="flex items-start gap-1.5 sm:gap-2">
                       {task.isCompleted ? (
-                        <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-green-600 mt-0.5 flex-shrink-0" />
+                        <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-green-600 mt-0.5 shrink-0" />
                       ) : (
-                        <Circle className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-foreground/40 mt-0.5 flex-shrink-0" />
+                        <Circle className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-foreground/40 mt-0.5 shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className={`font-medium leading-snug text-xs ${task.isCompleted ? "line-through text-foreground/60" : ""}`}>
@@ -1777,11 +1785,11 @@ function DashboardView({
   folders: Array<{ _id: Id<"folders">; name: string }>;
   allTags: string[];
   timeContext: { now: number; todayStart: number; tomorrowStart: number; weekStart: number; nextWeekStart: number };
-  onToggleComplete: (id: Id<"tasks">) => void;
-  onTogglePinToday: (id: Id<"tasks">) => void;
-  onTogglePinTomorrow: (id: Id<"tasks">) => void;
-  onEdit: (id: Id<"tasks">) => void;
-  onDelete: (id: Id<"tasks">) => void;
+  onToggleComplete: (task: any) => void;
+  onTogglePinToday: (task: any) => void;
+  onTogglePinTomorrow: (task: any) => void;
+  onEdit: (task: any) => void;
+  onDelete: (task: any) => void;
   formatTaskDateTime: (task: any) => string | null;
   todayQuickAddText: string;
   onTodayQuickAddTextChange: (text: string) => void;
@@ -1801,7 +1809,7 @@ function DashboardView({
         <CardHeader className="pb-4 px-5 sm:px-6 pt-5 sm:pt-6 border-b border-foreground/10">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-              <div className="p-2 sm:p-2.5 rounded-lg bg-accent/20 border border-accent/30 shadow-sm flex-shrink-0">
+              <div className="p-2 sm:p-2.5 rounded-lg bg-accent/20 border border-accent/30 shadow-sm shrink-0">
                 <CalendarDays className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
               </div>
               <div className="min-w-0 flex-1">
@@ -1815,7 +1823,7 @@ function DashboardView({
             </div>
             <Badge 
               variant="secondary" 
-              className="text-xs font-black uppercase tracking-wider border-foreground/20 bg-background flex-shrink-0" 
+              className="text-xs font-black uppercase tracking-wider border-foreground/20 bg-background shrink-0" 
               style={{ fontWeight: '900' }}
             >
               {todayTasks.length} {todayTasks.length === 1 ? "task" : "tasks"}
@@ -1865,11 +1873,11 @@ function DashboardView({
                 <TaskCard
                   key={task._id}
                   task={task}
-                  onToggleComplete={() => onToggleComplete(task._id)}
-                  onTogglePinToday={() => onTogglePinToday(task._id)}
-                  onTogglePinTomorrow={() => onTogglePinTomorrow(task._id)}
-                  onEdit={() => onEdit(task._id)}
-                  onDelete={() => onDelete(task._id)}
+                  onToggleComplete={() => onToggleComplete(task)}
+                  onTogglePinToday={() => onTogglePinToday(task)}
+                  onTogglePinTomorrow={() => onTogglePinTomorrow(task)}
+                  onEdit={() => onEdit(task)}
+                  onDelete={() => onDelete(task)}
                   formatDateTime={formatTaskDateTime(task)}
                   folders={folders}
                   allTags={allTags}
@@ -1885,7 +1893,7 @@ function DashboardView({
         <CardHeader className="pb-4 px-5 sm:px-6 pt-5 sm:pt-6 border-b border-foreground/10">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-              <div className="p-2 sm:p-2.5 rounded-lg bg-accent/20 border border-accent/30 shadow-sm flex-shrink-0">
+              <div className="p-2 sm:p-2.5 rounded-lg bg-accent/20 border border-accent/30 shadow-sm shrink-0">
                 <CalendarClock className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
               </div>
               <div className="min-w-0 flex-1">
@@ -1899,7 +1907,7 @@ function DashboardView({
             </div>
             <Badge 
               variant="secondary" 
-              className="text-xs font-black uppercase tracking-wider border-foreground/20 bg-background flex-shrink-0" 
+              className="text-xs font-black uppercase tracking-wider border-foreground/20 bg-background shrink-0" 
               style={{ fontWeight: '900' }}
             >
               {tomorrowTasks.length} {tomorrowTasks.length === 1 ? "task" : "tasks"}
@@ -1949,11 +1957,11 @@ function DashboardView({
                 <TaskCard
                   key={task._id}
                   task={task}
-                  onToggleComplete={() => onToggleComplete(task._id)}
-                  onTogglePinToday={() => onTogglePinToday(task._id)}
-                  onTogglePinTomorrow={() => onTogglePinTomorrow(task._id)}
-                  onEdit={() => onEdit(task._id)}
-                  onDelete={() => onDelete(task._id)}
+                  onToggleComplete={() => onToggleComplete(task)}
+                  onTogglePinToday={() => onTogglePinToday(task)}
+                  onTogglePinTomorrow={() => onTogglePinTomorrow(task)}
+                  onEdit={() => onEdit(task)}
+                  onDelete={() => onDelete(task)}
                   formatDateTime={formatTaskDateTime(task)}
                   folders={folders}
                   allTags={allTags}
@@ -2009,7 +2017,7 @@ function TaskCard({
             <TooltipTrigger asChild>
               <button
                 onClick={onToggleComplete}
-                className="mt-0.5 flex-shrink-0 transition-transform hover:scale-110 active:scale-95 touch-manipulation p-1 -m-1"
+                className="mt-0.5 shrink-0 transition-transform hover:scale-110 active:scale-95 touch-manipulation p-1 -m-1"
                 aria-label={task.isCompleted ? "Mark incomplete" : "Mark complete"}
               >
                 {task.isCompleted ? (
@@ -2075,7 +2083,7 @@ function TaskCard({
                   </div>
                 ) : null}
               </div>
-              <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 pt-0.5">
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 pt-0.5">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
