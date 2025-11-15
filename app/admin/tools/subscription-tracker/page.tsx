@@ -280,7 +280,10 @@ export default function SubscriptionTrackerPage() {
         return;
       }
       
-      const startDate = new Date(subscriptionFormData.startDate);
+      // Parse date string (yyyy-mm-dd) as local date, not UTC
+      // This prevents timezone issues that shift the date back by one day
+      const [year, month, day] = subscriptionFormData.startDate.split('-').map(Number);
+      const startDate = new Date(year, month - 1, day); // month is 0-indexed in Date constructor
       const startDateTimestamp = startDate.getTime();
       
       if (editingSubscription) {
