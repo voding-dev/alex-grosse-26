@@ -21,45 +21,61 @@ function calculateNextDueDate(
   const referenceDate = lastPaidDate || startDate;
   const reference = new Date(referenceDate);
   
-  // Get the next occurrence of dueDay after the reference date
-  let nextDue = new Date(reference);
-  
-  // For weekly, just add weeks
+  // For weekly, just add 7 days
   if (billingCycle === "weekly") {
-    nextDue = new Date(reference);
+    const nextDue = new Date(reference);
     nextDue.setDate(nextDue.getDate() + 7);
     return nextDue.getTime();
   }
   
-  // For monthly, quarterly, yearly - anchor to day of month
-  // Move to the next billing period
+  // For monthly, quarterly, yearly - construct the date directly
+  let year = reference.getFullYear();
+  let month = reference.getMonth();
+  let day = dueDay;
+  
+  // Add one billing period
   if (billingCycle === "monthly") {
-    nextDue.setMonth(nextDue.getMonth() + 1);
+    month += 1;
   } else if (billingCycle === "quarterly") {
-    nextDue.setMonth(nextDue.getMonth() + 3);
+    month += 3;
   } else if (billingCycle === "yearly") {
-    nextDue.setFullYear(nextDue.getFullYear() + 1);
+    year += 1;
   }
   
-  // Set to the dueDay, handling month-end edge cases
-  const daysInMonth = new Date(nextDue.getFullYear(), nextDue.getMonth() + 1, 0).getDate();
-  const targetDay = Math.min(dueDay, daysInMonth);
-  nextDue.setDate(targetDay);
+  // Handle month overflow (e.g., month 12 -> month 0 of next year)
+  if (month > 11) {
+    year += Math.floor(month / 12);
+    month = month % 12;
+  }
+  
+  // Get the number of days in the target month
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Use the minimum of dueDay and daysInMonth to handle edge cases (e.g., Jan 31 -> Feb 28/29)
+  const targetDay = Math.min(day, daysInMonth);
+  
+  // Create the next due date directly with explicit year, month, day
+  let nextDue = new Date(year, month, targetDay);
   
   // If the calculated date is in the past or today, move to next period
   if (nextDue.getTime() <= now) {
     if (billingCycle === "monthly") {
-      nextDue.setMonth(nextDue.getMonth() + 1);
+      month += 1;
     } else if (billingCycle === "quarterly") {
-      nextDue.setMonth(nextDue.getMonth() + 3);
+      month += 3;
     } else if (billingCycle === "yearly") {
-      nextDue.setFullYear(nextDue.getFullYear() + 1);
+      year += 1;
+    }
+    
+    // Handle month overflow again
+    if (month > 11) {
+      year += Math.floor(month / 12);
+      month = month % 12;
     }
     
     // Recalculate days in month after moving forward
-    const newDaysInMonth = new Date(nextDue.getFullYear(), nextDue.getMonth() + 1, 0).getDate();
+    const newDaysInMonth = new Date(year, month + 1, 0).getDate();
     const newTargetDay = Math.min(dueDay, newDaysInMonth);
-    nextDue.setDate(newTargetDay);
+    nextDue = new Date(year, month, newTargetDay);
   }
   
   return nextDue.getTime();
@@ -112,23 +128,42 @@ function calculateNextDueDateFromPayment(
   
   // Start from current due date (or payment date if no current due date)
   const referenceDate = currentDueDate || paymentDate;
-  let nextDue = new Date(referenceDate);
+  const reference = new Date(referenceDate);
   
-  // Advance by the number of periods covered
+  // For weekly, just add weeks
   if (billingCycle === "weekly") {
+    const nextDue = new Date(reference);
     nextDue.setDate(nextDue.getDate() + (7 * periodsToAdvance));
-  } else if (billingCycle === "monthly") {
-    nextDue.setMonth(nextDue.getMonth() + periodsToAdvance);
-  } else if (billingCycle === "quarterly") {
-    nextDue.setMonth(nextDue.getMonth() + (3 * periodsToAdvance));
-  } else if (billingCycle === "yearly") {
-    nextDue.setFullYear(nextDue.getFullYear() + periodsToAdvance);
+    return nextDue.getTime();
   }
   
-  // Always anchor to the original dueDay
-  const daysInMonth = new Date(nextDue.getFullYear(), nextDue.getMonth() + 1, 0).getDate();
-  const targetDay = Math.min(dueDay, daysInMonth);
-  nextDue.setDate(targetDay);
+  // For monthly, quarterly, yearly - construct the date directly
+  let year = reference.getFullYear();
+  let month = reference.getMonth();
+  let day = dueDay;
+  
+  // Advance by the number of periods covered
+  if (billingCycle === "monthly") {
+    month += periodsToAdvance;
+  } else if (billingCycle === "quarterly") {
+    month += (3 * periodsToAdvance);
+  } else if (billingCycle === "yearly") {
+    year += periodsToAdvance;
+  }
+  
+  // Handle month overflow (e.g., month 12 -> month 0 of next year)
+  if (month > 11) {
+    year += Math.floor(month / 12);
+    month = month % 12;
+  }
+  
+  // Get the number of days in the target month
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Use the minimum of dueDay and daysInMonth to handle edge cases (e.g., Jan 31 -> Feb 28/29)
+  const targetDay = Math.min(day, daysInMonth);
+  
+  // Create the next due date directly with explicit year, month, day
+  const nextDue = new Date(year, month, targetDay);
   
   return nextDue.getTime();
 }
