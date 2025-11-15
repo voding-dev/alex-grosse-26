@@ -157,6 +157,16 @@ export default function SubscriptionTrackerPage() {
   // Delete confirmations
   const [deleteSubscriptionId, setDeleteSubscriptionId] = useState<Id<"subscriptions"> | null>(null);
   const [deletePaymentMethodId, setDeletePaymentMethodId] = useState<Id<"subscriptionPaymentMethods"> | null>(null);
+  const [deletePaymentId, setDeletePaymentId] = useState<Id<"subscriptionPayments"> | null>(null);
+  
+  // Payment edit
+  const [editingPayment, setEditingPayment] = useState<Id<"subscriptionPayments"> | null>(null);
+  const [paymentEditFormData, setPaymentEditFormData] = useState({
+    paidDate: "",
+    amount: "",
+    paymentMethodId: "none" as string | Id<"subscriptionPaymentMethods"> | "none" | undefined,
+    notes: "",
+  });
   
   // View details
   const [viewingSubscriptionId, setViewingSubscriptionId] = useState<Id<"subscriptions"> | null>(null);
@@ -241,6 +251,9 @@ export default function SubscriptionTrackerPage() {
   const createPaymentMethod = useMutation(api.subscriptions.paymentMethodCreate);
   const updatePaymentMethod = useMutation(api.subscriptions.paymentMethodUpdate);
   const removePaymentMethod = useMutation(api.subscriptions.paymentMethodRemove);
+  
+  const updatePayment = useMutation(api.subscriptions.paymentUpdate);
+  const removePayment = useMutation(api.subscriptions.paymentRemove);
   
   // Handlers
   const handleOpenSubscriptionDialog = (subscriptionId?: Id<"subscriptions">) => {
@@ -550,6 +563,98 @@ export default function SubscriptionTrackerPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to delete payment method",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleOpenEditPayment = (paymentId: Id<"subscriptionPayments">) => {
+    const payment = paymentHistory.find((p) => p._id === paymentId);
+    if (payment && viewingSubscription) {
+      setEditingPayment(paymentId);
+      setPaymentEditFormData({
+        paidDate: format(new Date(payment.paidDate), "yyyy-MM-dd"),
+        amount: payment.amount.toString(),
+        paymentMethodId: payment.paymentMethodId || "none",
+        notes: payment.notes || "",
+      });
+      setPaymentDialogOpen(true);
+    }
+  };
+  
+  const handleSaveEditPayment = async () => {
+    if (!editingPayment || !paymentEditFormData.paidDate) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const paidDate = new Date(paymentEditFormData.paidDate);
+      const paidDateTimestamp = paidDate.getTime();
+      
+      const amount = paymentEditFormData.amount
+        ? parseFloat(paymentEditFormData.amount)
+        : undefined;
+      
+      if (amount !== undefined && (isNaN(amount) || amount <= 0)) {
+        toast({
+          title: "Validation Error",
+          description: "Amount must be a positive number",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      await updatePayment({
+        id: editingPayment,
+        paidDate: paidDateTimestamp,
+        amount,
+        paymentMethodId: paymentEditFormData.paymentMethodId && paymentEditFormData.paymentMethodId !== "none"
+          ? (paymentEditFormData.paymentMethodId as Id<"subscriptionPaymentMethods">)
+          : undefined,
+        notes: paymentEditFormData.notes || undefined,
+      });
+      
+      toast({
+        title: "Payment Updated",
+        description: "Payment has been updated successfully",
+      });
+      
+      setPaymentDialogOpen(false);
+      setEditingPayment(null);
+      setPaymentEditFormData({
+        paidDate: "",
+        amount: "",
+        paymentMethodId: "none",
+        notes: "",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update payment",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleDeletePayment = async () => {
+    if (!deletePaymentId) return;
+    
+    try {
+      await removePayment({ id: deletePaymentId });
+      toast({
+        title: "Payment Deleted",
+        description: "Payment has been deleted successfully",
+      });
+      setDeletePaymentId(null);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete payment",
         variant: "destructive",
       });
     }
@@ -1219,13 +1324,33 @@ export default function SubscriptionTrackerPage() {
         </DialogContent>
       </Dialog>
       
-      {/* Mark as Paid Dialog */}
-      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+      {/* Mark as Paid / Edit Payment Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setPaymentDialogOpen(false);
+          setEditingPayment(null);
+          setSelectedSubscriptionForPayment(null);
+          setPaymentFormData({
+            paidDate: "",
+            amount: "",
+            paymentMethodId: "none",
+            notes: "",
+          });
+          setPaymentEditFormData({
+            paidDate: "",
+            amount: "",
+            paymentMethodId: "none",
+            notes: "",
+          });
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Mark as Paid</DialogTitle>
+            <DialogTitle>{editingPayment ? "Edit Payment" : "Mark as Paid"}</DialogTitle>
             <DialogDescription>
-              Record a payment and advance the due date based on amount paid
+              {editingPayment 
+                ? "Update payment details. Changing amount or date will recalculate the subscription schedule."
+                : "Record a payment and advance the due date based on amount paid"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1327,40 +1452,57 @@ export default function SubscriptionTrackerPage() {
             <div className="space-y-2">
               <Label>Payment Date *</Label>
               <CustomDatePicker
-                value={paymentFormData.paidDate}
-                onChange={(value) =>
-                  setPaymentFormData({ ...paymentFormData, paidDate: value })
-                }
+                value={editingPayment ? paymentEditFormData.paidDate : paymentFormData.paidDate}
+                onChange={(value) => {
+                  if (editingPayment) {
+                    setPaymentEditFormData({ ...paymentEditFormData, paidDate: value });
+                  } else {
+                    setPaymentFormData({ ...paymentFormData, paidDate: value });
+                  }
+                }}
                 placeholder="Select payment date"
               />
             </div>
             
             <div className="space-y-2">
-              <Label>Amount (leave empty to use subscription amount)</Label>
+              <Label>Amount {!editingPayment && "(leave empty to use subscription amount)"}</Label>
               <Input
                 type="number"
                 step="0.01"
-                value={paymentFormData.amount}
-                onChange={(e) =>
-                  setPaymentFormData({ ...paymentFormData, amount: e.target.value })
-                }
+                value={editingPayment ? paymentEditFormData.amount : paymentFormData.amount}
+                onChange={(e) => {
+                  if (editingPayment) {
+                    setPaymentEditFormData({ ...paymentEditFormData, amount: e.target.value });
+                  } else {
+                    setPaymentFormData({ ...paymentFormData, amount: e.target.value });
+                  }
+                }}
                 placeholder="Auto"
               />
-              <p className="text-xs text-foreground/60">
-                Enter any amount to prepay multiple periods. The system will calculate how many periods this covers.
-              </p>
+              {!editingPayment && (
+                <p className="text-xs text-foreground/60">
+                  Enter any amount to prepay multiple periods. The system will calculate how many periods this covers.
+                </p>
+              )}
             </div>
             
             <div className="space-y-2">
               <Label>Payment Method</Label>
               <Select
-                value={paymentFormData.paymentMethodId || "none"}
-                onValueChange={(value) =>
-                  setPaymentFormData({
-                    ...paymentFormData,
-                    paymentMethodId: value === "none" ? undefined : (value as Id<"subscriptionPaymentMethods">),
-                  })
-                }
+                value={(editingPayment ? paymentEditFormData.paymentMethodId : paymentFormData.paymentMethodId) || "none"}
+                onValueChange={(value) => {
+                  if (editingPayment) {
+                    setPaymentEditFormData({
+                      ...paymentEditFormData,
+                      paymentMethodId: value === "none" ? undefined : (value as Id<"subscriptionPaymentMethods">),
+                    });
+                  } else {
+                    setPaymentFormData({
+                      ...paymentFormData,
+                      paymentMethodId: value === "none" ? undefined : (value as Id<"subscriptionPaymentMethods">),
+                    });
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select payment method" />
@@ -1379,10 +1521,14 @@ export default function SubscriptionTrackerPage() {
             <div className="space-y-2">
               <Label>Notes</Label>
               <Textarea
-                value={paymentFormData.notes}
-                onChange={(e) =>
-                  setPaymentFormData({ ...paymentFormData, notes: e.target.value })
-                }
+                value={editingPayment ? paymentEditFormData.notes : paymentFormData.notes}
+                onChange={(e) => {
+                  if (editingPayment) {
+                    setPaymentEditFormData({ ...paymentEditFormData, notes: e.target.value });
+                  } else {
+                    setPaymentFormData({ ...paymentFormData, notes: e.target.value });
+                  }
+                }}
                 placeholder="Payment notes..."
                 rows={3}
               />
@@ -1392,7 +1538,9 @@ export default function SubscriptionTrackerPage() {
             <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleMarkAsPaid}>Mark as Paid</Button>
+            <Button onClick={editingPayment ? handleSaveEditPayment : handleMarkAsPaid}>
+              {editingPayment ? "Update Payment" : "Mark as Paid"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1580,6 +1728,7 @@ export default function SubscriptionTrackerPage() {
                             <TableHead>Periods</TableHead>
                             <TableHead>Method</TableHead>
                             <TableHead>Notes</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1624,6 +1773,24 @@ export default function SubscriptionTrackerPage() {
                                 </TableCell>
                                 <TableCell>
                                   {payment.notes || <span className="text-foreground/60">—</span>}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleOpenEditPayment(payment._id)}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setDeletePaymentId(payment._id)}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-red-600" />
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             );
@@ -1727,6 +1894,24 @@ export default function SubscriptionTrackerPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeletePaymentMethod} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Delete Payment Confirmation */}
+      <AlertDialog open={!!deletePaymentId} onOpenChange={(open) => !open && setDeletePaymentId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Payment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this payment? The subscription schedule will be recalculated based on remaining payments.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeletePayment} className="bg-red-600 hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
