@@ -6,9 +6,10 @@ import { Id } from "./_generated/dataModel";
 
 /**
  * Extract day of month from a timestamp
+ * Uses UTC to avoid timezone issues
  */
 function getDayOfMonth(timestamp: number): number {
-  return new Date(timestamp).getDate();
+  return new Date(timestamp).getUTCDate();
 }
 
 /**
@@ -49,13 +50,14 @@ function addBillingPeriods(
   // For weekly, just add days
   if (billingCycle === "weekly") {
     const nextDue = new Date(reference);
-    nextDue.setDate(nextDue.getDate() + (7 * periods));
+    nextDue.setUTCDate(nextDue.getUTCDate() + (7 * periods));
     return nextDue.getTime();
   }
   
-  // For monthly, quarterly, yearly - work with months
-  let year = reference.getFullYear();
-  let month = reference.getMonth(); // 0-indexed (0 = January, 8 = September, etc.)
+  // Extract date components using UTC to avoid timezone issues
+  // This ensures we work with the actual calendar date, not a timezone-shifted version
+  let year = reference.getUTCFullYear();
+  let month = reference.getUTCMonth(); // 0-indexed (0 = January, 6 = July, etc.)
   
   // Calculate how many months to add based on billing cycle
   let monthsToAdd: number;
@@ -78,16 +80,15 @@ function addBillingPeriods(
     month = month % 12;
   }
   
-  // Get the number of days in the target month
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Get the number of days in the target month using UTC
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   // Use the minimum of dueDay and daysInMonth to handle edge cases (e.g., Jan 31 -> Feb 28/29)
   const targetDay = Math.min(dueDay, daysInMonth);
   
-  // Create the next due date directly with explicit year, month, day
-  // Using local time constructor (year, month, day creates date in local timezone)
-  const nextDue = new Date(year, month, targetDay, 0, 0, 0, 0);
+  // Create the next due date using UTC to avoid timezone shifts
+  const nextDueUTC = new Date(Date.UTC(year, month, targetDay, 0, 0, 0, 0));
   
-  return nextDue.getTime();
+  return nextDueUTC.getTime();
 }
 
 // ============ Tags ============
