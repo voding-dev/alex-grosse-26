@@ -490,23 +490,40 @@ function calculateFirstDueDate(
   billingCycle: "monthly" | "yearly" | "quarterly" | "weekly"
 ): number {
   const start = new Date(startDate);
-  let firstDue = new Date(start);
   
-  // Add one billing period
+  // For weekly, just add 7 days
   if (billingCycle === "weekly") {
+    const firstDue = new Date(start);
     firstDue.setDate(firstDue.getDate() + 7);
-  } else if (billingCycle === "monthly") {
-    firstDue.setMonth(firstDue.getMonth() + 1);
-  } else if (billingCycle === "quarterly") {
-    firstDue.setMonth(firstDue.getMonth() + 3);
-  } else if (billingCycle === "yearly") {
-    firstDue.setFullYear(firstDue.getFullYear() + 1);
+    return firstDue.getTime();
   }
   
-  // Set to the dueDay, handling month-end edge cases
-  const daysInMonth = new Date(firstDue.getFullYear(), firstDue.getMonth() + 1, 0).getDate();
-  const targetDay = Math.min(dueDay, daysInMonth);
-  firstDue.setDate(targetDay);
+  // For monthly, quarterly, yearly - add the period and set to the same day of month
+  let year = start.getFullYear();
+  let month = start.getMonth();
+  let day = dueDay;
+  
+  if (billingCycle === "monthly") {
+    month += 1;
+  } else if (billingCycle === "quarterly") {
+    month += 3;
+  } else if (billingCycle === "yearly") {
+    year += 1;
+  }
+  
+  // Handle month overflow (e.g., month 12 -> month 0 of next year)
+  if (month > 11) {
+    year += Math.floor(month / 12);
+    month = month % 12;
+  }
+  
+  // Get the number of days in the target month
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Use the minimum of dueDay and daysInMonth to handle edge cases (e.g., Jan 31 -> Feb 28/29)
+  const targetDay = Math.min(day, daysInMonth);
+  
+  // Create the first due date
+  const firstDue = new Date(year, month, targetDay);
   
   return firstDue.getTime();
 }

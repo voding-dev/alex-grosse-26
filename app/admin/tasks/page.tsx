@@ -1211,7 +1211,7 @@ function BankView({
                   : "hover:bg-foreground/5 text-foreground/70 hover:text-foreground border border-transparent"
               )}
             >
-              <Home className="h-4 w-4 flex-shrink-0" />
+              <Home className="h-4 w-4 shrink-0" />
               <span className={cn("font-medium", !selectedFolderId && "font-bold")}>
                 All Tasks
               </span>
@@ -1518,9 +1518,9 @@ function WeekView({ tasks, weekDays, tasksByDay }: { tasks: any[]; weekDays: Dat
                   >
                     <div className="flex items-start gap-1.5 sm:gap-2">
                       {task.isCompleted ? (
-                        <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-green-600 mt-0.5 flex-shrink-0" />
+                        <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-green-600 mt-0.5 shrink-0" />
                       ) : (
-                        <Circle className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-foreground/40 mt-0.5 flex-shrink-0" />
+                        <Circle className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-foreground/40 mt-0.5 shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className={`font-medium leading-snug text-xs ${task.isCompleted ? "line-through text-foreground/60" : ""}`}>
@@ -1587,7 +1587,7 @@ function DashboardView({
         <CardHeader className="pb-4 px-5 sm:px-6 pt-5 sm:pt-6 border-b border-foreground/10">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-              <div className="p-2 sm:p-2.5 rounded-lg bg-accent/20 border border-accent/30 shadow-sm flex-shrink-0">
+              <div className="p-2 sm:p-2.5 rounded-lg bg-accent/20 border border-accent/30 shadow-sm shrink-0">
                 <CalendarDays className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
               </div>
               <h2 className="text-lg sm:text-xl font-black uppercase tracking-wider text-foreground truncate" style={{ fontWeight: '900' }}>
@@ -1596,7 +1596,7 @@ function DashboardView({
             </div>
             <Badge 
               variant="secondary" 
-              className="text-xs font-black uppercase tracking-wider border-foreground/20 bg-background flex-shrink-0" 
+              className="text-xs font-black uppercase tracking-wider border-foreground/20 bg-background shrink-0" 
               style={{ fontWeight: '900' }}
             >
               {todayTasks.length} {todayTasks.length === 1 ? "task" : "tasks"}
@@ -1666,7 +1666,7 @@ function DashboardView({
         <CardHeader className="pb-4 px-5 sm:px-6 pt-5 sm:pt-6 border-b border-foreground/10">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-              <div className="p-2 sm:p-2.5 rounded-lg bg-accent/20 border border-accent/30 shadow-sm flex-shrink-0">
+              <div className="p-2 sm:p-2.5 rounded-lg bg-accent/20 border border-accent/30 shadow-sm shrink-0">
                 <CalendarClock className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
               </div>
               <h2 className="text-lg sm:text-xl font-black uppercase tracking-wider text-foreground truncate" style={{ fontWeight: '900' }}>
@@ -1675,7 +1675,7 @@ function DashboardView({
             </div>
             <Badge 
               variant="secondary" 
-              className="text-xs font-black uppercase tracking-wider border-foreground/20 bg-background flex-shrink-0" 
+              className="text-xs font-black uppercase tracking-wider border-foreground/20 bg-background shrink-0" 
               style={{ fontWeight: '900' }}
             >
               {tomorrowTasks.length} {tomorrowTasks.length === 1 ? "task" : "tasks"}
@@ -1775,7 +1775,7 @@ function TaskCard({
             <TooltipTrigger asChild>
               <button
                 onClick={onToggleComplete}
-                className="mt-0.5 flex-shrink-0 transition-transform hover:scale-110 active:scale-95 touch-manipulation p-1 -m-1"
+                className="mt-0.5 shrink-0 transition-transform hover:scale-110 active:scale-95 touch-manipulation p-1 -m-1"
                 aria-label={task.isCompleted ? "Mark incomplete" : "Mark complete"}
               >
                 {task.isCompleted ? (
@@ -1841,7 +1841,7 @@ function TaskCard({
                   </div>
                 ) : null}
               </div>
-              <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 pt-0.5">
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 pt-0.5">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
