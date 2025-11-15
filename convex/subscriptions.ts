@@ -6,10 +6,10 @@ import { Id } from "./_generated/dataModel";
 
 /**
  * Extract day of month from a timestamp
- * Uses local date to match how dates are created in the frontend
+ * Uses UTC to get consistent calendar date regardless of server timezone
  */
 function getDayOfMonth(timestamp: number): number {
-  return new Date(timestamp).getDate();
+  return new Date(timestamp).getUTCDate();
 }
 
 /**
@@ -54,11 +54,18 @@ function addBillingPeriods(
     return nextDue.getTime();
   }
   
-  // Extract date components using local time methods
-  // This matches how the frontend creates dates: new Date(year, month - 1, day)
-  // The timestamp represents a moment in time, but we want the calendar date components
-  let year = reference.getFullYear();
-  let month = reference.getMonth(); // 0-indexed (0 = January, 6 = July, etc.)
+  // Normalize to noon UTC to avoid timezone edge cases when extracting date components
+  // This ensures we get the correct calendar date regardless of when the timestamp was created
+  const normalizedRef = new Date(Date.UTC(
+    reference.getUTCFullYear(),
+    reference.getUTCMonth(),
+    reference.getUTCDate(),
+    12, 0, 0, 0
+  ));
+  
+  // Extract calendar date components from normalized date
+  let year = normalizedRef.getUTCFullYear();
+  let month = normalizedRef.getUTCMonth(); // 0-indexed (0 = January, 7 = August, etc.)
   
   // Calculate how many months to add based on billing cycle
   let monthsToAdd: number;
@@ -72,7 +79,7 @@ function addBillingPeriods(
     monthsToAdd = periods; // Fallback to monthly
   }
   
-  // Add exactly the calculated number of months (no more, no less)
+  // Add exactly the specified number of months (no more, no less)
   month += monthsToAdd;
   
   // Handle month overflow (e.g., month 12 -> month 0 of next year)
@@ -81,14 +88,14 @@ function addBillingPeriods(
     month = month % 12;
   }
   
-  // Get the number of days in the target month
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Get the number of days in the target month using UTC
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   // Use the minimum of dueDay and daysInMonth to handle edge cases (e.g., Jan 31 -> Feb 28/29)
   const targetDay = Math.min(dueDay, daysInMonth);
   
-  // Create the next due date in local time to match how frontend creates dates
-  // This ensures consistency with the original date creation
-  const nextDue = new Date(year, month, targetDay, 0, 0, 0, 0);
+  // Create the next due date at noon UTC to avoid DST and timezone edge cases
+  // This represents the calendar date consistently regardless of timezone
+  const nextDue = new Date(Date.UTC(year, month, targetDay, 12, 0, 0, 0));
   
   return nextDue.getTime();
 }
