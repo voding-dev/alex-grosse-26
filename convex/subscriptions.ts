@@ -479,6 +479,38 @@ export const subscriptionsGetStats = query({
   },
 });
 
+/**
+ * Calculate the first due date after a start date (one billing period later)
+ * This is used for new subscriptions - it always returns the date one period after start,
+ * even if that date is in the past, so it shows as DUE
+ */
+function calculateFirstDueDate(
+  startDate: number,
+  dueDay: number,
+  billingCycle: "monthly" | "yearly" | "quarterly" | "weekly"
+): number {
+  const start = new Date(startDate);
+  let firstDue = new Date(start);
+  
+  // Add one billing period
+  if (billingCycle === "weekly") {
+    firstDue.setDate(firstDue.getDate() + 7);
+  } else if (billingCycle === "monthly") {
+    firstDue.setMonth(firstDue.getMonth() + 1);
+  } else if (billingCycle === "quarterly") {
+    firstDue.setMonth(firstDue.getMonth() + 3);
+  } else if (billingCycle === "yearly") {
+    firstDue.setFullYear(firstDue.getFullYear() + 1);
+  }
+  
+  // Set to the dueDay, handling month-end edge cases
+  const daysInMonth = new Date(firstDue.getFullYear(), firstDue.getMonth() + 1, 0).getDate();
+  const targetDay = Math.min(dueDay, daysInMonth);
+  firstDue.setDate(targetDay);
+  
+  return firstDue.getTime();
+}
+
 export const subscriptionCreate = mutation({
   args: {
     name: v.string(),
@@ -498,9 +530,10 @@ export const subscriptionCreate = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const dueDay = getDayOfMonth(args.startDate);
-    const nextDueDate = calculateNextDueDate(
+    // For new subscriptions, calculate the first due date (one period after start)
+    // This allows past start dates to show as DUE immediately
+    const nextDueDate = calculateFirstDueDate(
       args.startDate,
-      undefined,
       dueDay,
       args.billingCycle
     );
@@ -556,12 +589,22 @@ export const subscriptionUpdate = mutation({
       const newStartDate = updates.startDate || existing.startDate;
       const newBillingCycle = updates.billingCycle || existing.billingCycle;
       dueDay = getDayOfMonth(newStartDate);
-      nextDueDate = calculateNextDueDate(
-        newStartDate,
-        existing.lastPaidDate,
-        dueDay,
-        newBillingCycle
-      );
+      // If there's no payment history, use first due date logic (allows past dates to show as DUE)
+      // Otherwise, use the regular calculation that skips past dates
+      if (!existing.lastPaidDate) {
+        nextDueDate = calculateFirstDueDate(
+          newStartDate,
+          dueDay,
+          newBillingCycle
+        );
+      } else {
+        nextDueDate = calculateNextDueDate(
+          newStartDate,
+          existing.lastPaidDate,
+          dueDay,
+          newBillingCycle
+        );
+      }
     }
     
     await ctx.db.patch(id, {
