@@ -90,7 +90,11 @@ function addBillingPeriods(
   
   // Get the number of days in the target month using UTC
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  // Use the minimum of dueDay and daysInMonth to handle edge cases (e.g., Jan 31 -> Feb 28/29)
+  // Use the minimum of dueDay and daysInMonth to handle edge cases:
+  // - Jan 31, monthly → Feb 28/29 (leap year) → Mar 31 → Apr 30 → May 31
+  // - Feb 29 (leap year), yearly → Feb 28 (non-leap) → Feb 28 (non-leap) → Feb 29 (leap)
+  // - Aug 31, quarterly → Nov 30 → Feb 28/29 → May 31 → Aug 31
+  // Always uses original dueDay (from start date), not the day from reference date
   const targetDay = Math.min(dueDay, daysInMonth);
   
   // Create the next due date at noon UTC to avoid DST and timezone edge cases
@@ -98,6 +102,43 @@ function addBillingPeriods(
   const nextDue = new Date(Date.UTC(year, month, targetDay, 12, 0, 0, 0));
   
   return nextDue.getTime();
+}
+
+/**
+ * Calculate the initial nextDueDate for a subscription.
+ *
+ * Rules:
+ * - The schedule is anchored on startDate + billingCycle + dueDay.
+ * - First candidate is exactly one billing period after startDate.
+ * - If that candidate is in the future relative to `now`, use it.
+ * - If it's in the past, keep advancing by whole periods until
+ *   we land on the first due date strictly AFTER `now`.
+ *
+ * This is used for:
+ * - creating a new subscription
+ * - re-anchoring when startDate or billingCycle changes
+ */
+function calculateInitialNextDueDate(
+  startDate: number,
+  billingCycle: "monthly" | "yearly" | "quarterly" | "weekly",
+  dueDay: number,
+  now: number = Date.now()
+): number {
+  // First due = one billing period after the start
+  let nextDue = addBillingPeriods(startDate, 1, dueDay, billingCycle);
+
+  // If that first due is already in the future, we're done.
+  if (nextDue > now) {
+    return nextDue;
+  }
+
+  // Otherwise, keep stepping forward by whole periods until
+  // we land strictly after `now`.
+  while (nextDue <= now) {
+    nextDue = addBillingPeriods(nextDue, 1, dueDay, billingCycle);
+  }
+
+  return nextDue;
 }
 
 // ============ Tags ============
@@ -466,13 +507,13 @@ export const subscriptionCreate = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const dueDay = getDayOfMonth(args.startDate);
-    // For new subscriptions, calculate the first due date (one billing period after start)
-    // This allows past start dates to show as DUE immediately
-    const nextDueDate = addBillingPeriods(
+    // Calculate the next upcoming due date in the schedule
+    // For backdated subscriptions, this will advance to the first date after now
+    const nextDueDate = calculateInitialNextDueDate(
       args.startDate,
-      1, // One billing period after start
+      args.billingCycle,
       dueDay,
-      args.billingCycle
+      now
     );
     
     return await ctx.db.insert("subscriptions", {
@@ -523,16 +564,18 @@ export const subscriptionUpdate = mutation({
     let nextDueDate = existing.nextDueDate;
     
     if (updates.startDate || updates.billingCycle) {
-      const newStartDate = updates.startDate || existing.startDate;
-      const newBillingCycle = updates.billingCycle || existing.billingCycle;
+      const newStartDate = updates.startDate ?? existing.startDate;
+      const newBillingCycle = updates.billingCycle ?? existing.billingCycle;
+
       dueDay = getDayOfMonth(newStartDate);
-      // Always calculate from start date: one billing period after start
-      // This ensures clean sequence regardless of payment history
-      nextDueDate = addBillingPeriods(
+
+      // Recalculate nextDueDate as the next upcoming billing date
+      // in the schedule anchored to the new start date + cycle.
+      nextDueDate = calculateInitialNextDueDate(
         newStartDate,
-        1, // One billing period after start
+        newBillingCycle,
         dueDay,
-        newBillingCycle
+        Date.now()
       );
     }
     
