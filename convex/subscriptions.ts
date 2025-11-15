@@ -6,7 +6,7 @@ import { Id } from "./_generated/dataModel";
 
 /**
  * Extract day of month from a timestamp
- * Uses UTC to avoid timezone issues
+ * Uses UTC to get consistent calendar date regardless of server timezone
  */
 function getDayOfMonth(timestamp: number): number {
   return new Date(timestamp).getUTCDate();
@@ -50,14 +50,16 @@ function addBillingPeriods(
   // For weekly, just add days
   if (billingCycle === "weekly") {
     const nextDue = new Date(reference);
-    nextDue.setUTCDate(nextDue.getUTCDate() + (7 * periods));
+    nextDue.setDate(nextDue.getDate() + (7 * periods));
     return nextDue.getTime();
   }
   
-  // Extract date components using UTC to avoid timezone issues
-  // This ensures we work with the actual calendar date, not a timezone-shifted version
+  // Extract date components - use both UTC and local to ensure we get the correct calendar date
+  // The timestamp represents a specific moment, but we want the calendar date components
+  // Use UTC methods to get consistent calendar date regardless of server timezone
   let year = reference.getUTCFullYear();
   let month = reference.getUTCMonth(); // 0-indexed (0 = January, 6 = July, etc.)
+  const originalDay = reference.getUTCDate();
   
   // Calculate how many months to add based on billing cycle
   let monthsToAdd: number;
@@ -85,10 +87,11 @@ function addBillingPeriods(
   // Use the minimum of dueDay and daysInMonth to handle edge cases (e.g., Jan 31 -> Feb 28/29)
   const targetDay = Math.min(dueDay, daysInMonth);
   
-  // Create the next due date using UTC to avoid timezone shifts
-  const nextDueUTC = new Date(Date.UTC(year, month, targetDay, 0, 0, 0, 0));
+  // Create the next due date using UTC to ensure consistent calendar date
+  // Then convert to timestamp - this represents the same calendar date regardless of timezone
+  const nextDue = new Date(Date.UTC(year, month, targetDay, 12, 0, 0, 0)); // Use noon UTC to avoid DST issues
   
-  return nextDueUTC.getTime();
+  return nextDue.getTime();
 }
 
 // ============ Tags ============
