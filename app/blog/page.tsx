@@ -98,7 +98,7 @@ export default function BlogListingPage() {
           </div>
           <div className="bg-white w-full pt-8 sm:pt-10 md:pt-12 pb-6 sm:pb-8">
             <p className="text-center text-xl sm:text-2xl md:text-3xl text-black/70 max-w-3xl mx-auto px-4 font-medium leading-relaxed">
-              Insights, tutorials, and stories from the creative process
+              Stories and insights about stuff and things
             </p>
           </div>
         </section>
