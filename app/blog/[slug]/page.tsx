@@ -210,11 +210,6 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
 
             {/* Meta */}
             <div className="flex flex-wrap items-center gap-3 sm:gap-4 md:gap-6 text-sm sm:text-base text-black/60 pt-6 sm:pt-8 pb-6 sm:pb-8 border-t-2 border-b-2 border-black/10">
-              {post.authorName && (
-                <div className="font-black text-black uppercase tracking-wider text-sm sm:text-base" style={{ fontWeight: '900' }}>
-                  By {post.authorName}
-                </div>
-              )}
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                 <span className="font-medium">{formatDate(post.publishedAt)}</span>
@@ -263,7 +258,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider mb-4 sm:mb-6 text-black" style={{ fontWeight: '900' }}>
               Share this post
             </h3>
-            <div className="flex flex-wrap gap-2 sm:gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <Button
                 onClick={() => handleShare("twitter")}
                 className="font-black uppercase tracking-wider bg-black text-white hover:bg-accent border-2 border-black hover:border-accent transition-all px-5 sm:px-6 py-2.5 sm:py-3 h-auto text-sm sm:text-base"
@@ -288,6 +283,11 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
                 <LinkIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Copy Link
               </Button>
+              {post.authorName && (
+                <div className="font-black text-black uppercase tracking-wider text-sm sm:text-base ml-2" style={{ fontWeight: '900' }}>
+                  By {post.authorName}
+                </div>
+              )}
             </div>
           </div>
         </div>
