@@ -4,7 +4,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
-import { Calendar, Clock, ArrowRight } from "lucide-react";
+import { Calendar, Clock, Eye, Heart, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface BlogPostCardProps {
@@ -18,6 +18,7 @@ interface BlogPostCardProps {
     categoryIds?: Array<Id<"blogCategories">>;
     tags?: string[];
     viewCount?: number;
+    likeCount?: number;
   };
   featured?: boolean;
 }
@@ -37,10 +38,22 @@ export function BlogPostCard({ post, featured = false }: BlogPostCardProps) {
     post.categoryIds?.includes(cat._id)
   );
 
-  // Estimate read time (assuming 200 words per minute)
-  const readTime = post.excerpt
-    ? Math.max(1, Math.ceil(post.excerpt.split(" ").length / 200))
-    : 5;
+  // Get sections for accurate read time calculation
+  const sections = useQuery(
+    api.blogPostSections.listByPost,
+    { blogPostId: post._id }
+  ) || [];
+
+  // Calculate read time from actual content (same logic as detail page)
+  const totalWords = sections.reduce((acc, section) => {
+    if (section.textContent) {
+      // Strip HTML and count words
+      const text = section.textContent.replace(/<[^>]*>/g, "");
+      return acc + text.split(/\s+/).length;
+    }
+    return acc;
+  }, 0);
+  const readTime = Math.max(1, Math.ceil(totalWords / 200));
 
   const formatDate = (timestamp?: number) => {
     if (!timestamp) return "";
@@ -103,17 +116,29 @@ export function BlogPostCard({ post, featured = false }: BlogPostCardProps) {
 
           {/* Meta */}
           <div className="flex items-center justify-between pt-4 border-t-2 border-black/5 mt-auto">
-            <div className="flex items-center gap-3 text-xs text-black/60">
+            <div className="flex items-center gap-3 text-xs text-black/60 flex-wrap">
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
                 <span className="font-medium">{formatDate(post.publishedAt)}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />
-                <span className="font-medium">{readTime} min</span>
+                <span className="font-medium">{readTime} min read</span>
               </div>
+              {post.viewCount !== undefined && post.viewCount > 0 && (
+                <div className="flex items-center gap-1">
+                  <Eye className="h-4 w-4" />
+                  <span className="font-medium">{post.viewCount}</span>
+                </div>
+              )}
+              {post.likeCount !== undefined && post.likeCount > 0 && (
+                <div className="flex items-center gap-1">
+                  <Heart className="h-4 w-4 fill-current" />
+                  <span className="font-medium">{post.likeCount}</span>
+                </div>
+              )}
             </div>
-            <ArrowRight className="h-5 w-5 text-accent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <ArrowRight className="h-5 w-5 text-accent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex-shrink-0" />
           </div>
         </div>
       </div>
