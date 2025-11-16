@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -10,13 +10,26 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 export default function BlogListingPage() {
+  const searchParams = useSearchParams();
+  const searchFromUrl = searchParams.get("search");
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Id<"blogCategories"> | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const postsPerPage = 9;
+
+  // Update search query when URL parameter changes
+  useEffect(() => {
+    if (searchFromUrl) {
+      setSearchQuery(searchFromUrl);
+      setSelectedCategory(null);
+      setSelectedTag(null);
+    }
+  }, [searchFromUrl]);
 
   const posts = useQuery(api.blogPosts.listPublished, {
     categoryId: selectedCategory || undefined,
@@ -25,23 +38,37 @@ export default function BlogListingPage() {
   const categories = useQuery(api.blogCategories.list) || [];
   const popularTags = useQuery(api.blogTags.list) || [];
 
-  // Filter posts by search
-  const filteredPosts = posts?.filter((post) => {
-    if (!searchQuery) return true;
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      post.title.toLowerCase().includes(searchLower) ||
-      post.excerpt?.toLowerCase().includes(searchLower)
+  // Filter posts by search (including tags)
+  const filteredPosts = (posts || []).filter((post) => {
+    if (!searchQuery.trim()) return true;
+    const searchLower = searchQuery.toLowerCase().trim();
+    
+    // Check title
+    const titleMatch = post.title.toLowerCase().includes(searchLower);
+    
+    // Check excerpt
+    const excerptMatch = post.excerpt?.toLowerCase().includes(searchLower) || false;
+    
+    // Check tags (ensure tags array exists and search within it)
+    const tagMatch = Array.isArray(post.tags) && post.tags.some(tag => 
+      tag.toLowerCase().includes(searchLower)
     );
-  }) || [];
+    
+    return titleMatch || excerptMatch || tagMatch;
+  });
+
+  // Check if filters are active
+  const hasFilters = searchQuery || selectedCategory || selectedTag;
 
   // Separate featured and regular posts
   const featuredPosts = filteredPosts.filter((post) => post.featured);
   const regularPosts = filteredPosts.filter((post) => !post.featured);
 
-  // Pagination
-  const totalPages = Math.ceil(regularPosts.length / postsPerPage);
-  const displayedPosts = regularPosts.slice((page - 1) * postsPerPage, page * postsPerPage);
+  // When there's a search/filter, combine all posts for display
+  // Otherwise, paginate only regular posts (featured shown separately)
+  const postsForPagination = hasFilters ? filteredPosts : regularPosts;
+  const totalPages = Math.ceil(postsForPagination.length / postsPerPage);
+  const displayedPosts = postsForPagination.slice((page - 1) * postsPerPage, page * postsPerPage);
 
   const handleCategoryFilter = (categoryId: Id<"blogCategories"> | null) => {
     setSelectedCategory(categoryId);
@@ -55,8 +82,6 @@ export default function BlogListingPage() {
     setSelectedTag(null);
     setPage(1);
   };
-
-  const hasFilters = searchQuery || selectedCategory || selectedTag;
 
   return (
     <main className="min-h-screen bg-background">
@@ -162,8 +187,8 @@ export default function BlogListingPage() {
                   <Button
                     variant="outline"
                     onClick={clearFilters}
-                    className="font-black uppercase tracking-wider border-2 border-black/20 text-black hover:bg-black/5 px-6 py-3 h-auto"
-                    style={{ fontWeight: '900' }}
+                    className="font-black uppercase tracking-wider border-2 text-white hover:bg-white hover:text-black px-6 py-3 h-auto transition-all"
+                    style={{ fontWeight: '900', backgroundColor: '#FFA617', borderColor: '#FFA617' }}
                   >
                     <X className="h-4 w-4 mr-2" />
                     Clear Filters
@@ -172,7 +197,7 @@ export default function BlogListingPage() {
               )}
             </div>
 
-            {/* Featured Posts */}
+            {/* Featured Posts (only when no filters) */}
             {featuredPosts.length > 0 && !hasFilters && (
               <div className="space-y-8">
                 <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-black" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
@@ -186,51 +211,53 @@ export default function BlogListingPage() {
               </div>
             )}
 
-            {/* All Posts */}
-            {displayedPosts.length > 0 || featuredPosts.length > 0 ? (
-              displayedPosts.length > 0 && (
-                <div className="space-y-8">
-                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-black" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
-                    {hasFilters ? "Search Results" : "Latest Posts"}
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {displayedPosts.map((post) => (
-                      <BlogPostCard key={post._id} post={post} />
-                    ))}
-                  </div>
-
-                  {/* Pagination */}
-                  {totalPages > 1 && (
-                    <div className="flex justify-center items-center gap-4 pt-8">
-                      <Button
-                        variant="outline"
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                        className="font-black uppercase tracking-wider px-8 py-4 h-auto text-base border-2 disabled:opacity-50"
-                        style={{ fontWeight: '900', borderColor: '#000', color: 'black' }}
-                      >
-                        Previous
-                      </Button>
-                      <span className="text-base font-bold text-black/70 px-4">
-                        Page {page} of {totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={page === totalPages}
-                        className="font-black uppercase tracking-wider px-8 py-4 h-auto text-base border-2 disabled:opacity-50"
-                        style={{ fontWeight: '900', borderColor: '#000', color: 'black' }}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  )}
+            {/* All Posts or Search Results */}
+            {posts === undefined ? (
+              <div className="text-center py-20">
+                <p className="text-xl text-black/50 font-medium">Loading posts...</p>
+              </div>
+            ) : displayedPosts.length > 0 ? (
+              <div className="space-y-8">
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-black" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+                  {hasFilters ? "Search Results" : "Latest Posts"}
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {displayedPosts.map((post) => (
+                    <BlogPostCard key={post._id} post={post} />
+                  ))}
                 </div>
-              )
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-4 pt-8">
+                    <Button
+                      variant="outline"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="font-black uppercase tracking-wider px-8 py-4 h-auto text-base border-2 disabled:opacity-50"
+                      style={{ fontWeight: '900', borderColor: '#000', color: 'black' }}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-base font-bold text-black/70 px-4">
+                      Page {page} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="font-black uppercase tracking-wider px-8 py-4 h-auto text-base border-2 disabled:opacity-50"
+                      style={{ fontWeight: '900', borderColor: '#000', color: 'black' }}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="text-center py-20">
                 <p className="text-xl text-black/50 font-medium">
-                  {hasFilters ? "No posts match your filters." : "No blog posts yet."}
+                  {hasFilters ? "No posts match your search." : "No blog posts yet."}
                 </p>
               </div>
             )}

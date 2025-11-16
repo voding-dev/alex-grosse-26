@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Eye, Edit2, Calendar, Clock, FolderOpen, Tag } from "lucide-react";
+import { Plus, Search, Eye, Edit2, Calendar, Clock } from "lucide-react";
 import Link from "next/link";
 import { AdminTabs, AdminTab } from "@/components/admin/admin-tabs";
 
@@ -84,22 +84,10 @@ export default function BlogManagementPage() {
               Blog Management
             </h1>
             <p className="text-foreground/70 text-base sm:text-lg">
-              Create and manage blog posts with rich content, categories, and SEO optimization.
+              Create and manage blog posts with rich content and SEO optimization.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/admin/blog/categories">
-              <Button variant="outline" className="font-bold uppercase tracking-wider">
-                <FolderOpen className="mr-2 h-4 w-4" />
-                Categories
-              </Button>
-            </Link>
-            <Link href="/admin/blog/tags">
-              <Button variant="outline" className="font-bold uppercase tracking-wider">
-                <Tag className="mr-2 h-4 w-4" />
-                Tags
-              </Button>
-            </Link>
             <Link href="/admin/blog/new" className="w-full sm:w-auto">
               <Button className="w-full sm:w-auto font-black uppercase tracking-wider hover:bg-accent/90 transition-colors" style={{ backgroundColor: '#FFA617', fontWeight: '900' }}>
                 <Plus className="mr-2 h-4 w-4" />

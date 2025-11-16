@@ -244,12 +244,13 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
               </h3>
               <div className="flex flex-wrap gap-2 sm:gap-3">
                 {post.tags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    className="bg-white text-black border-2 border-black font-bold uppercase tracking-wider text-sm sm:text-base px-4 sm:px-5 py-2 sm:py-2.5 hover:bg-black hover:text-white transition-all cursor-pointer"
-                  >
-                    #{tag}
-                  </Badge>
+                  <Link key={tag} href={`/blog?search=${encodeURIComponent(tag)}`}>
+                    <Badge
+                      className="bg-white text-black border-2 border-black font-bold uppercase tracking-wider text-sm sm:text-base px-4 sm:px-5 py-2 sm:py-2.5 hover:bg-black hover:text-white transition-all cursor-pointer"
+                    >
+                      #{tag}
+                    </Badge>
+                  </Link>
                 ))}
               </div>
             </div>
