@@ -72,11 +72,70 @@ export function BlogSectionRenderer({ section }: BlogSectionRendererProps) {
     return (
       <div className="blog-text-section">
         <style jsx>{`
+          .blog-text-section :global(h1) {
+            font-size: 2.5rem !important;
+            line-height: 1.2 !important;
+            margin-top: 2rem !important;
+            margin-bottom: 1.5rem !important;
+            font-weight: 900 !important;
+            text-transform: uppercase !important;
+            letter-spacing: -0.02em !important;
+            color: #000 !important;
+          }
+          .blog-text-section :global(h2) {
+            font-size: 2rem !important;
+            line-height: 1.3 !important;
+            margin-top: 1.75rem !important;
+            margin-bottom: 1.25rem !important;
+            font-weight: 900 !important;
+            text-transform: uppercase !important;
+            letter-spacing: -0.02em !important;
+            color: #000 !important;
+          }
+          .blog-text-section :global(h3) {
+            font-size: 1.5rem !important;
+            line-height: 1.4 !important;
+            margin-top: 1.5rem !important;
+            margin-bottom: 1rem !important;
+            font-weight: 900 !important;
+            text-transform: uppercase !important;
+            letter-spacing: -0.01em !important;
+            color: #000 !important;
+          }
+          .blog-text-section :global(p) {
+            font-size: 1.125rem !important;
+            line-height: 1.75 !important;
+            margin-bottom: 1rem !important;
+            color: rgba(0, 0, 0, 0.8) !important;
+          }
+          .blog-text-section :global(strong) {
+            font-weight: 900 !important;
+            color: #000 !important;
+          }
+          .blog-text-section :global(em) {
+            font-style: italic !important;
+          }
+          .blog-text-section :global(u) {
+            text-decoration: underline !important;
+          }
+          .blog-text-section :global(s) {
+            text-decoration: line-through !important;
+          }
+          .blog-text-section :global(a) {
+            color: #FFA617 !important;
+            font-weight: 700 !important;
+            text-decoration: none !important;
+          }
+          .blog-text-section :global(a:hover) {
+            text-decoration: underline !important;
+            color: rgba(255, 166, 23, 0.8) !important;
+          }
           .blog-text-section :global(ul),
           .blog-text-section :global(ol) {
+            padding-left: 1.5rem !important;
+            margin-bottom: 1rem !important;
             list-style-position: outside !important;
-            margin-left: 1.5rem !important;
-            margin-bottom: 1.5rem !important;
+            color: rgba(0, 0, 0, 0.8) !important;
           }
           .blog-text-section :global(ul) {
             list-style-type: disc !important;
@@ -85,11 +144,43 @@ export function BlogSectionRenderer({ section }: BlogSectionRendererProps) {
             list-style-type: decimal !important;
           }
           .blog-text-section :global(li) {
-            display: list-item !important;
             margin-bottom: 0.5rem !important;
+            display: list-item !important;
           }
           .blog-text-section :global(li p) {
             margin-bottom: 0.25rem !important;
+          }
+          .blog-text-section :global(blockquote) {
+            border-left: 4px solid #FFA617 !important;
+            padding-left: 1.5rem !important;
+            font-style: italic !important;
+            margin: 1.5rem 0 !important;
+            color: rgba(0, 0, 0, 0.7) !important;
+            font-size: 1.25rem !important;
+          }
+          .blog-text-section :global(code) {
+            background-color: rgba(0, 0, 0, 0.05) !important;
+            color: #000 !important;
+            padding: 0.125rem 0.5rem !important;
+            border-radius: 0.25rem !important;
+            font-family: monospace !important;
+            font-size: 0.9em !important;
+            font-weight: 600 !important;
+          }
+          .blog-text-section :global(pre) {
+            background-color: rgba(0, 0, 0, 0.05) !important;
+            padding: 1rem !important;
+            border-radius: 0.5rem !important;
+            overflow-x: auto !important;
+            margin: 1rem 0 !important;
+          }
+          .blog-text-section :global(pre code) {
+            background-color: transparent !important;
+            padding: 0 !important;
+          }
+          /* Support for custom font sizes from TipTap */
+          .blog-text-section :global([style*="font-size"]) {
+            /* Preserve inline font-size styles */
           }
         `}</style>
         <div
