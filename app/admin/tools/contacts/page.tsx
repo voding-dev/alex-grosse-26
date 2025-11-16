@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import type { Id } from "@/convex/_generated/dataModel";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,7 +78,6 @@ import { ResizableTextarea } from "@/components/ui/resizable-textarea";
 import { CustomDatePicker } from "@/components/ui/custom-date-picker";
 import { CustomTimePicker } from "@/components/ui/custom-time-picker";
 import { format } from "date-fns";
-import { Id } from "@/convex/_generated/dataModel";
 
 export default function ContactsPage() {
   const { adminEmail } = useAdminAuth();
@@ -535,7 +534,7 @@ export default function ContactsPage() {
             Unified contacts database - source of truth for all contacts
           </p>
         </div>
-        <div className="flex gap-3 flex-shrink-0">
+        <div className="flex gap-3 shrink-0">
           <Button
             className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors w-full sm:w-auto"
             style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
@@ -1398,7 +1397,7 @@ export default function ContactsPage() {
                         <p className="text-sm font-bold text-foreground truncate">{project.title}</p>
                         <p className="text-xs text-foreground/60">{project.status}</p>
                       </div>
-                      <ArrowRight className="h-3 w-3 text-accent flex-shrink-0 ml-2" />
+                      <ArrowRight className="h-3 w-3 text-accent shrink-0 ml-2" />
                     </Link>
                   ))}
                 </div>
@@ -1419,7 +1418,7 @@ export default function ContactsPage() {
                         <p className="text-sm font-bold text-foreground truncate">{booking.title}</p>
                         <p className="text-xs text-foreground/60">{booking.status}</p>
                       </div>
-                      <ArrowRight className="h-3 w-3 text-accent flex-shrink-0 ml-2" />
+                      <ArrowRight className="h-3 w-3 text-accent shrink-0 ml-2" />
                     </Link>
                   ))}
                 </div>
