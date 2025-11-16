@@ -11,10 +11,10 @@ export interface UploadImageOptions {
   file: File;
   sessionToken?: string;
   displayLocation?: {
-    type: "portfolio" | "project" | "delivery" | "gallery" | "hero_carousel" | "about" | "cover" | "pitch_deck" | "quote_builder";
+    type: "portfolio" | "project" | "delivery" | "gallery" | "hero_carousel" | "about" | "cover" | "pitch_deck" | "quote_builder" | "blog_cover" | "blog_og" | "blog_section" | "blog_gallery";
     entityId?: string;
     entityName?: string;
-    subType?: string; // e.g., "portraits", "design", "graphic_designer", "landing_page"
+    subType?: string; // e.g., "portraits", "design", "graphic_designer", "landing_page", "blog"
   };
   tags?: string[];
   folder?: string;
@@ -27,7 +27,7 @@ export interface UploadImageOptions {
   addDisplayLocation?: (args: {
     sessionToken?: string;
     id: Id<"mediaLibrary">;
-    locationType: "portfolio" | "project" | "delivery" | "pitch_deck" | "quote_builder" | "gallery" | "hero_carousel" | "about" | "cover";
+    locationType: "portfolio" | "project" | "delivery" | "pitch_deck" | "quote_builder" | "gallery" | "hero_carousel" | "about" | "cover" | "blog_cover" | "blog_og" | "blog_section" | "blog_gallery";
     entityId: string;
     entityName?: string;
   }) => Promise<void>;
@@ -44,7 +44,7 @@ export interface UploadImageOptions {
     alt?: string;
     description?: string;
     displayLocations?: Array<{
-      type: "portfolio" | "project" | "delivery" | "pitch_deck" | "quote_builder" | "gallery" | "hero_carousel" | "about" | "cover";
+      type: "portfolio" | "project" | "delivery" | "pitch_deck" | "quote_builder" | "gallery" | "hero_carousel" | "about" | "cover" | "blog_cover" | "blog_og" | "blog_section" | "blog_gallery";
       entityId: string;
       entityName?: string;
     }>;
@@ -268,7 +268,7 @@ export async function uploadImageToMediaLibrary(
 
   // Build display locations array
   const displayLocations: Array<{
-    type: "portfolio" | "project" | "delivery" | "pitch_deck" | "quote_builder" | "gallery" | "hero_carousel" | "about" | "cover";
+    type: "portfolio" | "project" | "delivery" | "pitch_deck" | "quote_builder" | "gallery" | "hero_carousel" | "about" | "cover" | "blog_cover" | "blog_og" | "blog_section" | "blog_gallery";
     entityId: string;
     entityName?: string;
   }> = displayLocation

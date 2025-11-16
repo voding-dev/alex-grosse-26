@@ -12,14 +12,16 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 interface ImageUploadButtonProps {
   onUploadComplete: (result: {
     storageKey: string;
-    width: number;
-    height: number;
-    size: number;
+    width?: number;
+    height?: number;
+    originalSize: number;
+    compressedSize: number;
+    compressionRatio: number;
     isDuplicate: boolean;
     duplicateId?: string;
   }) => void;
   displayLocation?: {
-    type: string;
+    type: "portfolio" | "project" | "delivery" | "about" | "pitch_deck" | "quote_builder" | "gallery" | "hero_carousel" | "cover" | "blog_cover" | "blog_og" | "blog_section" | "blog_gallery";
     entityId: string;
     entityName: string;
     subType?: string;

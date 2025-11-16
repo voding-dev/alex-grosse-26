@@ -81,7 +81,7 @@ type MediaItem = {
   sourceAssetId?: Id<"assets">;
   sourceType?: "asset" | "upload";
   displayLocations?: Array<{
-    type: "portfolio" | "project" | "delivery" | "pitch_deck" | "quote_builder" | "gallery" | "hero_carousel" | "about" | "cover";
+    type: "portfolio" | "project" | "delivery" | "pitch_deck" | "quote_builder" | "gallery" | "hero_carousel" | "about" | "cover" | "blog_cover" | "blog_og" | "blog_section" | "blog_gallery";
     entityId: string;
     entityName?: string;
   }>;

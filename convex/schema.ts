@@ -808,7 +808,11 @@ export default defineSchema({
         v.literal("gallery"),
         v.literal("hero_carousel"),
         v.literal("about"),
-        v.literal("cover")
+        v.literal("cover"),
+        v.literal("blog_cover"),
+        v.literal("blog_og"),
+        v.literal("blog_section"),
+        v.literal("blog_gallery")
       ),
       entityId: v.string(), // ID of the portfolio/project/delivery/etc, or subtype identifier
       entityName: v.optional(v.string()), // Human-readable name for display
@@ -1118,6 +1122,7 @@ export default defineSchema({
     name: v.string(),
     slug: v.string(),
     description: v.optional(v.string()),
+    color: v.optional(v.string()), // Hex color code for category badge
     sortOrder: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),

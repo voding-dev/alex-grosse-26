@@ -319,7 +319,11 @@ export const create = mutation({
         v.literal("gallery"),
         v.literal("hero_carousel"),
         v.literal("about"),
-        v.literal("cover")
+        v.literal("cover"),
+        v.literal("blog_cover"),
+        v.literal("blog_og"),
+        v.literal("blog_section"),
+        v.literal("blog_gallery")
       ),
       entityId: v.string(),
       entityName: v.optional(v.string()),
@@ -388,7 +392,11 @@ export const update = mutation({
         v.literal("gallery"),
         v.literal("hero_carousel"),
         v.literal("about"),
-        v.literal("cover")
+        v.literal("cover"),
+        v.literal("blog_cover"),
+        v.literal("blog_og"),
+        v.literal("blog_section"),
+        v.literal("blog_gallery")
       ),
       entityId: v.string(),
       entityName: v.optional(v.string()),
@@ -538,7 +546,11 @@ export const addDisplayLocation = mutation({
       v.literal("gallery"),
       v.literal("hero_carousel"),
       v.literal("about"),
-      v.literal("cover")
+      v.literal("cover"),
+      v.literal("blog_cover"),
+      v.literal("blog_og"),
+      v.literal("blog_section"),
+      v.literal("blog_gallery")
     ),
     entityId: v.string(),
     entityName: v.optional(v.string()),
@@ -591,7 +603,11 @@ export const removeDisplayLocation = mutation({
       v.literal("gallery"),
       v.literal("hero_carousel"),
       v.literal("about"),
-      v.literal("cover")
+      v.literal("cover"),
+      v.literal("blog_cover"),
+      v.literal("blog_og"),
+      v.literal("blog_section"),
+      v.literal("blog_gallery")
     ),
     entityId: v.string(),
   },

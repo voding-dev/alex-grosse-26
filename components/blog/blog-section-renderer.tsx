@@ -132,9 +132,11 @@ export function BlogSectionRenderer({ section }: BlogSectionRendererProps) {
         
         {lightboxOpen && (
           <Lightbox
-            images={[{ url: imageUrl, alt: section.imageAlt || "" }]}
-            initialIndex={0}
+            images={[{ id: section._id, src: imageUrl, alt: section.imageAlt || "", type: "image" as const }]}
+            currentIndex={0}
             onClose={() => setLightboxOpen(false)}
+            onNext={() => {}}
+            onPrev={() => {}}
           />
         )}
       </figure>
@@ -153,37 +155,46 @@ export function BlogSectionRenderer({ section }: BlogSectionRendererProps) {
     }
 
     const images = section.galleryImages?.map((img, idx) => ({
-      url: galleryUrls[idx],
+      id: `${section._id}-${idx}`,
+      src: galleryUrls[idx] || "",
       alt: img.alt || "",
-    })) || [];
+      type: "image" as const,
+    })).filter(img => img.src) || [];
 
     return (
       <div className="my-12">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-          {section.galleryImages?.map((img, idx) => (
-            <div
-              key={idx}
-              className="relative aspect-square rounded-xl overflow-hidden cursor-pointer hover:opacity-95 transition-all shadow-lg hover:shadow-2xl"
-              onClick={() => {
-                setLightboxIndex(idx);
-                setLightboxOpen(true);
-              }}
-            >
-              <Image
-                src={galleryUrls[idx]}
-                alt={img.alt || ""}
-                fill
-                className="object-cover"
-              />
-            </div>
-          ))}
+          {section.galleryImages?.map((img, idx) => {
+            const url = galleryUrls[idx];
+            if (!url) return null;
+            
+            return (
+              <div
+                key={idx}
+                className="relative aspect-square rounded-xl overflow-hidden cursor-pointer hover:opacity-95 transition-all shadow-lg hover:shadow-2xl"
+                onClick={() => {
+                  setLightboxIndex(idx);
+                  setLightboxOpen(true);
+                }}
+              >
+                <Image
+                  src={url}
+                  alt={img.alt || ""}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            );
+          })}
         </div>
 
         {lightboxOpen && (
           <Lightbox
             images={images}
-            initialIndex={lightboxIndex}
+            currentIndex={lightboxIndex}
             onClose={() => setLightboxOpen(false)}
+            onNext={() => setLightboxIndex((prev) => (prev + 1) % images.length)}
+            onPrev={() => setLightboxIndex((prev) => (prev - 1 + images.length) % images.length)}
           />
         )}
       </div>
@@ -211,7 +222,7 @@ export function BlogSectionRenderer({ section }: BlogSectionRendererProps) {
 
         {section.bookingToken && (
           <BookingModal
-            token={section.bookingToken}
+            bookingToken={section.bookingToken}
             open={bookingModalOpen}
             onOpenChange={setBookingModalOpen}
           />

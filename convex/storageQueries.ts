@@ -20,3 +20,28 @@ export const getUrl = query({
   },
 });
 
+// Get URLs for multiple storage IDs
+export const getUrls = query({
+  args: { storageIds: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    const urls = await Promise.all(
+      args.storageIds.map(async (storageId) => {
+        // Validate storage ID format - skip seed/mock data
+        if (storageId.startsWith("seed-") || storageId.startsWith("mock-") || storageId.includes("seed-storage")) {
+          return null;
+        }
+        
+        try {
+          return await ctx.storage.getUrl(storageId);
+        } catch (error) {
+          // Invalid storage ID - return null instead of throwing
+          console.warn(`Invalid storage ID: ${storageId}`, error);
+          return null;
+        }
+      })
+    );
+    
+    return urls;
+  },
+});
+
