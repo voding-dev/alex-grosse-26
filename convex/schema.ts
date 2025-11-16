@@ -1032,6 +1032,28 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_created_at", ["createdAt"]),
 
+  // Companies - separate entities for organizing contacts
+  companies: defineTable({
+    name: v.string(),
+    address: v.optional(v.string()),
+    website: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    // Social links
+    instagram: v.optional(v.string()),
+    facebook: v.optional(v.string()),
+    youtube: v.optional(v.string()),
+    twitter: v.optional(v.string()),
+    linkedin: v.optional(v.string()),
+    googleBusinessLink: v.optional(v.string()),
+    // Metadata
+    tags: v.array(v.string()),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_name", ["name"])
+    .index("by_created_at", ["createdAt"]),
+
   // Contacts - unified contacts database (source of truth)
   contacts: defineTable({
     // Contact identification
@@ -1055,14 +1077,17 @@ export default defineSchema({
     contactTitle: v.optional(v.string()),
     contactPhone: v.optional(v.string()),
     // Source tracking
-    source: v.optional(v.string()), // "lead", "email_marketing", "manual"
+    source: v.optional(v.string()), // "lead", "email_marketing", "manual", "contact_form"
     leadId: v.optional(v.id("leads")), // If from lead
     prospectId: v.optional(v.id("prospects")), // If from prospect
     // Email marketing sync
     emailMarketingId: v.optional(v.id("emailContacts")), // Link to email marketing contact
+    // Company relationship
+    companyId: v.optional(v.id("companies")), // Link to company
     // Status and metadata
     tags: v.array(v.string()),
     notes: v.optional(v.string()),
+    lastContactedAt: v.optional(v.number()), // Timestamp of last contact
     metadata: v.optional(v.any()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -1071,7 +1096,8 @@ export default defineSchema({
     .index("by_source", ["source"])
     .index("by_lead", ["leadId"])
     .index("by_prospect", ["prospectId"])
-    .index("by_email_marketing", ["emailMarketingId"]),
+    .index("by_email_marketing", ["emailMarketingId"])
+    .index("by_company", ["companyId"]),
 
   // Subscription Payment Methods - customizable payment methods
   subscriptionPaymentMethods: defineTable({

@@ -65,6 +65,20 @@ import {
   Briefcase,
 } from "lucide-react";
 import Link from "next/link";
+import { NameInput } from "@/components/ui/name-input";
+import { EmailInput } from "@/components/ui/email-input";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { AddressInput } from "@/components/ui/address-input";
+import { WebsiteInput } from "@/components/ui/website-input";
+import { SocialLinkInput } from "@/components/ui/social-link-input";
+import { FormField } from "@/components/ui/form-field";
+import { FormSection } from "@/components/ui/form-section";
+import { CompanySelector } from "@/components/ui/company-selector";
+import { ResizableTextarea } from "@/components/ui/resizable-textarea";
+import { CustomDatePicker } from "@/components/ui/custom-date-picker";
+import { CustomTimePicker } from "@/components/ui/custom-time-picker";
+import { format } from "date-fns";
+import { Id } from "@/convex/_generated/dataModel";
 
 export default function ContactsPage() {
   const { adminEmail } = useAdminAuth();
@@ -75,6 +89,7 @@ export default function ContactsPage() {
   const [selectedContact, setSelectedContact] = useState<Id<"contacts"> | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAddCompanyDialogOpen, setIsAddCompanyDialogOpen] = useState(false);
   const [sortBy, setSortBy] = useState<"name" | "email" | "source" | "createdAt" | "updatedAt">("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   
@@ -96,8 +111,11 @@ export default function ContactsPage() {
     contactName: "",
     contactTitle: "",
     contactPhone: "",
+    companyId: null as Id<"companies"> | null,
     tags: [] as string[],
     notes: "",
+    lastContactedDate: "",
+    lastContactedTime: "",
   });
   
   // Form state for editing contact
@@ -118,7 +136,25 @@ export default function ContactsPage() {
     contactName: "",
     contactTitle: "",
     contactPhone: "",
+    companyId: null as Id<"companies"> | null,
     tags: [] as string[],
+    notes: "",
+    lastContactedDate: "",
+    lastContactedTime: "",
+  });
+
+  // Form state for adding company
+  const [addCompanyFormData, setAddCompanyFormData] = useState({
+    name: "",
+    address: "",
+    website: "",
+    phone: "",
+    instagram: "",
+    facebook: "",
+    youtube: "",
+    twitter: "",
+    linkedin: "",
+    googleBusinessLink: "",
     notes: "",
   });
 
@@ -127,9 +163,15 @@ export default function ContactsPage() {
     adminEmail ? {} : "skip"
   );
 
+  const companies = useQuery(
+    api.contacts.companiesList,
+    adminEmail ? {} : "skip"
+  );
+
   const createContact = useMutation(api.contacts.contactsCreate);
   const updateContact = useMutation(api.contacts.contactsUpdate);
   const removeContact = useMutation(api.contacts.contactsRemove);
+  const createCompany = useMutation(api.contacts.companiesCreate);
 
   // Filter and sort contacts
   const filteredContacts = useMemo(() => {
@@ -204,6 +246,16 @@ export default function ContactsPage() {
       return;
     }
     
+    // Convert date/time to timestamp
+    let lastContactedAt: number | undefined = undefined;
+    if (addFormData.lastContactedDate && addFormData.lastContactedTime) {
+      const dateTime = new Date(`${addFormData.lastContactedDate}T${addFormData.lastContactedTime}:00`);
+      lastContactedAt = dateTime.getTime();
+    } else if (addFormData.lastContactedDate) {
+      const date = new Date(`${addFormData.lastContactedDate}T00:00:00`);
+      lastContactedAt = date.getTime();
+    }
+
     try {
       await createContact({
         email: addFormData.email,
@@ -222,9 +274,11 @@ export default function ContactsPage() {
         contactName: addFormData.contactName || undefined,
         contactTitle: addFormData.contactTitle || undefined,
         contactPhone: addFormData.contactPhone || undefined,
+        companyId: addFormData.companyId || undefined,
         source: "manual",
         tags: addFormData.tags.length > 0 ? addFormData.tags : undefined,
         notes: addFormData.notes || undefined,
+        lastContactedAt,
         syncToEmailMarketing: true,
       });
       
@@ -251,8 +305,11 @@ export default function ContactsPage() {
         contactName: "",
         contactTitle: "",
         contactPhone: "",
+        companyId: null,
         tags: [],
         notes: "",
+        lastContactedDate: "",
+        lastContactedTime: "",
       });
     } catch (error: any) {
       toast({
@@ -263,9 +320,71 @@ export default function ContactsPage() {
     }
   };
 
+  const handleAddCompany = async () => {
+    if (!addCompanyFormData.name || addCompanyFormData.name.trim() === "") {
+      toast({
+        title: "Error",
+        description: "Company name is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await createCompany({
+        name: addCompanyFormData.name,
+        address: addCompanyFormData.address || undefined,
+        website: addCompanyFormData.website || undefined,
+        phone: addCompanyFormData.phone || undefined,
+        instagram: addCompanyFormData.instagram || undefined,
+        facebook: addCompanyFormData.facebook || undefined,
+        youtube: addCompanyFormData.youtube || undefined,
+        twitter: addCompanyFormData.twitter || undefined,
+        linkedin: addCompanyFormData.linkedin || undefined,
+        googleBusinessLink: addCompanyFormData.googleBusinessLink || undefined,
+        notes: addCompanyFormData.notes || undefined,
+      });
+
+      toast({
+        title: "Company created",
+        description: "The company has been created successfully.",
+      });
+
+      setIsAddCompanyDialogOpen(false);
+      setAddCompanyFormData({
+        name: "",
+        address: "",
+        website: "",
+        phone: "",
+        instagram: "",
+        facebook: "",
+        youtube: "",
+        twitter: "",
+        linkedin: "",
+        googleBusinessLink: "",
+        notes: "",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create company.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleEditContact = (contactId: Id<"contacts">) => {
     const contact = contacts?.find((c) => c._id === contactId);
     if (!contact) return;
+    
+    // Parse lastContactedAt to date and time
+    let lastContactedDate = "";
+    let lastContactedTime = "";
+    if (contact.lastContactedAt) {
+      const date = new Date(contact.lastContactedAt);
+      lastContactedDate = format(date, "yyyy-MM-dd");
+      lastContactedTime = format(date, "HH:mm");
+    }
     
     setSelectedContact(contactId);
     setEditFormData({
@@ -285,8 +404,11 @@ export default function ContactsPage() {
       contactName: contact.contactName || "",
       contactTitle: contact.contactTitle || "",
       contactPhone: contact.contactPhone || "",
+      companyId: contact.companyId || null,
       tags: contact.tags || [],
       notes: contact.notes || "",
+      lastContactedDate,
+      lastContactedTime,
     });
     setIsEditDialogOpen(true);
   };
@@ -296,6 +418,16 @@ export default function ContactsPage() {
 
   const handleUpdateContact = async () => {
     if (!selectedContact) return;
+    
+    // Convert date/time to timestamp
+    let lastContactedAt: number | undefined = undefined;
+    if (editFormData.lastContactedDate && editFormData.lastContactedTime) {
+      const dateTime = new Date(`${editFormData.lastContactedDate}T${editFormData.lastContactedTime}:00`);
+      lastContactedAt = dateTime.getTime();
+    } else if (editFormData.lastContactedDate) {
+      const date = new Date(`${editFormData.lastContactedDate}T00:00:00`);
+      lastContactedAt = date.getTime();
+    }
     
     try {
       await updateContact({
@@ -316,8 +448,10 @@ export default function ContactsPage() {
         contactName: editFormData.contactName || undefined,
         contactTitle: editFormData.contactTitle || undefined,
         contactPhone: editFormData.contactPhone || undefined,
+        companyId: editFormData.companyId || undefined,
         tags: editFormData.tags.length > 0 ? editFormData.tags : undefined,
         notes: editFormData.notes || undefined,
+        lastContactedAt,
         syncToEmailMarketing: true,
       });
       
@@ -391,44 +525,59 @@ export default function ContactsPage() {
   const manualContacts = contacts?.filter(c => c.source === "manual").length || 0;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
-      <div className="mb-8 sm:mb-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex-1">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+    <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 py-6 sm:py-8 lg:py-12">
+      <div className="mb-6 sm:mb-8 lg:mb-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black uppercase tracking-tight text-foreground mb-2 sm:mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
             Contacts
           </h1>
-          <p className="text-foreground/70 text-base sm:text-lg">
+          <p className="text-foreground/70 text-sm sm:text-base lg:text-lg">
             Unified contacts database - source of truth for all contacts
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-shrink-0">
           <Button
-            className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+            className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors w-full sm:w-auto"
             style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
             onClick={() => setIsAddDialogOpen(true)}
           >
             <Plus className="mr-2 h-4 w-4" />
-            Add Contact
+            <span className="hidden sm:inline">Add Contact</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-1 max-w-2xl bg-foreground/5 border border-foreground/20 rounded-lg p-1.5 h-auto items-center gap-1">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-3 max-w-3xl bg-foreground/5 border border-foreground/20 rounded-lg p-1.5 h-auto items-center gap-1 overflow-x-auto">
           <TabsTrigger 
             value="all" 
-            className="font-black uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            className="font-black uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-3 lg:px-4 h-full flex items-center justify-center text-xs sm:text-sm whitespace-nowrap"
             style={{ fontWeight: '900' }}
           >
             All Contacts
           </TabsTrigger>
+          <TabsTrigger 
+            value="companies" 
+            className="font-black uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-3 lg:px-4 h-full flex items-center justify-center text-xs sm:text-sm whitespace-nowrap"
+            style={{ fontWeight: '900' }}
+          >
+            Companies
+          </TabsTrigger>
+          <TabsTrigger 
+            value="contact_form" 
+            className="font-black uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-3 lg:px-4 h-full flex items-center justify-center text-xs sm:text-sm whitespace-nowrap"
+            style={{ fontWeight: '900' }}
+          >
+            Contact Form
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all" className="space-y-6">
+        <TabsContent value="all" className="space-y-4 sm:space-y-6">
           {/* Stats */}
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <Card className="border border-foreground/20">
-              <CardContent className="p-4 sm:p-6">
+              <CardContent className="p-4 sm:p-5 lg:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-1">
@@ -493,16 +642,16 @@ export default function ContactsPage() {
           </div>
 
           <Card className="border border-foreground/20">
-            <CardHeader>
-              <CardTitle className="text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-lg sm:text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
                 All Contacts
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 View and manage all contacts from leads, email marketing, and manual entries
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-4">
+            <CardContent className="space-y-4 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <div className="flex-1">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/40" />
@@ -514,21 +663,24 @@ export default function ContactsPage() {
                     />
                   </div>
                 </div>
-                <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sources</SelectItem>
-                    <SelectItem value="lead">Lead</SelectItem>
-                    <SelectItem value="email_marketing">Email Marketing</SelectItem>
-                    <SelectItem value="manual">Manual</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="w-full sm:w-48">
+                  <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Sources</SelectItem>
+                      <SelectItem value="lead">Lead</SelectItem>
+                      <SelectItem value="email_marketing">Email Marketing</SelectItem>
+                      <SelectItem value="manual">Manual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="border border-foreground/10 rounded-lg overflow-hidden">
-                <Table>
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <Table className="min-w-[800px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="font-bold uppercase tracking-wider text-xs">
@@ -549,7 +701,8 @@ export default function ContactsPage() {
                           {getSortIcon("email")}
                         </button>
                       </TableHead>
-                      <TableHead className="font-bold uppercase tracking-wider text-xs">Business</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs hidden lg:table-cell">Business</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs hidden md:table-cell">Company</TableHead>
                       <TableHead className="font-bold uppercase tracking-wider text-xs">
                         <button
                           onClick={() => handleSort("source")}
@@ -559,10 +712,10 @@ export default function ContactsPage() {
                           {getSortIcon("source")}
                         </button>
                       </TableHead>
-                      <TableHead className="font-bold uppercase tracking-wider text-xs">Lead Status</TableHead>
-                      <TableHead className="font-bold uppercase tracking-wider text-xs">From Prospect</TableHead>
-                      <TableHead className="font-bold uppercase tracking-wider text-xs">Tags</TableHead>
-                      <TableHead className="font-bold uppercase tracking-wider text-xs">
+                      <TableHead className="font-bold uppercase tracking-wider text-xs hidden xl:table-cell">Lead Status</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs hidden xl:table-cell">From Prospect</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs hidden lg:table-cell">Tags</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs hidden md:table-cell">
                         <button
                           onClick={() => handleSort("createdAt")}
                           className="flex items-center hover:text-accent transition-colors"
@@ -577,7 +730,7 @@ export default function ContactsPage() {
                   <TableBody>
                     {filteredContacts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center text-foreground/60 py-12">
+                        <TableCell colSpan={10} className="text-center text-foreground/60 py-12 px-4">
                           <div className="flex flex-col items-center gap-2">
                             <Users className="h-12 w-12 text-foreground/40 mb-2" />
                             <p className="text-foreground/60 mb-2">No contacts found</p>
@@ -588,12 +741,19 @@ export default function ContactsPage() {
                     ) : (
                       filteredContacts.map((contact) => (
                         <TableRow key={contact._id}>
-                          <TableCell className="font-bold">
-                            {contact.contactName || contact.firstName || contact.email}
-                            {contact.lastName && ` ${contact.lastName}`}
+                          <TableCell className="font-bold min-w-[120px]">
+                            <div className="flex flex-col">
+                              <span className="truncate max-w-[200px]">
+                                {contact.contactName || contact.firstName || contact.email}
+                                {contact.lastName && ` ${contact.lastName}`}
+                              </span>
+                              <span className="text-xs text-foreground/50 md:hidden mt-1 truncate">
+                                {contact.email}
+                              </span>
+                            </div>
                           </TableCell>
-                          <TableCell className="text-sm text-foreground/60">{contact.email}</TableCell>
-                          <TableCell className="text-sm text-foreground/60">
+                          <TableCell className="text-sm text-foreground/60 hidden md:table-cell">{contact.email}</TableCell>
+                          <TableCell className="text-sm text-foreground/60 hidden lg:table-cell">
                             {contact.businessName || "-"}
                             {contact.projects && contact.projects.length > 0 && (
                               <div className="mt-1">
@@ -607,21 +767,29 @@ export default function ContactsPage() {
                               </div>
                             )}
                           </TableCell>
+                          <TableCell className="text-sm text-foreground/60 hidden md:table-cell">
+                            {contact.company ? (
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-3 w-3 text-foreground/40" />
+                                <span>{contact.company.name}</span>
+                              </div>
+                            ) : "-"}
+                          </TableCell>
                           <TableCell>
-                            <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded ${
-                              contact.source === "lead"
-                                ? "bg-accent/20 text-accent border border-accent/30"
-                                : contact.source === "email_marketing"
-                                ? "bg-blue-500/20 text-blue-500 border border-blue-500/30"
-                                : contact.source === "manual"
-                                ? "bg-purple-500/20 text-purple-500 border border-purple-500/30"
-                                : "bg-foreground/10 text-foreground/60 border border-foreground/20"
-                            }`}>
-                              {getSourceLabel(contact.source)}
-                            </span>
-                            {contact.emailMarketing && (
-                              <div className="mt-1">
-                                <span className={`px-2 py-0.5 text-xs font-bold uppercase tracking-wider rounded ${
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className={`px-2 py-0.5 text-xs font-bold uppercase tracking-wider rounded whitespace-nowrap ${
+                                contact.source === "lead"
+                                  ? "bg-accent/20 text-accent border border-accent/30"
+                                  : contact.source === "email_marketing"
+                                  ? "bg-blue-500/20 text-blue-500 border border-blue-500/30"
+                                  : contact.source === "manual"
+                                  ? "bg-purple-500/20 text-purple-500 border border-purple-500/30"
+                                  : "bg-foreground/10 text-foreground/60 border border-foreground/20"
+                              }`}>
+                                {getSourceLabel(contact.source)}
+                              </span>
+                              {contact.emailMarketing && (
+                                <span className={`px-2 py-0.5 text-xs font-bold uppercase tracking-wider rounded whitespace-nowrap ${
                                   contact.emailMarketing.status === "subscribed"
                                     ? "bg-green-500/20 text-green-500 border border-green-500/30"
                                     : contact.emailMarketing.status === "unsubscribed"
@@ -632,10 +800,10 @@ export default function ContactsPage() {
                                 }`}>
                                   {contact.emailMarketing.status}
                                 </span>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden xl:table-cell">
                             {contact.lead ? (
                               <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded ${
                                 contact.lead.status === "new"
@@ -663,7 +831,7 @@ export default function ContactsPage() {
                               </Link>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden xl:table-cell">
                             {contact.prospect ? (
                               <Link 
                                 href={`/admin/tools/prospecting?prospectId=${contact.prospectId}`}
@@ -676,7 +844,7 @@ export default function ContactsPage() {
                               <span className="text-sm text-foreground/40">-</span>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden lg:table-cell">
                             {contact.tags && contact.tags.length > 0 ? (
                               <div className="flex gap-1 flex-wrap">
                                 {contact.tags.slice(0, 3).map((tag, idx) => (
@@ -697,7 +865,7 @@ export default function ContactsPage() {
                               <span className="text-sm text-foreground/40">-</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-sm text-foreground/60">
+                          <TableCell className="text-sm text-foreground/60 hidden md:table-cell">
                             {new Date(contact.createdAt).toLocaleDateString()}
                           </TableCell>
                           <TableCell>
@@ -723,6 +891,208 @@ export default function ContactsPage() {
                     )}
                   </TableBody>
                 </Table>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="companies" className="space-y-6">
+          <Card className="border border-foreground/20">
+            <CardHeader className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg sm:text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+                    Companies
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Manage company contacts
+                  </CardDescription>
+                </div>
+                <Button
+                  className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors w-full sm:w-auto"
+                  style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+                  onClick={() => setIsAddCompanyDialogOpen(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Company
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6">
+              {companies && companies.length > 0 ? (
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <Table className="min-w-[600px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="font-black uppercase tracking-wider">Name</TableHead>
+                        <TableHead className="font-black uppercase tracking-wider">Address</TableHead>
+                        <TableHead className="font-black uppercase tracking-wider">Website</TableHead>
+                        <TableHead className="font-black uppercase tracking-wider">Contacts</TableHead>
+                        <TableHead className="font-black uppercase tracking-wider">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {companies.map((company) => (
+                        <TableRow key={company._id}>
+                          <TableCell className="font-medium">{company.name}</TableCell>
+                          <TableCell className="text-foreground/60">{company.address || "-"}</TableCell>
+                          <TableCell className="text-foreground/60">
+                            {company.website ? (
+                              <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline flex items-center gap-1">
+                                {company.website}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            ) : "-"}
+                          </TableCell>
+                          <TableCell className="text-foreground/60">{company.contactCount || 0}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Link href={`/admin/tools/contacts/companies/${company._id}`}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  title="Edit"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {/* TODO: Delete company */}}
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Building2 className="h-12 w-12 mx-auto text-foreground/20 mb-4" />
+                  <p className="text-foreground/60 font-medium">No companies yet</p>
+                  <p className="text-sm text-foreground/40 mt-2">Create your first company to get started</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="contact_form" className="space-y-4 sm:space-y-6">
+          {/* Stats */}
+          <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="border border-foreground/20">
+              <CardContent className="p-4 sm:p-5 lg:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold uppercase tracking-wider text-foreground/60 mb-1">
+                      Form Submissions
+                    </p>
+                    <p className="text-2xl sm:text-3xl font-black text-foreground" style={{ fontWeight: '900' }}>
+                      {contacts?.filter(c => c.source === "contact_form").length || 0}
+                    </p>
+                  </div>
+                  <Mail className="h-8 w-8 sm:h-10 sm:w-10 text-accent/60" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border border-foreground/20">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-lg sm:text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+                Website Contact Form Submissions
+              </CardTitle>
+              <CardDescription className="text-sm">
+                View and manage inquiries submitted through your website contact form
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/40" />
+                    <Input
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search submissions..."
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border border-foreground/10 rounded-lg overflow-hidden">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <Table className="min-w-[800px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Name</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Email</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Phone</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Message</TableHead>
+                      <TableHead className="font-bold uppercase tracking-wider text-xs">Date</TableHead>
+                      <TableHead className="w-12"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredContacts.filter(c => c.source === "contact_form").length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-foreground/60 py-12">
+                          <div className="flex flex-col items-center gap-2">
+                            <Mail className="h-12 w-12 text-foreground/40 mb-2" />
+                            <p className="text-foreground/60 mb-2">No contact form submissions yet</p>
+                            <p className="text-sm text-foreground/40">Submissions from your website contact form will appear here.</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredContacts
+                        .filter(c => c.source === "contact_form")
+                        .map((contact) => {
+                          // Parse notes to extract message
+                          const notes = contact.notes || "";
+                          const message = notes.split("\n")[0] || ""; // Get first line as message preview
+                          const truncatedMessage = message.length > 50 ? message.substring(0, 50) + "..." : message;
+
+                          return (
+                            <TableRow key={contact._id}>
+                              <TableCell className="font-medium">
+                                {contact.firstName || contact.contactName || "Unknown"}
+                                {contact.lastName && ` ${contact.lastName}`}
+                              </TableCell>
+                              <TableCell className="text-sm text-foreground/60">{contact.email}</TableCell>
+                              <TableCell className="text-sm text-foreground/60">{contact.phone || "-"}</TableCell>
+                              <TableCell className="text-sm text-foreground/60 max-w-xs truncate" title={message}>
+                                {truncatedMessage || "-"}
+                              </TableCell>
+                              <TableCell className="text-sm text-foreground/60">
+                                {contact.createdAt
+                                  ? new Date(contact.createdAt).toLocaleDateString()
+                                  : "-"}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditContact(contact._id)}
+                                  title="View/Edit"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                    )}
+                  </TableBody>
+                </Table>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -731,7 +1101,7 @@ export default function ContactsPage() {
 
       {/* Add Contact Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
           <DialogHeader>
             <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
               Add Contact
@@ -740,131 +1110,172 @@ export default function ContactsPage() {
               Create a new contact manually
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Email *</Label>
-                <Input
-                  value={addFormData.email}
-                  onChange={(e) =>
-                    setAddFormData({ ...addFormData, email: e.target.value })
-                  }
-                  type="email"
-                  placeholder="email@example.com"
-                />
+          <div className="space-y-6">
+            {/* Personal Information Section */}
+            <FormSection title="Personal Information" description="Basic contact details">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="First Name">
+                  <Input
+                    value={addFormData.firstName}
+                    onChange={(e) => setAddFormData({ ...addFormData, firstName: e.target.value })}
+                    placeholder="First name"
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
+                <FormField label="Last Name">
+                  <Input
+                    value={addFormData.lastName}
+                    onChange={(e) => setAddFormData({ ...addFormData, lastName: e.target.value })}
+                    placeholder="Last name"
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
+                <FormField label="Email" required>
+                  <EmailInput
+                    value={addFormData.email}
+                    onChange={(value) => setAddFormData({ ...addFormData, email: value })}
+                    required
+                  />
+                </FormField>
+                <FormField label="Phone" required>
+                  <PhoneInput
+                    value={addFormData.phone}
+                    onChange={(value) => setAddFormData({ ...addFormData, phone: value })}
+                    required
+                  />
+                </FormField>
+                <FormField label="Company">
+                  <CompanySelector
+                    value={addFormData.companyId}
+                    onChange={(value) => setAddFormData({ ...addFormData, companyId: value })}
+                  />
+                </FormField>
               </div>
-              <div className="space-y-2">
-                <Label>Business Name</Label>
-                <Input
-                  value={addFormData.businessName}
-                  onChange={(e) =>
-                    setAddFormData({ ...addFormData, businessName: e.target.value })
-                  }
-                  placeholder="Company name"
-                />
+            </FormSection>
+
+            {/* Business Information Section */}
+            <FormSection title="Business Information" description="Company and business details">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="Business Name">
+                  <Input
+                    value={addFormData.businessName}
+                    onChange={(e) => setAddFormData({ ...addFormData, businessName: e.target.value })}
+                    placeholder="Company name"
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
+                <FormField label="Website">
+                  <WebsiteInput
+                    value={addFormData.website}
+                    onChange={(value) => setAddFormData({ ...addFormData, website: value })}
+                  />
+                </FormField>
+                <FormField label="Address" className="col-span-2">
+                  <AddressInput
+                    value={addFormData.address}
+                    onChange={(value) => setAddFormData({ ...addFormData, address: value })}
+                  />
+                </FormField>
+                <FormField label="Google Business Link">
+                  <WebsiteInput
+                    value={addFormData.googleBusinessLink}
+                    onChange={(value) => setAddFormData({ ...addFormData, googleBusinessLink: value })}
+                    placeholder="https://g.page/..."
+                  />
+                </FormField>
               </div>
-              <div className="space-y-2">
-                <Label>First Name</Label>
-                <Input
-                  value={addFormData.firstName}
-                  onChange={(e) =>
-                    setAddFormData({ ...addFormData, firstName: e.target.value })
-                  }
-                  placeholder="First name"
-                />
+            </FormSection>
+
+            {/* Contact Details Section */}
+            <FormSection title="Contact Details" description="Decision maker information">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="Contact Name">
+                  <Input
+                    value={addFormData.contactName}
+                    onChange={(e) => setAddFormData({ ...addFormData, contactName: e.target.value })}
+                    placeholder="Decision maker name"
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
+                <FormField label="Contact Title">
+                  <Input
+                    value={addFormData.contactTitle}
+                    onChange={(e) => setAddFormData({ ...addFormData, contactTitle: e.target.value })}
+                    placeholder="Job title"
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
+                <FormField label="Contact Phone">
+                  <PhoneInput
+                    value={addFormData.contactPhone}
+                    onChange={(value) => setAddFormData({ ...addFormData, contactPhone: value })}
+                  />
+                </FormField>
               </div>
-              <div className="space-y-2">
-                <Label>Last Name</Label>
-                <Input
-                  value={addFormData.lastName}
-                  onChange={(e) =>
-                    setAddFormData({ ...addFormData, lastName: e.target.value })
-                  }
-                  placeholder="Last name"
-                />
+            </FormSection>
+
+            {/* Social Links Section */}
+            <FormSection title="Social Links" description="Social media profiles">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="Instagram">
+                  <SocialLinkInput
+                    platform="instagram"
+                    value={addFormData.instagram}
+                    onChange={(value) => setAddFormData({ ...addFormData, instagram: value })}
+                  />
+                </FormField>
+                <FormField label="Facebook">
+                  <SocialLinkInput
+                    platform="facebook"
+                    value={addFormData.facebook}
+                    onChange={(value) => setAddFormData({ ...addFormData, facebook: value })}
+                  />
+                </FormField>
+                <FormField label="LinkedIn">
+                  <SocialLinkInput
+                    platform="linkedin"
+                    value={addFormData.linkedin}
+                    onChange={(value) => setAddFormData({ ...addFormData, linkedin: value })}
+                  />
+                </FormField>
+                <FormField label="Twitter">
+                  <SocialLinkInput
+                    platform="twitter"
+                    value={addFormData.twitter}
+                    onChange={(value) => setAddFormData({ ...addFormData, twitter: value })}
+                  />
+                </FormField>
+                <FormField label="YouTube">
+                  <SocialLinkInput
+                    platform="youtube"
+                    value={addFormData.youtube}
+                    onChange={(value) => setAddFormData({ ...addFormData, youtube: value })}
+                  />
+                </FormField>
               </div>
-              <div className="space-y-2">
-                <Label>Contact Name</Label>
-                <Input
-                  value={addFormData.contactName}
-                  onChange={(e) =>
-                    setAddFormData({ ...addFormData, contactName: e.target.value })
-                  }
-                  placeholder="Decision maker name"
-                />
+            </FormSection>
+
+            {/* Additional Information Section */}
+            <FormSection title="Additional Information" description="Notes and tracking">
+              <div className="space-y-4">
+                <FormField label="Notes">
+                  <ResizableTextarea
+                    value={addFormData.notes}
+                    onChange={(e) => setAddFormData({ ...addFormData, notes: e.target.value })}
+                    placeholder="Additional notes..."
+                    minRows={4}
+                    maxRows={12}
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
               </div>
-              <div className="space-y-2">
-                <Label>Contact Title</Label>
-                <Input
-                  value={addFormData.contactTitle}
-                  onChange={(e) =>
-                    setAddFormData({ ...addFormData, contactTitle: e.target.value })
-                  }
-                  placeholder="Job title"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input
-                  value={addFormData.phone}
-                  onChange={(e) =>
-                    setAddFormData({ ...addFormData, phone: e.target.value })
-                  }
-                  placeholder="Phone number"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Contact Phone</Label>
-                <Input
-                  value={addFormData.contactPhone}
-                  onChange={(e) =>
-                    setAddFormData({ ...addFormData, contactPhone: e.target.value })
-                  }
-                  placeholder="Decision maker phone"
-                />
-              </div>
-              <div className="space-y-2 col-span-2">
-                <Label>Address</Label>
-                <Input
-                  value={addFormData.address}
-                  onChange={(e) =>
-                    setAddFormData({ ...addFormData, address: e.target.value })
-                  }
-                  placeholder="Business address"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Website</Label>
-                <Input
-                  value={addFormData.website}
-                  onChange={(e) =>
-                    setAddFormData({ ...addFormData, website: e.target.value })
-                  }
-                  placeholder="https://example.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Google Business Link</Label>
-                <Input
-                  value={addFormData.googleBusinessLink}
-                  onChange={(e) =>
-                    setAddFormData({ ...addFormData, googleBusinessLink: e.target.value })
-                  }
-                  placeholder="Google Business URL"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Notes</Label>
-              <Textarea
-                value={addFormData.notes}
-                onChange={(e) =>
-                  setAddFormData({ ...addFormData, notes: e.target.value })
-                }
-                placeholder="Additional notes..."
-                rows={4}
-              />
-            </div>
+            </FormSection>
           </div>
           <DialogFooter>
             <Button 
@@ -888,7 +1299,7 @@ export default function ContactsPage() {
 
       {/* Edit Contact Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
           <DialogHeader>
             <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
               Edit Contact
@@ -897,7 +1308,7 @@ export default function ContactsPage() {
               Update contact information
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-6">
             {/* Relationship Info */}
             {selectedContactData && (
               <div className="p-4 bg-foreground/5 border border-foreground/10 rounded-lg space-y-2">
@@ -1014,118 +1425,185 @@ export default function ContactsPage() {
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Email *</Label>
-                <Input
-                  value={editFormData.email}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, email: e.target.value })
-                  }
-                  type="email"
-                />
+            {/* Personal Information Section */}
+            <FormSection title="Personal Information" description="Basic contact details">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="First Name">
+                  <Input
+                    value={editFormData.firstName}
+                    onChange={(e) => setEditFormData({ ...editFormData, firstName: e.target.value })}
+                    placeholder="First name"
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
+                <FormField label="Last Name">
+                  <Input
+                    value={editFormData.lastName}
+                    onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                    placeholder="Last name"
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
+                <FormField label="Email" required>
+                  <EmailInput
+                    value={editFormData.email}
+                    onChange={(value) => setEditFormData({ ...editFormData, email: value })}
+                    required
+                  />
+                </FormField>
+                <FormField label="Phone" required>
+                  <PhoneInput
+                    value={editFormData.phone}
+                    onChange={(value) => setEditFormData({ ...editFormData, phone: value })}
+                    required
+                  />
+                </FormField>
+                <FormField label="Company">
+                  <CompanySelector
+                    value={editFormData.companyId}
+                    onChange={(value) => setEditFormData({ ...editFormData, companyId: value })}
+                  />
+                </FormField>
+                <FormField label="Last Contacted">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <CustomDatePicker
+                      value={editFormData.lastContactedDate}
+                      onChange={(value) => setEditFormData({ ...editFormData, lastContactedDate: value })}
+                      placeholder="Date"
+                    />
+                    <CustomTimePicker
+                      value={editFormData.lastContactedTime}
+                      onChange={(value) => setEditFormData({ ...editFormData, lastContactedTime: value })}
+                      placeholder="Time"
+                    />
+                  </div>
+                </FormField>
               </div>
-              <div className="space-y-2">
-                <Label>Business Name</Label>
-                <Input
-                  value={editFormData.businessName}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, businessName: e.target.value })
-                  }
-                />
+            </FormSection>
+
+            {/* Business Information Section */}
+            <FormSection title="Business Information" description="Company and business details">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="Business Name">
+                  <Input
+                    value={editFormData.businessName}
+                    onChange={(e) => setEditFormData({ ...editFormData, businessName: e.target.value })}
+                    placeholder="Company name"
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
+                <FormField label="Website">
+                  <WebsiteInput
+                    value={editFormData.website}
+                    onChange={(value) => setEditFormData({ ...editFormData, website: value })}
+                  />
+                </FormField>
+                <FormField label="Address" className="col-span-2">
+                  <AddressInput
+                    value={editFormData.address}
+                    onChange={(value) => setEditFormData({ ...editFormData, address: value })}
+                  />
+                </FormField>
+                <FormField label="Google Business Link">
+                  <WebsiteInput
+                    value={editFormData.googleBusinessLink}
+                    onChange={(value) => setEditFormData({ ...editFormData, googleBusinessLink: value })}
+                    placeholder="https://g.page/..."
+                  />
+                </FormField>
               </div>
-              <div className="space-y-2">
-                <Label>First Name</Label>
-                <Input
-                  value={editFormData.firstName}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, firstName: e.target.value })
-                  }
-                />
+            </FormSection>
+
+            {/* Contact Details Section */}
+            <FormSection title="Contact Details" description="Decision maker information">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="Contact Name">
+                  <Input
+                    value={editFormData.contactName}
+                    onChange={(e) => setEditFormData({ ...editFormData, contactName: e.target.value })}
+                    placeholder="Decision maker name"
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
+                <FormField label="Contact Title">
+                  <Input
+                    value={editFormData.contactTitle}
+                    onChange={(e) => setEditFormData({ ...editFormData, contactTitle: e.target.value })}
+                    placeholder="Job title"
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
+                <FormField label="Contact Phone">
+                  <PhoneInput
+                    value={editFormData.contactPhone}
+                    onChange={(value) => setEditFormData({ ...editFormData, contactPhone: value })}
+                  />
+                </FormField>
               </div>
-              <div className="space-y-2">
-                <Label>Last Name</Label>
-                <Input
-                  value={editFormData.lastName}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, lastName: e.target.value })
-                  }
-                />
+            </FormSection>
+
+            {/* Social Links Section */}
+            <FormSection title="Social Links" description="Social media profiles">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="Instagram">
+                  <SocialLinkInput
+                    platform="instagram"
+                    value={editFormData.instagram}
+                    onChange={(value) => setEditFormData({ ...editFormData, instagram: value })}
+                  />
+                </FormField>
+                <FormField label="Facebook">
+                  <SocialLinkInput
+                    platform="facebook"
+                    value={editFormData.facebook}
+                    onChange={(value) => setEditFormData({ ...editFormData, facebook: value })}
+                  />
+                </FormField>
+                <FormField label="LinkedIn">
+                  <SocialLinkInput
+                    platform="linkedin"
+                    value={editFormData.linkedin}
+                    onChange={(value) => setEditFormData({ ...editFormData, linkedin: value })}
+                  />
+                </FormField>
+                <FormField label="Twitter">
+                  <SocialLinkInput
+                    platform="twitter"
+                    value={editFormData.twitter}
+                    onChange={(value) => setEditFormData({ ...editFormData, twitter: value })}
+                  />
+                </FormField>
+                <FormField label="YouTube">
+                  <SocialLinkInput
+                    platform="youtube"
+                    value={editFormData.youtube}
+                    onChange={(value) => setEditFormData({ ...editFormData, youtube: value })}
+                  />
+                </FormField>
               </div>
-              <div className="space-y-2">
-                <Label>Contact Name</Label>
-                <Input
-                  value={editFormData.contactName}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, contactName: e.target.value })
-                  }
-                />
+            </FormSection>
+
+            {/* Additional Information Section */}
+            <FormSection title="Additional Information" description="Notes and tracking">
+              <div className="space-y-4">
+                <FormField label="Notes">
+                  <ResizableTextarea
+                    value={editFormData.notes}
+                    onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                    placeholder="Additional notes..."
+                    minRows={4}
+                    maxRows={12}
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
               </div>
-              <div className="space-y-2">
-                <Label>Contact Title</Label>
-                <Input
-                  value={editFormData.contactTitle}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, contactTitle: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input
-                  value={editFormData.phone}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, phone: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Contact Phone</Label>
-                <Input
-                  value={editFormData.contactPhone}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, contactPhone: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2 col-span-2">
-                <Label>Address</Label>
-                <Input
-                  value={editFormData.address}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, address: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Website</Label>
-                <Input
-                  value={editFormData.website}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, website: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Google Business Link</Label>
-                <Input
-                  value={editFormData.googleBusinessLink}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, googleBusinessLink: e.target.value })
-                  }
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Notes</Label>
-              <Textarea
-                value={editFormData.notes}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, notes: e.target.value })
-                }
-                rows={4}
-              />
-            </div>
+            </FormSection>
           </div>
           <DialogFooter>
             <Button 
@@ -1142,6 +1620,136 @@ export default function ContactsPage() {
               disabled={!editFormData.email}
             >
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Company Dialog */}
+      <Dialog open={isAddCompanyDialogOpen} onOpenChange={setIsAddCompanyDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+              Add Company
+            </DialogTitle>
+            <DialogDescription>
+              Create a new company
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Basic Information Section */}
+            <FormSection title="Basic Information" description="Company name and contact details">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="Company Name" required className="sm:col-span-2">
+                  <Input
+                    value={addCompanyFormData.name}
+                    onChange={(e) => setAddCompanyFormData({ ...addCompanyFormData, name: e.target.value })}
+                    placeholder="Company name"
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
+                <FormField label="Phone">
+                  <PhoneInput
+                    value={addCompanyFormData.phone}
+                    onChange={(value) => setAddCompanyFormData({ ...addCompanyFormData, phone: value })}
+                  />
+                </FormField>
+                <FormField label="Website">
+                  <WebsiteInput
+                    value={addCompanyFormData.website}
+                    onChange={(value) => setAddCompanyFormData({ ...addCompanyFormData, website: value })}
+                  />
+                </FormField>
+                <FormField label="Address" className="sm:col-span-2">
+                  <AddressInput
+                    value={addCompanyFormData.address}
+                    onChange={(value) => setAddCompanyFormData({ ...addCompanyFormData, address: value })}
+                  />
+                </FormField>
+                <FormField label="Google Business Link">
+                  <WebsiteInput
+                    value={addCompanyFormData.googleBusinessLink}
+                    onChange={(value) => setAddCompanyFormData({ ...addCompanyFormData, googleBusinessLink: value })}
+                    placeholder="https://g.page/..."
+                  />
+                </FormField>
+              </div>
+            </FormSection>
+
+            {/* Social Links Section */}
+            <FormSection title="Social Links" description="Social media profiles">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="Instagram">
+                  <SocialLinkInput
+                    platform="instagram"
+                    value={addCompanyFormData.instagram}
+                    onChange={(value) => setAddCompanyFormData({ ...addCompanyFormData, instagram: value })}
+                  />
+                </FormField>
+                <FormField label="Facebook">
+                  <SocialLinkInput
+                    platform="facebook"
+                    value={addCompanyFormData.facebook}
+                    onChange={(value) => setAddCompanyFormData({ ...addCompanyFormData, facebook: value })}
+                  />
+                </FormField>
+                <FormField label="LinkedIn">
+                  <SocialLinkInput
+                    platform="linkedin"
+                    value={addCompanyFormData.linkedin}
+                    onChange={(value) => setAddCompanyFormData({ ...addCompanyFormData, linkedin: value })}
+                  />
+                </FormField>
+                <FormField label="Twitter">
+                  <SocialLinkInput
+                    platform="twitter"
+                    value={addCompanyFormData.twitter}
+                    onChange={(value) => setAddCompanyFormData({ ...addCompanyFormData, twitter: value })}
+                  />
+                </FormField>
+                <FormField label="YouTube">
+                  <SocialLinkInput
+                    platform="youtube"
+                    value={addCompanyFormData.youtube}
+                    onChange={(value) => setAddCompanyFormData({ ...addCompanyFormData, youtube: value })}
+                  />
+                </FormField>
+              </div>
+            </FormSection>
+
+            {/* Additional Information Section */}
+            <FormSection title="Additional Information" description="Notes and details">
+              <div className="space-y-4">
+                <FormField label="Notes">
+                  <ResizableTextarea
+                    value={addCompanyFormData.notes}
+                    onChange={(e) => setAddCompanyFormData({ ...addCompanyFormData, notes: e.target.value })}
+                    placeholder="Additional notes..."
+                    minRows={4}
+                    maxRows={12}
+                    className="bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 outline-none"
+                    style={{ fontWeight: "500" }}
+                  />
+                </FormField>
+              </div>
+            </FormSection>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              className="font-black uppercase tracking-wider"
+              onClick={() => setIsAddCompanyDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
+              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              onClick={handleAddCompany} 
+              disabled={!addCompanyFormData.name}
+            >
+              Create Company
             </Button>
           </DialogFooter>
         </DialogContent>

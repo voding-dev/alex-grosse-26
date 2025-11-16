@@ -56,6 +56,7 @@ export const contactsList = query({
         const lead = contact.leadId ? await ctx.db.get(contact.leadId) : null;
         const prospect = contact.prospectId ? await ctx.db.get(contact.prospectId) : null;
         const emailMarketing = contact.emailMarketingId ? await ctx.db.get(contact.emailMarketingId) : null;
+        const company = contact.companyId ? await ctx.db.get(contact.companyId) : null;
         
         // Get projects for this contact
         const projects = await ctx.db
@@ -74,6 +75,7 @@ export const contactsList = query({
           lead,
           prospect,
           emailMarketing,
+          company,
           hasEmailMarketing: !!emailMarketing,
           projects,
           bookings,
@@ -132,12 +134,14 @@ export const contactsGet = query({
     const lead = contact.leadId ? await ctx.db.get(contact.leadId) : null;
     const prospect = contact.prospectId ? await ctx.db.get(contact.prospectId) : null;
     const emailMarketing = contact.emailMarketingId ? await ctx.db.get(contact.emailMarketingId) : null;
+    const company = contact.companyId ? await ctx.db.get(contact.companyId) : null;
 
     return {
       ...contact,
       lead,
       prospect,
       emailMarketing,
+      company,
     };
   },
 });
@@ -161,8 +165,10 @@ export const contactsCreate = mutation({
     contactTitle: v.optional(v.string()),
     contactPhone: v.optional(v.string()),
     source: v.optional(v.string()),
+    companyId: v.optional(v.id("companies")),
     tags: v.optional(v.array(v.string())),
     notes: v.optional(v.string()),
+    lastContactedAt: v.optional(v.number()),
     syncToEmailMarketing: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -195,8 +201,10 @@ export const contactsCreate = mutation({
       contactTitle: args.contactTitle,
       contactPhone: args.contactPhone,
       source: args.source || "manual",
+      companyId: args.companyId,
       tags: args.tags || [],
       notes: args.notes,
+      lastContactedAt: args.lastContactedAt,
       createdAt: now,
       updatedAt: now,
     });
@@ -235,8 +243,10 @@ export const contactsUpdate = mutation({
     contactName: v.optional(v.string()),
     contactTitle: v.optional(v.string()),
     contactPhone: v.optional(v.string()),
+    companyId: v.optional(v.id("companies")),
     tags: v.optional(v.array(v.string())),
     notes: v.optional(v.string()),
+    lastContactedAt: v.optional(v.number()),
     syncToEmailMarketing: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -275,8 +285,10 @@ export const contactsUpdate = mutation({
     if (args.contactName !== undefined) update.contactName = args.contactName;
     if (args.contactTitle !== undefined) update.contactTitle = args.contactTitle;
     if (args.contactPhone !== undefined) update.contactPhone = args.contactPhone;
+    if (args.companyId !== undefined) update.companyId = args.companyId;
     if (args.tags !== undefined) update.tags = args.tags;
     if (args.notes !== undefined) update.notes = args.notes;
+    if (args.lastContactedAt !== undefined) update.lastContactedAt = args.lastContactedAt;
 
     await ctx.db.patch(args.id, update);
 
@@ -466,6 +478,308 @@ export const syncFromEmailMarketing = internalMutation({
         });
       }
     }
+  },
+});
+
+// ============ Contact Form Submission ============
+
+export const submitContactForm = mutation({
+  args: {
+    name: v.string(),
+    email: v.string(),
+    phone: v.string(),
+    message: v.string(),
+    honeypot: v.optional(v.string()), // Hidden field to catch bots
+  },
+  handler: async (ctx, args) => {
+    // Honeypot spam protection - if filled, reject silently
+    if (args.honeypot && args.honeypot.trim() !== "") {
+      // Bot detected - pretend success but don't save
+      console.log("Spam detected via honeypot:", args.email);
+      return { success: true };
+    }
+
+    // Basic validation
+    if (!args.name || !args.email || !args.phone || !args.message) {
+      throw new Error("Name, email, phone, and message are required.");
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(args.email)) {
+      throw new Error("Invalid email format.");
+    }
+
+    // Parse name into first and last name
+    const nameParts = args.name.trim().split(" ");
+    const firstName = nameParts[0];
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined;
+
+    // Check if contact already exists with this email
+    const existingContact = await ctx.db
+      .query("contacts")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .first();
+
+    // Format notes with message
+    const formattedNotes = `Message: ${args.message}`;
+
+    const now = Date.now();
+
+    if (existingContact) {
+      // Update existing contact with new inquiry
+      const existingNotes = existingContact.notes || "";
+      const updatedNotes = existingNotes 
+        ? `${existingNotes}\n\n---\n\nNew inquiry (${new Date(now).toLocaleDateString()}):\n${formattedNotes}`
+        : formattedNotes;
+
+      await ctx.db.patch(existingContact._id, {
+        phone: args.phone,
+        notes: updatedNotes,
+        updatedAt: now,
+      });
+
+      return { success: true, contactId: existingContact._id };
+    } else {
+      // Create new contact from form submission
+      const contactId = await ctx.db.insert("contacts", {
+        email: args.email,
+        firstName,
+        lastName,
+        phone: args.phone,
+        source: "contact_form",
+        tags: ["website-inquiry"],
+        notes: formattedNotes,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Auto-sync to email marketing
+      try {
+        await syncToEmailMarketingInternal(ctx, contactId);
+      } catch (error) {
+        // Log error but don't fail submission if email marketing sync fails
+        console.error("Failed to sync contact form submission to email marketing:", error);
+      }
+
+      return { success: true, contactId };
+    }
+  },
+});
+
+// ============ Companies ============
+
+export const companiesList = query({
+  args: {
+    searchQuery: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    sortBy: v.optional(v.union(
+      v.literal("name"),
+      v.literal("createdAt"),
+      v.literal("updatedAt")
+    )),
+    sortOrder: v.optional(v.union(v.literal("asc"), v.literal("desc"))),
+  },
+  handler: async (ctx, args) => {
+    let companies = await ctx.db
+      .query("companies")
+      .collect();
+
+    // Filter by tags
+    if (args.tags && args.tags.length > 0) {
+      companies = companies.filter((company) =>
+        args.tags!.some((tag) => company.tags.includes(tag))
+      );
+    }
+
+    // Filter by search query
+    if (args.searchQuery) {
+      const query = args.searchQuery.toLowerCase();
+      companies = companies.filter(
+        (company) =>
+          company.name.toLowerCase().includes(query) ||
+          (company.address && company.address.toLowerCase().includes(query)) ||
+          (company.website && company.website.toLowerCase().includes(query))
+      );
+    }
+
+    // Get contact counts for each company
+    const companiesWithCounts = await Promise.all(
+      companies.map(async (company) => {
+        const contactCount = await ctx.db
+          .query("contacts")
+          .withIndex("by_company", (q: any) => q.eq("companyId", company._id))
+          .collect();
+        
+        return {
+          ...company,
+          contactCount: contactCount.length,
+        };
+      })
+    );
+
+    // Sort
+    if (args.sortBy) {
+      const order = args.sortOrder || "desc";
+      companiesWithCounts.sort((a, b) => {
+        let aVal: any;
+        let bVal: any;
+
+        switch (args.sortBy) {
+          case "name":
+            aVal = a.name.toLowerCase();
+            bVal = b.name.toLowerCase();
+            break;
+          case "createdAt":
+            aVal = a.createdAt;
+            bVal = b.createdAt;
+            break;
+          case "updatedAt":
+            aVal = a.updatedAt;
+            bVal = b.updatedAt;
+            break;
+          default:
+            return 0;
+        }
+
+        if (aVal < bVal) return order === "asc" ? -1 : 1;
+        if (aVal > bVal) return order === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return companiesWithCounts;
+  },
+});
+
+export const companiesGet = query({
+  args: { id: v.id("companies") },
+  handler: async (ctx, args) => {
+    const company = await ctx.db.get(args.id);
+    if (!company) return null;
+
+    // Get all contacts for this company
+    const contacts = await ctx.db
+      .query("contacts")
+      .withIndex("by_company", (q: any) => q.eq("companyId", args.id))
+      .collect();
+
+    return {
+      ...company,
+      contacts,
+      contactCount: contacts.length,
+    };
+  },
+});
+
+export const companiesCreate = mutation({
+  args: {
+    name: v.string(),
+    address: v.optional(v.string()),
+    website: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    instagram: v.optional(v.string()),
+    facebook: v.optional(v.string()),
+    youtube: v.optional(v.string()),
+    twitter: v.optional(v.string()),
+    linkedin: v.optional(v.string()),
+    googleBusinessLink: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    if (!args.name || args.name.trim() === "") {
+      throw new Error("Company name is required.");
+    }
+
+    const now = Date.now();
+    const companyId = await ctx.db.insert("companies", {
+      name: args.name.trim(),
+      address: args.address || undefined,
+      website: args.website || undefined,
+      phone: args.phone || undefined,
+      instagram: args.instagram || undefined,
+      facebook: args.facebook || undefined,
+      youtube: args.youtube || undefined,
+      twitter: args.twitter || undefined,
+      linkedin: args.linkedin || undefined,
+      googleBusinessLink: args.googleBusinessLink || undefined,
+      tags: args.tags || [],
+      notes: args.notes || undefined,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return companyId;
+  },
+});
+
+export const companiesUpdate = mutation({
+  args: {
+    id: v.id("companies"),
+    name: v.optional(v.string()),
+    address: v.optional(v.string()),
+    website: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    instagram: v.optional(v.string()),
+    facebook: v.optional(v.string()),
+    youtube: v.optional(v.string()),
+    twitter: v.optional(v.string()),
+    linkedin: v.optional(v.string()),
+    googleBusinessLink: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const company = await ctx.db.get(args.id);
+    if (!company) {
+      throw new Error("Company not found");
+    }
+
+    const update: any = { updatedAt: Date.now() };
+
+    if (args.name !== undefined) update.name = args.name.trim();
+    if (args.address !== undefined) update.address = args.address;
+    if (args.website !== undefined) update.website = args.website;
+    if (args.phone !== undefined) update.phone = args.phone;
+    if (args.instagram !== undefined) update.instagram = args.instagram;
+    if (args.facebook !== undefined) update.facebook = args.facebook;
+    if (args.youtube !== undefined) update.youtube = args.youtube;
+    if (args.twitter !== undefined) update.twitter = args.twitter;
+    if (args.linkedin !== undefined) update.linkedin = args.linkedin;
+    if (args.googleBusinessLink !== undefined) update.googleBusinessLink = args.googleBusinessLink;
+    if (args.tags !== undefined) update.tags = args.tags;
+    if (args.notes !== undefined) update.notes = args.notes;
+
+    await ctx.db.patch(args.id, update);
+
+    return args.id;
+  },
+});
+
+export const companiesRemove = mutation({
+  args: { id: v.id("companies") },
+  handler: async (ctx, args) => {
+    const company = await ctx.db.get(args.id);
+    if (!company) {
+      throw new Error("Company not found");
+    }
+
+    // Remove companyId from all contacts linked to this company
+    const contacts = await ctx.db
+      .query("contacts")
+      .withIndex("by_company", (q: any) => q.eq("companyId", args.id))
+      .collect();
+
+    for (const contact of contacts) {
+      await ctx.db.patch(contact._id, {
+        companyId: undefined,
+        updatedAt: Date.now(),
+      });
+    }
+
+    // Delete the company
+    await ctx.db.delete(args.id);
   },
 });
 

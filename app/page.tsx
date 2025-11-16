@@ -1,13 +1,17 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Nav } from "@/components/nav";
 import { PortfolioProjectCard } from "@/components/portfolio-project-card";
 import { AboutImage } from "@/components/about-image";
 import { HeroCarouselImage } from "@/components/hero-carousel-image";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { EmailInput } from "@/components/ui/email-input";
+import { NameInput } from "@/components/ui/name-input";
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function Home() {
   // Get Homepage content (includes project selections)
@@ -33,6 +37,71 @@ export default function Home() {
   
   const [currentIndex, setCurrentIndex] = useState(0);
   const [arrowOpacity, setArrowOpacity] = useState(1);
+
+  // Contact form state
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    message: "",
+    honeypot: "", // Hidden field for spam protection
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showThankYou, setShowThankYou] = useState(false);
+  const { toast } = useToast();
+  const submitContactForm = useMutation(api.contacts.submitContactForm);
+
+  // Handle contact form submission
+  const handleContactFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Basic validation
+    if (!formData.name || !formData.email || !formData.phone || !formData.message) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await submitContactForm({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        message: formData.message,
+        honeypot: formData.honeypot,
+      });
+
+      // Clear form
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        message: "",
+        honeypot: "",
+      });
+
+      // Show thank you modal
+      setShowThankYou(true);
+
+      // Auto-dismiss after 3 seconds
+      setTimeout(() => {
+        setShowThankYou(false);
+      }, 3000);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (heroCarouselImages.length === 0) return;
@@ -413,49 +482,132 @@ export default function Home() {
                 </div>
 
                 {/* Right Column - Form */}
-                <div>
+                <div className="relative">
                   {homepage?.formHeading && (
                     <h3 className="mb-6 text-xl font-black uppercase tracking-wide text-black" style={{ fontWeight: '900' }}>
                       {homepage.formHeading}
                     </h3>
                   )}
-                  <form className="space-y-4">
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Name"
-                        className="w-full border-b border-black/20 bg-transparent px-0 py-2 text-sm text-black placeholder:text-black/50 focus:border-black/40 focus:outline-none"
+                  <form onSubmit={handleContactFormSubmit} className="space-y-4">
+                    {/* Honeypot field - hidden from users, catches bots */}
+                    <input
+                      type="text"
+                      name="website"
+                      value={formData.honeypot}
+                      onChange={(e) => setFormData({ ...formData, honeypot: e.target.value })}
+                      className="absolute -left-[9999px]"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      aria-hidden="true"
+                    />
+                    
+                    <div className="group">
+                      <NameInput
+                        value={formData.name}
+                        onChange={(value) => setFormData({ ...formData, name: value })}
+                        required
+                        disabled={isSubmitting}
                       />
                     </div>
-                    <div>
-                      <input
-                        type="email"
-                        placeholder="Email"
-                        className="w-full border-b border-black/20 bg-transparent px-0 py-2 text-sm text-black placeholder:text-black/50 focus:border-black/40 focus:outline-none"
+                    <div className="group">
+                      <EmailInput
+                        value={formData.email}
+                        onChange={(value) => setFormData({ ...formData, email: value })}
+                        required
+                        disabled={isSubmitting}
                       />
                     </div>
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Subject"
-                        className="w-full border-b border-black/20 bg-transparent px-0 py-2 text-sm text-black placeholder:text-black/50 focus:border-black/40 focus:outline-none"
+                    <div className="group">
+                      <PhoneInput
+                        value={formData.phone}
+                        onChange={(value) => setFormData({ ...formData, phone: value })}
+                        required
+                        disabled={isSubmitting}
                       />
                     </div>
-                    <div>
+                    <div className="group relative">
                       <textarea
                         placeholder="Message"
                         rows={6}
-                        className="w-full border-b border-black/20 bg-transparent px-0 py-2 text-sm text-black placeholder:text-black/50 focus:border-black/40 focus:outline-none"
+                        value={formData.message}
+                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                        required
+                        disabled={isSubmitting}
+                        className="w-full bg-black/3 hover:bg-black/5 focus:bg-white border-2 border-transparent focus:border-black px-4 py-3 text-sm text-black placeholder:text-black/40 transition-all duration-200 disabled:opacity-50 outline-none resize-y min-h-[150px] max-h-[400px]"
+                        style={{ fontWeight: '500' }}
                       />
+                      {/* Resize indicator */}
+                      <div className="absolute bottom-2 right-2 pointer-events-none">
+                        <svg className="w-4 h-4 text-black/20" fill="currentColor" viewBox="0 0 16 16">
+                          <path d="M14 14V9h-1v4H9v1h5z"/>
+                          <path d="M9 9V4H8v4H4v1h5z"/>
+                        </svg>
+                      </div>
                     </div>
                     <button
                       type="submit"
-                      className="mt-4 px-8 py-3 text-sm font-medium uppercase tracking-wide text-white transition-opacity hover:opacity-90"
-                      style={{ backgroundColor: 'var(--cta-primary)' }}
+                      disabled={isSubmitting}
+                      className="mt-6 w-full px-8 py-4 text-sm font-black uppercase tracking-wider text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg hover:shadow-xl"
+                      style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
                     >
-                      SEND MESSAGE
+                      {isSubmitting ? "SENDING..." : "SEND MESSAGE"}
                     </button>
                   </form>
+
+                  {/* Thank You Modal */}
+                  {showThankYou && (
+                    <div 
+                      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                      style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
+                      onClick={() => setShowThankYou(false)}
+                    >
+                      <div 
+                        className="relative bg-white rounded-none shadow-2xl max-w-md w-full p-8 transform animate-in zoom-in-95 duration-300"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Close button */}
+                        <button
+                          onClick={() => setShowThankYou(false)}
+                          className="absolute top-4 right-4 text-black/40 hover:text-black transition-colors"
+                          aria-label="Close"
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+
+                        {/* Content */}
+                        <div className="text-center space-y-4">
+                          <div className="inline-block p-4 bg-black rounded-full">
+                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          
+                          <h2 className="text-3xl font-black uppercase text-black" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+                            NICE!
+                          </h2>
+                          
+                          <div className="space-y-2">
+                            <p className="text-base font-bold text-black/80">
+                              Message received.
+                            </p>
+                            <p className="text-sm text-black/60">
+                              I'll get back to you. ⚡
+                            </p>
+                          </div>
+
+                          <div className="pt-2">
+                            <div className="inline-block px-6 py-2 bg-black/5 rounded-full">
+                              <p className="text-xs font-bold uppercase tracking-wider text-black/50">
+                                Talk soon
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
