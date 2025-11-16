@@ -86,6 +86,14 @@ export function Nav() {
               >
                 Projects
               </a>
+              <Link
+                href="/blog"
+                onClick={() => setIsMenuOpen(false)}
+                className="text-3xl font-black uppercase tracking-wide text-white transition-opacity hover:opacity-80"
+                style={{ fontWeight: '900' }}
+              >
+                Blog
+              </Link>
               <a
                 href="/#about"
                 onClick={() => setIsMenuOpen(false)}

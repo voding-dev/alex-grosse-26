@@ -124,6 +124,7 @@ export default function SettingsPage() {
     workHoursEnd: "17:00",
     workHoursDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
     workHoursTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    siteTimezone: "America/New_York", // Default to EST
     defaultSlotDurationMinutes: 60,
     defaultSlotIntervalMinutes: 60,
     autoAddBookingContacts: true,
@@ -172,6 +173,7 @@ export default function SettingsPage() {
         workHoursEnd: settings.workHoursEnd || "17:00",
         workHoursDays: settings.workHoursDays || ["Mon", "Tue", "Wed", "Thu", "Fri"],
         workHoursTimezone: settings.workHoursTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        siteTimezone: settings.siteTimezone || "America/New_York", // Default to EST
         defaultSlotDurationMinutes: settings.defaultSlotDurationMinutes || 60,
         defaultSlotIntervalMinutes: settings.defaultSlotIntervalMinutes || 60,
         autoAddBookingContacts: settings.autoAddBookingContacts !== false, // Default to true
@@ -228,6 +230,7 @@ export default function SettingsPage() {
         setSetting({ key: "workHoursEnd", value: formData.workHoursEnd, sessionToken }),
         setSetting({ key: "workHoursDays", value: formData.workHoursDays, sessionToken }),
         setSetting({ key: "workHoursTimezone", value: formData.workHoursTimezone, sessionToken }),
+        setSetting({ key: "siteTimezone", value: formData.siteTimezone, sessionToken }),
         setSetting({ key: "defaultSlotDurationMinutes", value: formData.defaultSlotDurationMinutes, sessionToken }),
         setSetting({ key: "defaultSlotIntervalMinutes", value: formData.defaultSlotIntervalMinutes, sessionToken }),
         setSetting({ key: "schedulingAvailability", value: monthAvailability, sessionToken }),
@@ -399,6 +402,22 @@ export default function SettingsPage() {
                 />
                 <p className="mt-2 text-sm text-foreground/60">
                   This email is used for general support inquiries. Note: Stripe links are now configured per-page (Portraits and Design pages).
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="siteTimezone" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900' }}>
+                  Site Timezone <span className="text-accent">*</span>
+                </Label>
+                <Input
+                  id="siteTimezone"
+                  type="text"
+                  value={formData.siteTimezone}
+                  onChange={(e) => setFormData({ ...formData, siteTimezone: e.target.value })}
+                  placeholder="America/New_York"
+                  className="h-12 text-base border-foreground/20 focus:border-accent/50 transition-colors"
+                />
+                <p className="mt-2 text-sm text-foreground/60">
+                  Main timezone for site operations, scheduled blog posts, and automated tasks. Default: America/New_York (EST/EDT). Common values: America/New_York, America/Chicago, America/Denver, America/Los_Angeles, Europe/London, UTC.
                 </p>
               </div>
             </CardContent>

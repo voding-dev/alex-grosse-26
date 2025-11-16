@@ -68,6 +68,17 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
     };
   }, [router]);
 
+  // Handle loading state
+  if (project === undefined) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-foreground/70">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
   // Only show approved/delivered projects publicly
   if (!project || (project.status !== "approved" && project.status !== "delivered")) {
     notFound();

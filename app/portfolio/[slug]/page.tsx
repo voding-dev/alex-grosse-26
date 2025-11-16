@@ -68,6 +68,17 @@ export default function PortfolioPage({ params }: { params: Promise<{ slug: stri
     };
   }, [router]);
 
+  // Handle loading state
+  if (portfolioItem === undefined) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-foreground/70">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
   // Only show approved/delivered portfolio items publicly
   if (!portfolioItem || (portfolioItem.status !== "approved" && portfolioItem.status !== "delivered")) {
     notFound();

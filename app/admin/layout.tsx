@@ -32,7 +32,8 @@ import {
   CreditCard,
   Sparkles,
   TrendingUp,
-  CheckSquare
+  CheckSquare,
+  FileText
 } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -163,7 +164,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         isActive("/admin/qr-codes") ||
                         isActive("/admin/tasks");
   const isMediaActive = isActive("/admin/tools/media-library") || isActive("/admin/image-compressor") || isActive("/admin/file-converter");
-  const isWebsiteActive = isActive("/admin/website-editor") || isActive("/admin/page-builder") || isActive("/admin/portraits") || isActive("/admin/design") || isActive("/admin/landing-pages") || isActive("/admin/graphic-designer");
+  const isWebsiteActive = isActive("/admin/website-editor") || isActive("/admin/page-builder") || isActive("/admin/blog") || isActive("/admin/portraits") || isActive("/admin/design") || isActive("/admin/landing-pages") || isActive("/admin/graphic-designer");
 
   const toggleMobileDropdown = (key: keyof typeof mobileDropdownsOpen) => {
     setMobileDropdownsOpen(prev => ({
@@ -275,6 +276,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       >
                         <Layers className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/page-builder") && "text-accent")} />
                         Page Builder
+                      </Link>
+                      <Link
+                        href="/admin/blog"
+                        onClick={(e) => {
+                          setWebsiteOpen(false);
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                          isActive("/admin/blog")
+                            ? "text-accent bg-accent/10 shadow-sm"
+                            : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
+                        )}
+                      >
+                        <FileText className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/blog") && "text-accent")} />
+                        Blog
                       </Link>
                       <Link
                         href="/admin/graphic-designer"
@@ -795,6 +811,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     >
                       <Layers className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/page-builder") && "text-accent")} />
                       Page Builder
+                    </Link>
+                    <Link
+                      href="/admin/blog"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setMobileDropdownsOpen({ website: false, clients: false, tools: false, media: false });
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium tracking-wide transition-all duration-200 rounded-lg group",
+                        isActive("/admin/blog")
+                          ? "text-accent bg-accent/10 shadow-sm"
+                          : "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
+                      )}
+                    >
+                      <FileText className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive("/admin/blog") && "text-accent")} />
+                      Blog
                     </Link>
                     <Link
                       href="/admin/graphic-designer"

@@ -1112,5 +1112,99 @@ export default defineSchema({
     .index("by_subscription", ["subscriptionId"])
     .index("by_paid_date", ["paidDate"])
     .index("by_payment_method", ["paymentMethodId"]),
+
+  // Blog Categories
+  blogCategories: defineTable({
+    name: v.string(),
+    slug: v.string(),
+    description: v.optional(v.string()),
+    sortOrder: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_created_at", ["createdAt"]),
+
+  // Blog Tags
+  blogTags: defineTable({
+    name: v.string(),
+    slug: v.string(),
+    useCount: v.optional(v.number()), // Track how many times tag is used
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_use_count", ["useCount"])
+    .index("by_created_at", ["createdAt"]),
+
+  // Blog Posts
+  blogPosts: defineTable({
+    title: v.string(),
+    slug: v.string(),
+    excerpt: v.optional(v.string()),
+    status: v.union(
+      v.literal("draft"),
+      v.literal("published"),
+      v.literal("scheduled"),
+      v.literal("archived")
+    ),
+    scheduledFor: v.optional(v.number()), // Timestamp when post should be published
+    publishedAt: v.optional(v.number()), // Timestamp when post was published
+    featured: v.optional(v.boolean()), // Featured posts
+    showCoverOnPost: v.optional(v.boolean()), // Control cover image display on individual post page
+    authorName: v.optional(v.string()),
+    authorImageStorageId: v.optional(v.string()),
+    coverImageStorageId: v.optional(v.string()),
+    ogImageStorageId: v.optional(v.string()), // Open Graph image for social media
+    categoryIds: v.optional(v.array(v.id("blogCategories"))),
+    tags: v.optional(v.array(v.string())),
+    seoTitle: v.optional(v.string()),
+    seoDescription: v.optional(v.string()),
+    viewCount: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_status", ["status"])
+    .index("by_featured", ["featured"])
+    .index("by_published_at", ["publishedAt"])
+    .index("by_created_at", ["createdAt"]),
+
+  // Blog Post Sections (for rich content editing)
+  blogPostSections: defineTable({
+    blogPostId: v.id("blogPosts"),
+    type: v.union(
+      v.literal("text"),
+      v.literal("image"),
+      v.literal("gallery"),
+      v.literal("cta_booking"),
+      v.literal("cta_stripe")
+    ),
+    sortOrder: v.number(),
+    // Text section
+    textContent: v.optional(v.string()), // Rich text HTML
+    // Image section
+    imageStorageId: v.optional(v.string()),
+    imageAlt: v.optional(v.string()),
+    imageCaption: v.optional(v.string()),
+    imageWidth: v.optional(v.number()),
+    imageHeight: v.optional(v.number()),
+    // Gallery section
+    galleryImages: v.optional(v.array(v.object({
+      storageId: v.string(),
+      alt: v.optional(v.string()),
+      caption: v.optional(v.string()),
+    }))),
+    // CTA sections
+    ctaHeading: v.optional(v.string()),
+    ctaDescription: v.optional(v.string()),
+    bookingToken: v.optional(v.string()), // For booking CTA
+    stripeUrl: v.optional(v.string()), // For Stripe payment link CTA
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_blog_post", ["blogPostId"])
+    .index("by_blog_post_and_sort_order", ["blogPostId", "sortOrder"])
+    .index("by_sort_order", ["sortOrder"]),
 });
 
