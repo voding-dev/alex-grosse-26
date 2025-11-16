@@ -928,6 +928,20 @@ export default defineSchema({
     .index("by_deadline", ["deadlineAt"])
     .index("by_scheduled", ["scheduledAt"]),
 
+  // Recurring Task Instances - track state for specific occurrences
+  recurringTaskInstances: defineTable({
+    parentTaskId: v.id("tasks"), // Reference to the parent recurring task
+    instanceDate: v.number(), // Timestamp of the instance date (normalized to start of day)
+    isCompleted: v.boolean(),
+    pinnedToday: v.boolean(),
+    pinnedTomorrow: v.boolean(),
+    completedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_parent", ["parentTaskId"])
+    .index("by_parent_and_date", ["parentTaskId", "instanceDate"]),
+
   // Prospect Industries - reusable industry categories
   prospectIndustries: defineTable({
     name: v.string(),

@@ -328,3 +328,4 @@ All features implemented and working:
 
 **The cover image feature is now fully functional with granular control!** 🎉
 
+

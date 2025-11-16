@@ -188,6 +188,67 @@ export default function TasksPage() {
   const toggleComplete = useMutation(api.tasks.toggleComplete);
   const togglePinToday = useMutation(api.tasks.togglePinToday);
   const togglePinTomorrow = useMutation(api.tasks.togglePinTomorrow);
+  
+  // Instance-specific mutations
+  const toggleInstanceComplete = useMutation(api.tasks.toggleInstanceComplete);
+  const toggleInstancePinToday = useMutation(api.tasks.toggleInstancePinToday);
+  const toggleInstancePinTomorrow = useMutation(api.tasks.toggleInstancePinTomorrow);
+  const completeAllFutureOccurrences = useMutation(api.tasks.completeAllFutureOccurrences);
+
+  // Helper: Route to the correct complete mutation based on task type
+  const handleToggleComplete = async (task: any) => {
+    if (task.isRecurringInstance && task.parentTaskId && task.scheduledAt) {
+      // Normalize scheduled date to start of day for instance tracking
+      const instanceDate = new Date(task.scheduledAt);
+      instanceDate.setHours(0, 0, 0, 0);
+      await toggleInstanceComplete({
+        sessionToken: sessionToken ?? undefined,
+        parentTaskId: task.parentTaskId,
+        instanceDate: instanceDate.getTime(),
+      });
+    } else {
+      await toggleComplete({
+        sessionToken: sessionToken ?? undefined,
+        id: getTaskId(task),
+      });
+    }
+  };
+
+  // Helper: Route to the correct pin today mutation
+  const handleTogglePinToday = async (task: any) => {
+    if (task.isRecurringInstance && task.parentTaskId && task.scheduledAt) {
+      const instanceDate = new Date(task.scheduledAt);
+      instanceDate.setHours(0, 0, 0, 0);
+      await toggleInstancePinToday({
+        sessionToken: sessionToken ?? undefined,
+        parentTaskId: task.parentTaskId,
+        instanceDate: instanceDate.getTime(),
+      });
+    } else {
+      await togglePinToday({
+        sessionToken: sessionToken ?? undefined,
+        id: getTaskId(task),
+      });
+    }
+  };
+
+  // Helper: Route to the correct pin tomorrow mutation
+  const handleTogglePinTomorrow = async (task: any) => {
+    if (task.isRecurringInstance && task.parentTaskId && task.scheduledAt) {
+      const instanceDate = new Date(task.scheduledAt);
+      instanceDate.setHours(0, 0, 0, 0);
+      await toggleInstancePinTomorrow({
+        sessionToken: sessionToken ?? undefined,
+        parentTaskId: task.parentTaskId,
+        instanceDate: instanceDate.getTime(),
+      });
+    } else {
+      await togglePinTomorrow({
+        sessionToken: sessionToken ?? undefined,
+        id: getTaskId(task),
+      });
+    }
+  };
 
   // Quick Add handlers
   const handleQuickAddToday = async () => {
@@ -434,12 +495,53 @@ export default function TasksPage() {
     if (!carryoverTimeContext || !sessionToken) return;
     if (!carryoverQueryTasks || carryoverQueryTasks.length === 0) return;
 
-    const unfinished = carryoverQueryTasks.filter((t: any) => !t.isCompleted);
+    const now = new Date();
+    const todayKey = format(now, "yyyy-MM-dd");
+    const dealtWithKey = `task_tool_dealt_with_${todayKey}`;
+    
+    // Get list of task IDs that were already dealt with today
+    const dealtWithToday = typeof window !== "undefined"
+      ? JSON.parse(window.localStorage.getItem(dealtWithKey) || "[]")
+      : [];
+
+    // Filter out completed tasks AND tasks that were already dealt with today
+    // For recurring instances, check the parent task ID
+    const unfinished = carryoverQueryTasks.filter((t: any) => {
+      if (t.isCompleted) return false;
+      
+      const trackingId = t.isRecurringInstance && t.parentTaskId 
+        ? String(t.parentTaskId) 
+        : String(t._id);
+      
+      return !dealtWithToday.includes(trackingId);
+    });
+    
     if (unfinished.length > 0) {
       setCarryoverTasks(unfinished);
       setCarryoverDialogOpen(true);
     }
   }, [carryoverTimeContext, carryoverQueryTasks, sessionToken]);
+
+  // Mark task as dealt with today (so it won't appear in carryover dialog again today)
+  // For recurring instances, use the parent task ID instead of the virtual instance ID
+  const markTaskAsDealtWith = (task: any) => {
+    if (typeof window === "undefined") return;
+    
+    // For recurring instances, track the parent task ID, not the virtual instance ID
+    const trackingId = task.isRecurringInstance && task.parentTaskId 
+      ? String(task.parentTaskId) 
+      : String(task._id);
+    
+    const now = new Date();
+    const todayKey = format(now, "yyyy-MM-dd");
+    const dealtWithKey = `task_tool_dealt_with_${todayKey}`;
+    
+    const dealtWithToday = JSON.parse(window.localStorage.getItem(dealtWithKey) || "[]");
+    if (!dealtWithToday.includes(trackingId)) {
+      dealtWithToday.push(trackingId);
+      window.localStorage.setItem(dealtWithKey, JSON.stringify(dealtWithToday));
+    }
+  };
 
   // Handle date range start date change
   const handleRangeStartDateChange = (date: string) => {
@@ -868,11 +970,17 @@ export default function TasksPage() {
                   folders={flattenFolders}
                   allTags={allTags}
                   timeContext={timeContext}
-                  onToggleComplete={(task) => toggleComplete({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
-                  onTogglePinToday={(task) => togglePinToday({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
-                  onTogglePinTomorrow={(task) => togglePinTomorrow({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
+                  onToggleComplete={handleToggleComplete}
+                  onTogglePinToday={handleTogglePinToday}
+                  onTogglePinTomorrow={handleTogglePinTomorrow}
                   onEdit={(task) => handleEdit(getTaskId(task))}
                   onDelete={(task) => setDeleteDialog({ open: true, taskId: getTaskId(task) })}
+                  onCompleteAllFuture={async (task) => {
+                    if (task.isRecurringInstance && task.parentTaskId) {
+                      await completeAllFutureOccurrences({ sessionToken: sessionToken ?? undefined, parentTaskId: task.parentTaskId });
+                      toast({ title: "Completed", description: "All future occurrences completed" });
+                    }
+                  }}
                   formatTaskDateTime={formatTaskDateTime}
                   todayQuickAddText={todayQuickAddText}
                   onTodayQuickAddTextChange={setTodayQuickAddText}
@@ -907,9 +1015,9 @@ export default function TasksPage() {
                   }
                   setExpandedFolders(newExpanded);
                 }}
-                onToggleComplete={(task) => toggleComplete({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
-                onTogglePinToday={(task) => togglePinToday({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
-                onTogglePinTomorrow={(task) => togglePinTomorrow({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
+                onToggleComplete={handleToggleComplete}
+                onTogglePinToday={handleTogglePinToday}
+                onTogglePinTomorrow={handleTogglePinTomorrow}
                 onEdit={(task) => handleEdit(getTaskId(task))}
                 onDelete={(task) => setDeleteDialog({ open: true, taskId: getTaskId(task) })}
                 formatTaskDateTime={formatTaskDateTime}
@@ -944,11 +1052,15 @@ export default function TasksPage() {
                         <TaskCard
                           key={task._id}
                           task={task}
-                          onToggleComplete={() => toggleComplete({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
-                          onTogglePinToday={() => togglePinToday({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
-                          onTogglePinTomorrow={() => togglePinTomorrow({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) })}
+                          onToggleComplete={() => handleToggleComplete(task)}
+                          onTogglePinToday={() => handleTogglePinToday(task)}
+                          onTogglePinTomorrow={() => handleTogglePinTomorrow(task)}
                           onEdit={() => handleEdit(getTaskId(task))}
                           onDelete={() => setDeleteDialog({ open: true, taskId: getTaskId(task) })}
+                          onCompleteAllFuture={task.isRecurringInstance && task.parentTaskId ? async () => {
+                            await completeAllFutureOccurrences({ sessionToken: sessionToken ?? undefined, parentTaskId: task.parentTaskId });
+                            toast({ title: "Completed", description: "All future occurrences completed" });
+                          } : undefined}
                           formatDateTime={formatTaskDateTime(task)}
                           folders={flattenFolders}
                           allTags={allTags}
@@ -1261,39 +1373,111 @@ export default function TasksPage() {
                     )}
                   </div>
                   <div className="flex flex-col gap-1">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-7 w-7 border-foreground/20"
-                      onClick={() => {
-                        toggleComplete({ sessionToken: sessionToken ?? undefined, id: getTaskId(task) });
-                        setCarryoverTasks(carryoverTasks.filter((t) => t._id !== task._id));
-                      }}
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-7 w-7 border-foreground/20"
-                      onClick={() => {
-                        setEditingTask(getTaskId(task));
-                        setCarryoverDialogOpen(false);
-                      }}
-                    >
-                      <Calendar className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-7 w-7 border-red-500 text-red-600"
-                      onClick={() => {
-                        setDeleteDialog({ open: true, taskId: getTaskId(task) });
-                        setCarryoverTasks(carryoverTasks.filter((t) => t._id !== task._id));
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7 border-foreground/20"
+                            onClick={async () => {
+                              await handleToggleComplete(task);
+                              markTaskAsDealtWith(task);
+                              setCarryoverTasks(carryoverTasks.filter((t) => t._id !== task._id));
+                            }}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Complete</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7 border-foreground/20"
+                            onClick={async () => {
+                              await handleTogglePinToday(task);
+                              markTaskAsDealtWith(task);
+                              setCarryoverTasks(carryoverTasks.filter((t) => t._id !== task._id));
+                            }}
+                          >
+                            <Sun className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Today</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7 border-foreground/20"
+                            onClick={async () => {
+                              await handleTogglePinTomorrow(task);
+                              markTaskAsDealtWith(task);
+                              setCarryoverTasks(carryoverTasks.filter((t) => t._id !== task._id));
+                            }}
+                          >
+                            <Moon className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Tomorrow</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7 border-foreground/20"
+                            onClick={() => {
+                              markTaskAsDealtWith(task);
+                              setEditingTask(getTaskId(task));
+                              setCarryoverDialogOpen(false);
+                            }}
+                          >
+                            <Calendar className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Reschedule</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7 border-red-500 text-red-600"
+                            onClick={() => {
+                              markTaskAsDealtWith(task);
+                              setDeleteDialog({ open: true, taskId: getTaskId(task) });
+                              setCarryoverTasks(carryoverTasks.filter((t) => t._id !== task._id));
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Delete</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
               ))}
@@ -1311,9 +1495,10 @@ export default function TasksPage() {
                     className="font-black uppercase tracking-wider border-foreground/20"
                     style={{ fontWeight: '900' }}
                     onClick={async () => {
-                      // Batch mark all carryover as complete
+                      // Batch mark all carryover as complete and dealt with
                       for (const t of carryoverTasks) {
-                        await toggleComplete({ sessionToken: sessionToken ?? undefined, id: getTaskId(t) });
+                        await handleToggleComplete(t);
+                        markTaskAsDealtWith(t);
                       }
                       setCarryoverDialogOpen(false);
                     }}
@@ -1324,7 +1509,13 @@ export default function TasksPage() {
                     size="sm"
                     className="font-black uppercase tracking-wider"
                     style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
-                    onClick={() => setCarryoverDialogOpen(false)}
+                    onClick={() => {
+                      // Mark all carryover tasks as dealt with
+                      for (const t of carryoverTasks) {
+                        markTaskAsDealtWith(t);
+                      }
+                      setCarryoverDialogOpen(false);
+                    }}
                   >
                     Deal With It Later
                   </Button>
@@ -1682,6 +1873,7 @@ function BankView({
                     onTogglePinTomorrow={() => onTogglePinTomorrow(task)}
                     onEdit={() => onEdit(task)}
                     onDelete={() => onDelete(task)}
+                    onCompleteAllFuture={() => onCompleteAllFuture(task)}
                     formatDateTime={formatTaskDateTime(task)}
                     folders={flattenFolders}
                     allTags={allTags}
@@ -1790,6 +1982,7 @@ function DashboardView({
   onTogglePinTomorrow: (task: any) => void;
   onEdit: (task: any) => void;
   onDelete: (task: any) => void;
+  onCompleteAllFuture: (task: any) => void;
   formatTaskDateTime: (task: any) => string | null;
   todayQuickAddText: string;
   onTodayQuickAddTextChange: (text: string) => void;
@@ -1878,6 +2071,7 @@ function DashboardView({
                   onTogglePinTomorrow={() => onTogglePinTomorrow(task)}
                   onEdit={() => onEdit(task)}
                   onDelete={() => onDelete(task)}
+                  onCompleteAllFuture={() => onCompleteAllFuture(task)}
                   formatDateTime={formatTaskDateTime(task)}
                   folders={folders}
                   allTags={allTags}
@@ -1962,6 +2156,7 @@ function DashboardView({
                   onTogglePinTomorrow={() => onTogglePinTomorrow(task)}
                   onEdit={() => onEdit(task)}
                   onDelete={() => onDelete(task)}
+                  onCompleteAllFuture={() => onCompleteAllFuture(task)}
                   formatDateTime={formatTaskDateTime(task)}
                   folders={folders}
                   allTags={allTags}
@@ -1983,6 +2178,7 @@ function TaskCard({
   onTogglePinTomorrow,
   onEdit,
   onDelete,
+  onCompleteAllFuture,
   formatDateTime,
   folders,
   allTags,
@@ -1993,6 +2189,7 @@ function TaskCard({
   onTogglePinTomorrow: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onCompleteAllFuture?: () => void;
   formatDateTime: string | null;
   folders: Array<{ _id: Id<"folders">; name: string }>;
   allTags: string[];
@@ -2001,36 +2198,59 @@ function TaskCard({
   const isOverdue = task.computedState?.isOverdue;
 
   return (
-    <Card
-      className={cn(
-        "border transition-all",
-        task.isCompleted
-          ? "opacity-60 border-foreground/10 bg-foreground/5"
-          : isOverdue
-            ? "border-red-500/80 bg-background ring-1 ring-red-500/60"
-            : "border-foreground/10 hover:border-accent/40 bg-background"
-      )}
-    >
-      <CardContent className="p-4 sm:p-6">
-        <div className="flex items-start gap-4">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={onToggleComplete}
-                className="mt-0.5 shrink-0 transition-transform hover:scale-110 active:scale-95 touch-manipulation p-1 -m-1"
-                aria-label={task.isCompleted ? "Mark incomplete" : "Mark complete"}
-              >
-                {task.isCompleted ? (
-                  <CheckCircle2 className="h-5 w-5 sm:h-5 sm:w-5 text-green-600" />
-                ) : (
-                  <Circle className="h-5 w-5 sm:h-5 sm:w-5 text-foreground/40 hover:text-accent transition-colors" />
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="font-medium">{task.isCompleted ? "Mark incomplete" : "Mark complete"}</p>
-            </TooltipContent>
-          </Tooltip>
+    <TooltipProvider>
+      <Card
+        className={cn(
+          "border transition-all",
+          task.isCompleted
+            ? "opacity-60 border-foreground/10 bg-foreground/5"
+            : isOverdue
+              ? "border-red-500/80 bg-background ring-1 ring-red-500/60"
+              : "border-foreground/10 hover:border-accent/40 bg-background"
+        )}
+      >
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex items-start gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={onToggleComplete}
+                    className="mt-0.5 shrink-0 transition-transform hover:scale-110 active:scale-95 touch-manipulation p-1 -m-1"
+                    aria-label={task.isCompleted ? "Mark incomplete" : "Mark complete"}
+                  >
+                    {task.isCompleted ? (
+                      <CheckCircle2 className="h-5 w-5 sm:h-5 sm:w-5 text-green-600" />
+                    ) : (
+                      <Circle className="h-5 w-5 sm:h-5 sm:w-5 text-foreground/40 hover:text-accent transition-colors" />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-medium">{task.isCompleted ? "Mark incomplete" : "Mark complete"}</p>
+                </TooltipContent>
+              </Tooltip>
+              {task.isRecurringInstance && !task.isCompleted && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => {
+                        if (task.parentTaskId && window.confirm("Complete all future occurrences? This will stop generating new instances.")) {
+                          onCompleteAllFuture();
+                        }
+                      }}
+                      className="mt-0.5 shrink-0 transition-all hover:bg-accent/10 rounded p-1 -m-1 touch-manipulation"
+                      aria-label="Complete all future occurrences"
+                    >
+                      <CheckCircle2 className="h-4 w-4 sm:h-4 sm:w-4 text-foreground/40 hover:text-accent" strokeWidth={3} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="font-medium">Complete all future</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
@@ -2084,6 +2304,22 @@ function TaskCard({
                 ) : null}
               </div>
               <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 pt-0.5">
+                {isOverdue && !task.isCompleted && !task.pinnedToday && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={onTogglePinToday}
+                        className="p-2.5 sm:p-2 rounded-lg transition-all bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 hover:text-orange-700 touch-manipulation border border-orange-500/30"
+                        aria-label="Acknowledge overdue"
+                      >
+                        <AlertCircle className="h-4 w-4 sm:h-4 sm:w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="font-medium">Acknowledge</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
@@ -2154,5 +2390,6 @@ function TaskCard({
         </div>
       </CardContent>
     </Card>
+    </TooltipProvider>
   );
 }

@@ -44,24 +44,28 @@ function buildServerTimeContext(now: number): TimeContext {
   };
 }
 
-// Helper: Create a clean recurring instance object
-function createRecurringInstance(task: any, instanceDate: Date): any {
+// Helper: Create a clean recurring instance object with merged state
+function createRecurringInstance(task: any, instanceDate: Date, instanceState?: any): any {
+  const normalizedDate = instanceDate.getTime();
+  
+  // If instanceState exists, use it; otherwise default to parent's state
   return {
-    _id: `${task._id}_${instanceDate.getTime()}` as any, // Virtual ID
+    _id: `${task._id}_${normalizedDate}` as any, // Virtual ID
     _creationTime: task._creationTime,
     title: task.title,
     description: task.description,
     taskType: "scheduled_time" as const, // Instances appear as scheduled tasks
-    scheduledAt: instanceDate.getTime(),
+    scheduledAt: normalizedDate,
     isRecurringInstance: true,
     parentTaskId: task._id,
-    isCompleted: task.isCompleted ?? false,
-    pinnedToday: task.pinnedToday ?? false,
-    pinnedTomorrow: task.pinnedTomorrow ?? false,
+    // Use instance-specific state if available, otherwise use parent's state
+    isCompleted: instanceState ? instanceState.isCompleted : (task.isCompleted ?? false),
+    pinnedToday: instanceState ? instanceState.pinnedToday : (task.pinnedToday ?? false),
+    pinnedTomorrow: instanceState ? instanceState.pinnedTomorrow : (task.pinnedTomorrow ?? false),
     folderId: task.folderId,
     tagIds: Array.isArray(task.tagIds) ? task.tagIds : [],
     createdAt: task.createdAt,
-    updatedAt: task.updatedAt,
+    updatedAt: instanceState ? instanceState.updatedAt : task.updatedAt,
     // Include recurrence fields for reference (though instance uses scheduled_time)
     recurrencePattern: task.recurrencePattern,
     recurrenceDaysOfWeek: task.recurrenceDaysOfWeek,
@@ -75,14 +79,27 @@ function createRecurringInstance(task: any, instanceDate: Date): any {
   };
 }
 
-// Helper: Generate recurring task instances
-function generateRecurringInstances(
+// Helper: Generate recurring task instances (async to query instance states)
+async function generateRecurringInstances(
+  ctx: any,
   task: any,
   now: number,
   maxFutureDays: number = 90 // Generate instances up to 90 days in the future
-): any[] {
+): Promise<any[]> {
   if (task.taskType !== "recurring" || !task.recurrencePattern || !task.recurrenceStartDate) {
     return [];
+  }
+
+  // Query all instance states for this parent task
+  const instanceStates = await ctx.db
+    .query("recurringTaskInstances")
+    .withIndex("by_parent", (q) => q.eq("parentTaskId", task._id))
+    .collect();
+  
+  // Create a map for quick lookup by instanceDate
+  const instanceStateMap = new Map();
+  for (const state of instanceStates) {
+    instanceStateMap.set(state.instanceDate, state);
   }
 
   const instances: any[] = [];
@@ -117,7 +134,8 @@ function generateRecurringInstances(
         if (daysOfWeek.includes(dayOfWeek)) {
           const instanceDate = new Date(current);
           instanceDate.setHours(0, 0, 0, 0);
-          instances.push(createRecurringInstance(task, instanceDate));
+          const instanceState = instanceStateMap.get(instanceDate.getTime());
+          instances.push(createRecurringInstance(task, instanceDate, instanceState));
         }
         current.setDate(current.getDate() + 1);
       }
@@ -145,7 +163,8 @@ function generateRecurringInstances(
           instanceDate.setHours(0, 0, 0, 0);
 
           if (instanceDate >= actualStartFrom && instanceDate <= cutoffDate) {
-            instances.push(createRecurringInstance(task, instanceDate));
+            const instanceState = instanceStateMap.get(instanceDate.getTime());
+            instances.push(createRecurringInstance(task, instanceDate, instanceState));
           }
         }
 
@@ -167,14 +186,8 @@ function generateRecurringInstances(
         instanceDate.setHours(0, 0, 0, 0);
 
         if (instanceDate >= actualStartFrom && instanceDate <= cutoffDate) {
-          instances.push({
-            ...task,
-            _id: `${task._id}_${instanceDate.getTime()}` as any,
-            scheduledAt: instanceDate.getTime(),
-            isRecurringInstance: true,
-            parentTaskId: task._id,
-            taskType: "scheduled_time" as const,
-          });
+          const instanceState = instanceStateMap.get(instanceDate.getTime());
+          instances.push(createRecurringInstance(task, instanceDate, instanceState));
         }
 
         // Move to next month
@@ -194,14 +207,8 @@ function generateRecurringInstances(
         instanceDate.setHours(0, 0, 0, 0);
 
         if (instanceDate >= actualStartFrom && instanceDate <= cutoffDate) {
-          instances.push({
-            ...task,
-            _id: `${task._id}_${instanceDate.getTime()}` as any,
-            scheduledAt: instanceDate.getTime(),
-            isRecurringInstance: true,
-            parentTaskId: task._id,
-            taskType: "scheduled_time" as const,
-          });
+          const instanceState = instanceStateMap.get(instanceDate.getTime());
+          instances.push(createRecurringInstance(task, instanceDate, instanceState));
         }
 
         // Move to next year
@@ -222,7 +229,8 @@ function generateRecurringInstances(
         instanceDate.setHours(0, 0, 0, 0);
 
         if (instanceDate >= actualStartFrom && instanceDate <= cutoffDate) {
-          instances.push(createRecurringInstance(task, instanceDate));
+          const instanceState = instanceStateMap.get(instanceDate.getTime());
+          instances.push(createRecurringInstance(task, instanceDate, instanceState));
         }
       }
       break;
@@ -399,6 +407,13 @@ export function getComputedTaskState(
     result.inThisWeek = true;
   }
 
+  // ACKNOWLEDGE LOGIC: If a task is pinned to today, it's been acknowledged and should NOT be overdue
+  // This allows users to "acknowledge" overdue tasks and keep them in today without the overdue flag
+  // The overdue status will re-evaluate the next day (next cycle) based on the deadline/schedule
+  if (task.pinnedToday === true) {
+    result.isOverdue = false;
+  }
+
   return result;
 }
 
@@ -451,7 +466,7 @@ export const list = query({
     const recurringInstances: any[] = [];
     
     for (const recurringTask of recurringTasks) {
-      const instances = generateRecurringInstances(recurringTask, now);
+      const instances = await generateRecurringInstances(ctx, recurringTask, now);
       recurringInstances.push(...instances);
     }
 
@@ -966,6 +981,156 @@ export const togglePinTomorrow = mutation({
     });
     
     return await ctx.db.get(args.id);
+  },
+});
+
+// Toggle completion for a specific recurring task instance
+export const toggleInstanceComplete = mutation({
+  args: {
+    parentTaskId: v.id("tasks"),
+    instanceDate: v.number(), // Timestamp normalized to start of day
+    sessionToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdminWithSession(ctx, args.sessionToken);
+    
+    // Check if instance state already exists
+    const existingInstance = await ctx.db
+      .query("recurringTaskInstances")
+      .withIndex("by_parent_and_date", (q) =>
+        q.eq("parentTaskId", args.parentTaskId).eq("instanceDate", args.instanceDate)
+      )
+      .first();
+    
+    const now = Date.now();
+    
+    if (existingInstance) {
+      // Toggle existing instance
+      await ctx.db.patch(existingInstance._id, {
+        isCompleted: !existingInstance.isCompleted,
+        completedAt: !existingInstance.isCompleted ? now : undefined,
+        updatedAt: now,
+      });
+    } else {
+      // Create new instance state (was incomplete, now completing)
+      await ctx.db.insert("recurringTaskInstances", {
+        parentTaskId: args.parentTaskId,
+        instanceDate: args.instanceDate,
+        isCompleted: true,
+        pinnedToday: false,
+        pinnedTomorrow: false,
+        completedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    
+    return { success: true };
+  },
+});
+
+// Toggle pin to today for a specific recurring task instance
+export const toggleInstancePinToday = mutation({
+  args: {
+    parentTaskId: v.id("tasks"),
+    instanceDate: v.number(),
+    sessionToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdminWithSession(ctx, args.sessionToken);
+    
+    const existingInstance = await ctx.db
+      .query("recurringTaskInstances")
+      .withIndex("by_parent_and_date", (q) =>
+        q.eq("parentTaskId", args.parentTaskId).eq("instanceDate", args.instanceDate)
+      )
+      .first();
+    
+    const now = Date.now();
+    
+    if (existingInstance) {
+      await ctx.db.patch(existingInstance._id, {
+        pinnedToday: !existingInstance.pinnedToday,
+        updatedAt: now,
+      });
+    } else {
+      // Create new instance state with pin
+      await ctx.db.insert("recurringTaskInstances", {
+        parentTaskId: args.parentTaskId,
+        instanceDate: args.instanceDate,
+        isCompleted: false,
+        pinnedToday: true,
+        pinnedTomorrow: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    
+    return { success: true };
+  },
+});
+
+// Toggle pin to tomorrow for a specific recurring task instance
+export const toggleInstancePinTomorrow = mutation({
+  args: {
+    parentTaskId: v.id("tasks"),
+    instanceDate: v.number(),
+    sessionToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdminWithSession(ctx, args.sessionToken);
+    
+    const existingInstance = await ctx.db
+      .query("recurringTaskInstances")
+      .withIndex("by_parent_and_date", (q) =>
+        q.eq("parentTaskId", args.parentTaskId).eq("instanceDate", args.instanceDate)
+      )
+      .first();
+    
+    const now = Date.now();
+    
+    if (existingInstance) {
+      await ctx.db.patch(existingInstance._id, {
+        pinnedTomorrow: !existingInstance.pinnedTomorrow,
+        updatedAt: now,
+      });
+    } else {
+      // Create new instance state with pin
+      await ctx.db.insert("recurringTaskInstances", {
+        parentTaskId: args.parentTaskId,
+        instanceDate: args.instanceDate,
+        isCompleted: false,
+        pinnedToday: false,
+        pinnedTomorrow: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    
+    return { success: true };
+  },
+});
+
+// Complete all future occurrences (marks the parent recurring task as complete)
+export const completeAllFutureOccurrences = mutation({
+  args: {
+    parentTaskId: v.id("tasks"),
+    sessionToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdminWithSession(ctx, args.sessionToken);
+    
+    const task = await ctx.db.get(args.parentTaskId);
+    if (!task) throw new Error("Task not found");
+    if (task.taskType !== "recurring") throw new Error("Task is not a recurring task");
+    
+    // Mark the parent task as complete to stop generating future instances
+    await ctx.db.patch(args.parentTaskId, {
+      isCompleted: true,
+      updatedAt: Date.now(),
+    });
+    
+    return { success: true };
   },
 });
 

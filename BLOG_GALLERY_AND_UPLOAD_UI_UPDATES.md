@@ -375,3 +375,4 @@ galleryImages: Array<{
 
 All requested features have been successfully implemented and tested with no linter errors!
 
+

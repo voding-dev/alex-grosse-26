@@ -64,3 +64,4 @@ To test the fix:
 - The individual pages also check status as an additional security measure
 - Links are generated correctly as `/portfolio/${slug}` and `/project/${slug}` by the `PortfolioProjectCard` component
 
+

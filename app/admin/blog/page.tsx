@@ -1,24 +1,44 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Eye, Edit2, Calendar, Clock } from "lucide-react";
+import { Plus, Search, Eye, Edit2, Calendar, Clock, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { AdminTabs, AdminTab } from "@/components/admin/admin-tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/components/ui/use-toast";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 export default function BlogManagementPage() {
+  const { adminEmail } = useAdminAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"all" | "published" | "drafts" | "scheduled" | "archived">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [postToDelete, setPostToDelete] = useState<{ id: Id<"blogPosts">; title: string } | null>(null);
 
   // Get all posts
   const allPosts = useQuery(api.blogPosts.list, {}) || [];
   const stats = useQuery(api.blogPosts.getStats) || { total: 0, published: 0, drafts: 0, scheduled: 0, archived: 0 };
   const categories = useQuery(api.blogCategories.list) || [];
+
+  // Mutations
+  const removePost = useMutation(api.blogPosts.remove);
 
   // Filter posts based on active tab
   const filteredPosts = allPosts.filter((post) => {
@@ -72,6 +92,37 @@ export default function BlogManagementPage() {
         {label}
       </Badge>
     );
+  };
+
+  const handleDeleteClick = (postId: Id<"blogPosts">, postTitle: string) => {
+    setPostToDelete({ id: postId, title: postTitle });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!postToDelete) return;
+
+    try {
+      await removePost({
+        id: postToDelete.id,
+        email: adminEmail,
+      });
+
+      toast({
+        title: "✅ Blog Post Deleted",
+        description: `"${postToDelete.title}" has been permanently deleted.`,
+      });
+
+      setDeleteDialogOpen(false);
+      setPostToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete blog post:", error);
+      toast({
+        title: "❌ Error",
+        description: error instanceof Error ? error.message : "Failed to delete blog post",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -284,6 +335,14 @@ export default function BlogManagementPage() {
                             Edit
                           </Button>
                         </Link>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteClick(post._id, post.title)}
+                          className="font-bold uppercase tracking-wider"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </CardContent>
@@ -293,6 +352,44 @@ export default function BlogManagementPage() {
           )}
         </div>
       </AdminTabs>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="rounded-xl border border-foreground/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl font-black uppercase tracking-wider text-destructive" style={{ fontWeight: '900' }}>
+              ⚠️ PERMANENT DELETION
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base pt-2">
+              Are you absolutely sure you want to delete <strong>&quot;{postToDelete?.title}&quot;</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <div className="rounded-lg border-2 border-destructive bg-destructive/10 p-4">
+              <p className="text-sm font-bold text-destructive uppercase tracking-wider mb-2" style={{ fontWeight: '900' }}>
+                ⚠️ WARNING: THIS ACTION IS PERMANENT
+              </p>
+              <p className="text-sm text-foreground/80 leading-relaxed">
+                This will permanently delete the blog post and <strong>all of its associated content sections</strong>.
+                This action cannot be undone.
+              </p>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-red-500 hover:bg-red-600 text-white font-black uppercase tracking-wider"
+              style={{ fontWeight: '900' }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
