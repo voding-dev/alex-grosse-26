@@ -200,9 +200,41 @@ export default function BlogListingPage() {
             {/* Featured Posts (only when no filters) */}
             {featuredPosts.length > 0 && !hasFilters && (
               <div className="space-y-8">
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-black" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
-                  Featured
-                </h2>
+                <div className="flex items-center gap-4 overflow-hidden">
+                  <div 
+                    className="flex-1" 
+                    style={{
+                      height: '2em',
+                      backgroundImage: `
+                        linear-gradient(45deg, #000 25%, transparent 25%),
+                        linear-gradient(-45deg, #000 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #000 75%),
+                        linear-gradient(-45deg, transparent 75%, #000 75%)
+                      `,
+                      backgroundSize: '2em 2em',
+                      backgroundPosition: 'right -1px top 0, right -1px top 1em, right calc(1em - 1px) top -1em, right calc(-1em - 1px) top 0',
+                      backgroundColor: '#fff'
+                    }}
+                  />
+                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-black whitespace-nowrap text-center" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+                    Featured
+                  </h2>
+                  <div 
+                    className="flex-1" 
+                    style={{
+                      height: '2em',
+                      backgroundImage: `
+                        linear-gradient(45deg, #000 25%, transparent 25%),
+                        linear-gradient(-45deg, #000 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #000 75%),
+                        linear-gradient(-45deg, transparent 75%, #000 75%)
+                      `,
+                      backgroundSize: '2em 2em',
+                      backgroundPosition: 'left 0 top 0, left 0 top 1em, left 1em top -1em, left -1em top 0',
+                      backgroundColor: '#fff'
+                    }}
+                  />
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {featuredPosts.map((post) => (
                     <BlogPostCard key={post._id} post={post} />
@@ -218,9 +250,41 @@ export default function BlogListingPage() {
               </div>
             ) : displayedPosts.length > 0 ? (
               <div className="space-y-8">
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-black" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
-                  {hasFilters ? "Search Results" : "Latest Posts"}
-                </h2>
+                <div className="flex items-center gap-4 overflow-hidden">
+                  <div 
+                    className="flex-1" 
+                    style={{
+                      height: '2em',
+                      backgroundImage: `
+                        linear-gradient(45deg, #000 25%, transparent 25%),
+                        linear-gradient(-45deg, #000 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #000 75%),
+                        linear-gradient(-45deg, transparent 75%, #000 75%)
+                      `,
+                      backgroundSize: '2em 2em',
+                      backgroundPosition: 'right -1px top 0, right -1px top 1em, right calc(1em - 1px) top -1em, right calc(-1em - 1px) top 0',
+                      backgroundColor: '#fff'
+                    }}
+                  />
+                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-black whitespace-nowrap text-center" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+                    {hasFilters ? "Search Results" : "Latest"}
+                  </h2>
+                  <div 
+                    className="flex-1" 
+                    style={{
+                      height: '2em',
+                      backgroundImage: `
+                        linear-gradient(45deg, #000 25%, transparent 25%),
+                        linear-gradient(-45deg, #000 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #000 75%),
+                        linear-gradient(-45deg, transparent 75%, #000 75%)
+                      `,
+                      backgroundSize: '2em 2em',
+                      backgroundPosition: 'left 0 top 0, left 0 top 1em, left 1em top -1em, left -1em top 0',
+                      backgroundColor: '#fff'
+                    }}
+                  />
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {displayedPosts.map((post) => (
                     <BlogPostCard key={post._id} post={post} />
