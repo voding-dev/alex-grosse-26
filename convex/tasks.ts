@@ -93,7 +93,7 @@ async function generateRecurringInstances(
   // Query all instance states for this parent task
   const instanceStates = await ctx.db
     .query("recurringTaskInstances")
-    .withIndex("by_parent", (q) => q.eq("parentTaskId", task._id))
+    .withIndex("by_parent", (q: any) => q.eq("parentTaskId", task._id))
     .collect();
   
   // Create a map for quick lookup by instanceDate

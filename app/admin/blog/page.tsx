@@ -105,7 +105,7 @@ export default function BlogManagementPage() {
     try {
       await removePost({
         id: postToDelete.id,
-        email: adminEmail,
+        email: adminEmail ?? undefined,
       });
 
       toast({

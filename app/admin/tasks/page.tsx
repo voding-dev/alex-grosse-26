@@ -1020,6 +1020,12 @@ export default function TasksPage() {
                 onTogglePinTomorrow={handleTogglePinTomorrow}
                 onEdit={(task) => handleEdit(getTaskId(task))}
                 onDelete={(task) => setDeleteDialog({ open: true, taskId: getTaskId(task) })}
+                onCompleteAllFuture={async (task) => {
+                  if (task.isRecurringInstance && task.parentTaskId) {
+                    await completeAllFutureOccurrences({ sessionToken: sessionToken ?? undefined, parentTaskId: task.parentTaskId });
+                    toast({ title: "Completed", description: "All future occurrences completed" });
+                  }
+                }}
                 formatTaskDateTime={formatTaskDateTime}
               />
             ) : (activeView === "this_week" || activeView === "next_week") && weekViewMode === "week" ? (
@@ -1552,6 +1558,7 @@ function BankView({
   onTogglePinTomorrow,
   onEdit,
   onDelete,
+  onCompleteAllFuture,
   formatTaskDateTime,
 }: {
   tasks: any[];
@@ -1575,6 +1582,7 @@ function BankView({
   onTogglePinTomorrow: (task: any) => void;
   onEdit: (task: any) => void;
   onDelete: (task: any) => void;
+  onCompleteAllFuture: (task: any) => void;
   formatTaskDateTime: (task: any) => string | null;
 }) {
   const hasActiveFilters = selectedFolderId || selectedTags.length > 0 || searchQuery.trim().length > 0 || filterNotInFolder || filterNotTagged;
@@ -1964,6 +1972,7 @@ function DashboardView({
   onTogglePinTomorrow,
   onEdit,
   onDelete,
+  onCompleteAllFuture,
   formatTaskDateTime,
   todayQuickAddText,
   onTodayQuickAddTextChange,
@@ -2235,7 +2244,7 @@ function TaskCard({
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => {
-                        if (task.parentTaskId && window.confirm("Complete all future occurrences? This will stop generating new instances.")) {
+                        if (task.parentTaskId && onCompleteAllFuture && window.confirm("Complete all future occurrences? This will stop generating new instances.")) {
                           onCompleteAllFuture();
                         }
                       }}
