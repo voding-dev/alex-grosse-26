@@ -141,6 +141,10 @@ export default function BlogPostEditorPage({ params }: { params: Promise<{ id: s
     scheduledFor: null as number | null,
     scheduledDate: "", // yyyy-mm-dd format string
     scheduledTime: "", // HH:mm format string
+    publishedAt: null as number | null,
+    publishedDate: "", // yyyy-mm-dd format string
+    publishedTime: "", // HH:mm format string
+    useCustomPublishDate: false,
     featured: false,
     showCoverOnPost: true,
     authorName: "",
@@ -184,6 +188,17 @@ export default function BlogPostEditorPage({ params }: { params: Promise<{ id: s
         scheduledTime = tzTime;
       }
 
+      // Convert publishedAt timestamp to date and time strings in site timezone
+      let publishedDate = "";
+      let publishedTime = "";
+      let useCustomPublishDate = false;
+      if (post.publishedAt) {
+        const { date: tzDate, time: tzTime } = timestampToDateTime(post.publishedAt, siteTimezone);
+        publishedDate = tzDate;
+        publishedTime = tzTime;
+        useCustomPublishDate = true;
+      }
+
       setFormData({
         title: post.title || "",
         slug: post.slug || "",
@@ -192,6 +207,10 @@ export default function BlogPostEditorPage({ params }: { params: Promise<{ id: s
         scheduledFor: post.scheduledFor || null,
         scheduledDate,
         scheduledTime,
+        publishedAt: post.publishedAt || null,
+        publishedDate,
+        publishedTime,
+        useCustomPublishDate,
         featured: post.featured || false,
         showCoverOnPost: post.showCoverOnPost !== false, // Default to true
         authorName: post.authorName || "",
@@ -243,6 +262,19 @@ export default function BlogPostEditorPage({ params }: { params: Promise<{ id: s
         });
       }
 
+      // Calculate custom publishedAt timestamp if enabled
+      let publishedAt: number | undefined = undefined;
+      if (formData.useCustomPublishDate && formData.publishedDate && formData.publishedTime) {
+        publishedAt = dateTimeToTimestamp(formData.publishedDate, formData.publishedTime, siteTimezone);
+        console.log('Custom publish date:', {
+          date: formData.publishedDate,
+          time: formData.publishedTime,
+          timezone: siteTimezone,
+          publishedAt,
+          publishedAtDate: new Date(publishedAt).toISOString(),
+        });
+      }
+
       await updatePost({
         id: id as Id<"blogPosts">,
         title: formData.title,
@@ -250,6 +282,7 @@ export default function BlogPostEditorPage({ params }: { params: Promise<{ id: s
         excerpt: formData.excerpt || undefined,
         status: formData.status,
         scheduledFor: scheduledFor || undefined,
+        publishedAt, // Pass custom publish date
         featured: formData.featured,
         showCoverOnPost: formData.showCoverOnPost,
         authorName: formData.authorName || undefined,
@@ -682,6 +715,84 @@ export default function BlogPostEditorPage({ params }: { params: Promise<{ id: s
                   placeholder="Ian Courtright"
                   className="h-12"
                 />
+              </div>
+
+              <div className="pt-4 border-t border-foreground/10">
+                <div className="flex items-center gap-2 mb-4">
+                  <Checkbox
+                    id="useCustomPublishDate"
+                    checked={formData.useCustomPublishDate}
+                    onCheckedChange={(checked) => {
+                      const useCustom = checked === true;
+                      const updates: any = { useCustomPublishDate: useCustom };
+                      
+                      // If enabling custom date and post is already published, pre-fill with current publishedAt
+                      if (useCustom && post?.publishedAt) {
+                        const { date: tzDate, time: tzTime } = timestampToDateTime(post.publishedAt, siteTimezone);
+                        updates.publishedDate = tzDate;
+                        updates.publishedTime = tzTime;
+                      } else if (useCustom) {
+                        // Pre-fill with current date/time
+                        const now = new Date();
+                        const year = now.getFullYear();
+                        const month = String(now.getMonth() + 1).padStart(2, '0');
+                        const day = String(now.getDate()).padStart(2, '0');
+                        const hours = String(now.getHours()).padStart(2, '0');
+                        const minutes = String(now.getMinutes()).padStart(2, '0');
+                        updates.publishedDate = `${year}-${month}-${day}`;
+                        updates.publishedTime = `${hours}:${minutes}`;
+                      }
+                      
+                      setFormData({ ...formData, ...updates });
+                    }}
+                  />
+                  <Label htmlFor="useCustomPublishDate" className="text-sm font-medium cursor-pointer">
+                    Set custom publish date (for backdating)
+                  </Label>
+                </div>
+                <p className="text-xs text-foreground/60 mb-4">
+                  Enable this to set a custom publish date. Useful for backdating posts or scheduling exact publication timestamps.
+                </p>
+
+                {formData.useCustomPublishDate && (
+                  <>
+                    <div className="mb-3">
+                      <Label className="text-sm font-black uppercase tracking-wider mb-2 block" style={{ fontWeight: '900' }}>
+                        Custom Publish Date
+                      </Label>
+                      <CustomDatePicker
+                        value={formData.publishedDate}
+                        onChange={(date) => setFormData({ ...formData, publishedDate: date })}
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-black uppercase tracking-wider mb-2 block" style={{ fontWeight: '900' }}>
+                        Custom Publish Time
+                      </Label>
+                      <CustomTimePicker
+                        value={formData.publishedTime}
+                        onChange={(time) => setFormData({ ...formData, publishedTime: time })}
+                      />
+                    </div>
+
+                    {formData.publishedDate && formData.publishedTime && (
+                      <p className="text-xs text-foreground/60 mt-3 p-3 bg-accent/10 rounded border border-accent/20">
+                        <strong className="font-bold">Preview:</strong> This post will show as published on{' '}
+                        {new Date(dateTimeToTimestamp(formData.publishedDate, formData.publishedTime, siteTimezone)).toLocaleString('en-US', {
+                          timeZone: siteTimezone,
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true,
+                        })}
+                        {' '}({siteTimezone})
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

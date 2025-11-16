@@ -224,6 +224,7 @@ export const update = mutation({
       v.literal("archived")
     )),
     scheduledFor: v.optional(v.number()),
+    publishedAt: v.optional(v.number()), // Allow custom publish date
     featured: v.optional(v.boolean()),
     showCoverOnPost: v.optional(v.boolean()),
     authorName: v.optional(v.string()),
@@ -285,9 +286,15 @@ export const update = mutation({
       return;
     }
 
-    // Set publishedAt if status is changing to published
+    // Set publishedAt
     let publishedAt = post.publishedAt;
-    if (updates.status === "published" && post.status !== "published") {
+    
+    // Use custom publishedAt if provided (for backdating)
+    if ("publishedAt" in updates && updates.publishedAt !== undefined) {
+      publishedAt = updates.publishedAt;
+    } 
+    // Otherwise, set to now if status is changing to published
+    else if (updates.status === "published" && post.status !== "published") {
       publishedAt = now;
     }
 

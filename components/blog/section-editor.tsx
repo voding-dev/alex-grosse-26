@@ -63,7 +63,9 @@ export function SectionEditor({ section, onUpdate, onDelete, provided }: Section
   const [imageLibraryOpen, setImageLibraryOpen] = useState(false);
   const [galleryLibraryOpen, setGalleryLibraryOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const imageFileInputRef = React.useRef<HTMLInputElement>(null);
 
   const updateSection = useMutation(api.blogPostSections.update);
   const generateUploadUrl = useMutation(api.storageMutations.generateUploadUrl);
@@ -266,6 +268,31 @@ export function SectionEditor({ section, onUpdate, onDelete, provided }: Section
     await handleUpdate({ galleryImages: newImages });
   };
 
+  // Single image drag handlers
+  const handleImageDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingImage(true);
+  };
+
+  const handleImageDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingImage(false);
+  };
+
+  const handleImageDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleImageDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingImage(false);
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      await handleImageUpload(file);
+    }
+  };
+
   return (
     <>
     <Card
@@ -341,7 +368,6 @@ export function SectionEditor({ section, onUpdate, onDelete, provided }: Section
                     <div className="flex gap-2 mt-3">
                       <Button
                         variant="outline"
-                        size="sm"
                         onClick={() => setImageLibraryOpen(true)}
                         className="font-bold uppercase tracking-wider"
                       >
@@ -350,7 +376,6 @@ export function SectionEditor({ section, onUpdate, onDelete, provided }: Section
                       </Button>
                       <Button
                         variant="destructive"
-                        size="sm"
                         onClick={() => handleUpdate({ imageStorageId: undefined })}
                         className="font-bold uppercase tracking-wider"
                       >
@@ -360,8 +385,9 @@ export function SectionEditor({ section, onUpdate, onDelete, provided }: Section
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div>
                     <input
+                      ref={imageFileInputRef}
                       type="file"
                       accept="image/*"
                       onChange={(e) => {
@@ -371,30 +397,19 @@ export function SectionEditor({ section, onUpdate, onDelete, provided }: Section
                         }
                       }}
                       className="hidden"
-                      id={`image-upload-${section._id}`}
                     />
-                    <label htmlFor={`image-upload-${section._id}`}>
-                      <Button
-                        variant="outline"
-                        disabled={uploading}
-                        asChild
-                        className="font-bold uppercase tracking-wider border-2 h-12"
-                      >
-                        <span>
-                          <Upload className="h-4 w-4 mr-2" />
-                          {uploading ? "Uploading..." : "Upload Image"}
-                        </span>
-                      </Button>
-                    </label>
-                    <Button
-                      variant="outline"
-                      onClick={() => setImageLibraryOpen(true)}
-                      className="font-bold uppercase tracking-wider w-full border-2 h-12"
+                    <UploadZone
+                      onSelectFiles={() => imageFileInputRef.current?.click()}
+                      onSelectFromLibrary={() => setImageLibraryOpen(true)}
                       disabled={uploading}
-                    >
-                      <ImageIcon className="h-4 w-4 mr-2" />
-                      Select from Library
-                    </Button>
+                      isDragging={isDraggingImage}
+                      onDragEnter={handleImageDragEnter}
+                      onDragLeave={handleImageDragLeave}
+                      onDragOver={handleImageDragOver}
+                      onDrop={handleImageDrop}
+                      title="Drag & drop image here"
+                      description="Supports images"
+                    />
                   </div>
                 )}
               </div>
