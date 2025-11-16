@@ -375,6 +375,23 @@ export const incrementViewCount = mutation({
   },
 });
 
+// Increment like count for a blog post
+export const incrementLikeCount = mutation({
+  args: { id: v.id("blogPosts") },
+  handler: async (ctx, args) => {
+    const post = await ctx.db.get(args.id);
+    if (!post) {
+      throw new Error("Blog post not found");
+    }
+
+    await ctx.db.patch(args.id, {
+      likeCount: (post.likeCount || 0) + 1,
+    });
+    
+    return (post.likeCount || 0) + 1;
+  },
+});
+
 // Get stats for dashboard
 export const getStats = query({
   handler: async (ctx) => {

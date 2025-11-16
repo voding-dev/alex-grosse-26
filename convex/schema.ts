@@ -1166,6 +1166,7 @@ export default defineSchema({
     seoTitle: v.optional(v.string()),
     seoDescription: v.optional(v.string()),
     viewCount: v.optional(v.number()),
+    likeCount: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

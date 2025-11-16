@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { Nav } from "@/components/nav";
 import { BlogSectionRenderer } from "@/components/blog/blog-section-renderer";
 import { BlogPostCard } from "@/components/blog/blog-post-card";
+import { LikeButton } from "@/components/blog/like-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, Eye, Twitter, Linkedin, Link as LinkIcon, ChevronLeft } from "lucide-react";
@@ -224,6 +225,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
                   <span className="font-medium">{post.viewCount} views</span>
                 </div>
               )}
+              <LikeButton postId={post._id} initialLikeCount={post.likeCount || 0} />
             </div>
           </header>
 
