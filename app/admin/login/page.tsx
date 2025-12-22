@@ -92,15 +92,14 @@ export default function AdminLogin() {
           {/* Logo/Brand */}
           <div className="mb-6 sm:mb-8 text-center">
             <div className="mb-4 sm:mb-6 flex items-center justify-center">
-              <div className="p-4 rounded-2xl" style={{ backgroundColor: '#586034' }}>
-                <Image
-                  src="/smallbrandmark-alexgrosse-white.svg"
-                  alt="Alex Grosse"
-                  width={48}
-                  height={48}
-                  className="h-10 w-10 sm:h-12 sm:w-12 object-contain"
-                />
-              </div>
+              <Image
+                src="/wordmark-alexgrosse-white.svg"
+                alt="Alex Grosse"
+                width={180}
+                height={45}
+                className="h-10 w-auto object-contain"
+                style={{ filter: 'brightness(0) saturate(100%) invert(33%) sepia(15%) saturate(1200%) hue-rotate(50deg) brightness(95%) contrast(90%)' }}
+              />
             </div>
             <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight mb-2" style={{ fontWeight: '900', letterSpacing: '-0.02em', color: '#1a1a1a' }}>
               Admin Access
