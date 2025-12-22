@@ -64,7 +64,7 @@ export function Nav() {
             <div className="flex items-center justify-between border-b border-black/10 px-6 py-6">
               <Link href="/" onClick={() => setIsMenuOpen(false)} className="flex items-center">
                 <Image
-                  src="/smallbrandmark-alexgrosse.svg"
+                  src="/smallbrandmark-alexgrosse-dark.svg"
                   alt="Alex Grosse"
                   width={40}
                   height={40}
