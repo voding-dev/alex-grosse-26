@@ -18,36 +18,32 @@ export const get = query({
       }
       
       // Validate and filter out invalid project references
-      // Check all project IDs in parallel for better performance
-      const allProjectIds = [
-        ...(homepage.portfolioProjectIds || []),
-        ...(homepage.projectsProjectIds || [])
-      ];
-      
-      const projectIdSet = new Set(allProjectIds);
-      const projectChecks = await Promise.all(
-        Array.from(projectIdSet).map(async (id) => {
-          try {
-            const project = await ctx.db.get(id);
-            return { id, exists: !!project };
-          } catch {
-            return { id, exists: false };
-          }
-        })
-      );
-      
-      const validProjectIds = new Set(
-        projectChecks.filter(check => check.exists).map(check => check.id)
-      );
-      
-      // Filter out invalid IDs from arrays
-      const validatedHomepage = {
-        ...homepage,
-        portfolioProjectIds: homepage.portfolioProjectIds?.filter(id => validProjectIds.has(id)) || [],
-        projectsProjectIds: homepage.projectsProjectIds?.filter(id => validProjectIds.has(id)) || [],
+      // This prevents errors when project IDs reference deleted projects
+      const validateProjectIds = async (ids: string[] | undefined): Promise<string[]> => {
+        if (!ids || ids.length === 0) return [];
+        const checks = await Promise.all(
+          ids.map(async (id) => {
+            try {
+              const project = await ctx.db.get(id);
+              return project ? id : null;
+            } catch {
+              return null;
+            }
+          })
+        );
+        return checks.filter((id): id is string => id !== null);
       };
       
-      return validatedHomepage;
+      const validPortfolioIds = await validateProjectIds(homepage.portfolioProjectIds);
+      const validProjectIds = await validateProjectIds(homepage.projectsProjectIds);
+      
+      // Return the homepage with validated project IDs
+      // Always use the validated IDs (even if empty array) to ensure no invalid references
+      return {
+        ...homepage,
+        portfolioProjectIds: validPortfolioIds,
+        projectsProjectIds: validProjectIds,
+      };
     } catch (error: any) {
       // Log error and return null to prevent client crash
       console.error("homepage.get error:", error);
