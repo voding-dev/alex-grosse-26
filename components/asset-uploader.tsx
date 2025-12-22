@@ -748,10 +748,13 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
 
       {/* Media Library Dialog */}
       <Dialog open={mediaLibraryOpen} onOpenChange={setMediaLibraryOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent 
+          className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col"
+          style={{ backgroundColor: '#fff', color: '#1a1a1a' }}
+        >
           <DialogHeader>
-            <DialogTitle>Select from Media Library</DialogTitle>
-            <DialogDescription>
+            <DialogTitle style={{ color: '#1a1a1a' }}>Select from Media Library</DialogTitle>
+            <DialogDescription style={{ color: '#888' }}>
               Choose images or videos from your media library to add to this {uploadType || 'item'}
             </DialogDescription>
           </DialogHeader>
