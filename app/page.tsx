@@ -224,9 +224,9 @@ export default function Home() {
 
         {/* PORTFOLIO Section */}
         <section id="portfolio" className="w-full">
-          <div className="bg-accent w-full px-0 overflow-hidden flex items-center justify-center" style={{ paddingTop: 'clamp(0.25rem, 0.5vw, 0.5rem)', paddingBottom: 'clamp(0.25rem, 0.5vw, 0.5rem)' }}>
+          <div className="bg-accent w-full px-0 overflow-hidden flex items-center justify-center" style={{ paddingTop: 'clamp(0.15rem, 0.3vw, 0.3rem)', paddingBottom: 'clamp(0.4rem, 0.7vw, 0.7rem)' }}>
             <div className="w-full text-center flex items-center justify-center">
-              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.85', margin: '0', fontSize: 'clamp(5.5rem, 18vw, 30rem)', transform: 'translateY(0.035em)' }}>
+              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.85', margin: '0', fontSize: 'clamp(5.5rem, 18vw, 30rem)', transform: 'translateY(-0.02em)' }}>
                 PORTFOLIO
               </h2>
             </div>
@@ -255,9 +255,9 @@ export default function Home() {
 
         {/* PROJECTS Section */}
         <section id="projects" className="w-full">
-          <div className="bg-accent w-full px-0 overflow-hidden flex items-center justify-center" style={{ paddingTop: 'clamp(0.25rem, 0.5vw, 0.5rem)', paddingBottom: 'clamp(0.25rem, 0.5vw, 0.5rem)' }}>
+          <div className="bg-accent w-full px-0 overflow-hidden flex items-center justify-center" style={{ paddingTop: 'clamp(0.15rem, 0.3vw, 0.3rem)', paddingBottom: 'clamp(0.4rem, 0.7vw, 0.7rem)' }}>
             <div className="w-full text-center flex items-center justify-center">
-              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.85', margin: '0', fontSize: 'clamp(5.5rem, 18vw, 30rem)', transform: 'translateY(0.035em)' }}>
+              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.85', margin: '0', fontSize: 'clamp(5.5rem, 18vw, 30rem)', transform: 'translateY(-0.02em)' }}>
                 PROJECTS
               </h2>
             </div>
@@ -286,9 +286,9 @@ export default function Home() {
 
         {/* ABOUT Section Header */}
         <section id="about" className="w-full">
-          <div className="bg-accent w-full px-0 overflow-hidden flex items-center justify-center" style={{ paddingTop: 'clamp(0.25rem, 0.5vw, 0.5rem)', paddingBottom: 'clamp(0.25rem, 0.5vw, 0.5rem)' }}>
+          <div className="bg-accent w-full px-0 overflow-hidden flex items-center justify-center" style={{ paddingTop: 'clamp(0.15rem, 0.3vw, 0.3rem)', paddingBottom: 'clamp(0.4rem, 0.7vw, 0.7rem)' }}>
             <div className="w-full text-center flex items-center justify-center">
-              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.85', margin: '0', fontSize: 'clamp(5.5rem, 18vw, 30rem)', transform: 'translateY(0.035em)' }}>
+              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.85', margin: '0', fontSize: 'clamp(5.5rem, 18vw, 30rem)', transform: 'translateY(-0.02em)' }}>
                 ABOUT
               </h2>
             </div>
@@ -370,9 +370,9 @@ export default function Home() {
 
         {/* CONTACT Section */}
         <section id="contact" className="w-full">
-          <div className="bg-accent w-full px-0 overflow-hidden flex items-center justify-center" style={{ paddingTop: 'clamp(0.25rem, 0.5vw, 0.5rem)', paddingBottom: 'clamp(0.25rem, 0.5vw, 0.5rem)' }}>
+          <div className="bg-accent w-full px-0 overflow-hidden flex items-center justify-center" style={{ paddingTop: 'clamp(0.15rem, 0.3vw, 0.3rem)', paddingBottom: 'clamp(0.4rem, 0.7vw, 0.7rem)' }}>
             <div className="w-full text-center flex items-center justify-center">
-              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.85', margin: '0', fontSize: 'clamp(5.5rem, 18vw, 30rem)', transform: 'translateY(0.035em)' }}>
+              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.85', margin: '0', fontSize: 'clamp(5.5rem, 18vw, 30rem)', transform: 'translateY(-0.02em)' }}>
                 CONTACT
               </h2>
             </div>
