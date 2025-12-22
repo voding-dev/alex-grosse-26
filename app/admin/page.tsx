@@ -12,9 +12,9 @@ export default function AdminPage() {
   }, [router]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#FAFAF9' }}>
       <div className="text-center">
-        <p className="text-foreground/60 uppercase tracking-wider text-sm font-medium">
+        <p className="uppercase tracking-wider text-sm font-medium" style={{ color: '#888' }}>
           Loading...
         </p>
       </div>

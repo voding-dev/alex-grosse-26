@@ -157,14 +157,14 @@ export default function EditProjectPage() {
         <TabsList className="grid w-full grid-cols-2 max-w-md border rounded-lg p-1.5 h-auto items-center gap-1" style={{ backgroundColor: '#fafafa', borderColor: '#e5e5e5' }}>
           <TabsTrigger 
             value="details" 
-            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-white transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
             style={{ color: '#666' }}
           >
             Details
           </TabsTrigger>
           <TabsTrigger 
             value="assets" 
-            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-white transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
             style={{ color: '#666' }}
           >
             Assets ({assets?.length || 0})
@@ -427,7 +427,7 @@ export default function EditProjectPage() {
                             className="w-full h-full object-cover"
                           />
                           {isCover && (
-                            <div className="absolute top-2 left-2 bg-accent text-background px-2 py-1 rounded text-xs font-bold uppercase">
+                            <div className="absolute top-2 left-2 bg-accent text-white px-2 py-1 rounded text-xs font-bold uppercase">
                               Cover
                             </div>
                           )}

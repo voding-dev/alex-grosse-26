@@ -539,28 +539,32 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
             className={`relative border-2 border-dashed rounded-lg p-8 transition-all ${
               isDragging
                 ? "border-accent bg-accent/10 scale-[1.02]"
-                : "border-foreground/20 hover:border-accent/50 hover:bg-foreground/5"
+                : "hover:border-accent/50"
             } ${isUploading ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
+            style={!isDragging ? { borderColor: '#e5e5e5', backgroundColor: '#fafafa' } : {}}
             onClick={() => !isUploading && fileInputRef.current?.click()}
           >
             <div className="flex flex-col items-center justify-center text-center space-y-4">
               <div className={`p-4 rounded-full transition-colors ${
-                isDragging ? "bg-accent/20" : "bg-foreground/5"
-              }`}>
+                isDragging ? "bg-accent/20" : ""
+              }`}
+              style={!isDragging ? { backgroundColor: '#f5f5f5' } : {}}>
                 <Upload className={`h-8 w-8 transition-colors ${
-                  isDragging ? "text-accent" : "text-foreground/60"
-                }`} />
+                  isDragging ? "text-accent" : ""
+                }`}
+                style={!isDragging ? { color: '#888' } : {}} />
               </div>
               <div>
                 <p className={`text-base font-bold transition-colors ${
-                  isDragging ? "text-accent" : "text-foreground"
-                }`}>
+                  isDragging ? "text-accent" : ""
+                }`}
+                style={!isDragging ? { color: '#1a1a1a' } : {}}>
                   {isDragging ? "Drop files here" : "Drag & drop files here"}
                 </p>
-                <p className="text-sm text-foreground/60 mt-1">
+                <p className="text-sm mt-1" style={{ color: '#888' }}>
                   or click to browse
                 </p>
-                <p className="text-xs text-foreground/50 mt-2">
+                <p className="text-xs mt-2" style={{ color: '#999' }}>
                   Supports images, videos, and PDFs
                 </p>
               </div>
@@ -593,20 +597,21 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
 
           {selectedFiles.length > 0 && (
             <div className="space-y-2">
-              <p className="text-sm text-foreground/60">
+              <p className="text-sm" style={{ color: '#888' }}>
                 {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
               </p>
               <div className="max-h-60 space-y-2 overflow-y-auto">
                 {selectedFiles.map((file, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between rounded-md border border-foreground/10 bg-foreground/5 p-3"
+                    className="flex items-center justify-between rounded-md border p-3"
+                    style={{ borderColor: '#e5e5e5', backgroundColor: '#fafafa' }}
                   >
                     <div className="flex items-center gap-3">
                       {getFileIcon(file.type)}
                       <div>
-                        <p className="text-sm font-medium">{file.name}</p>
-                        <p className="text-xs text-foreground/60">
+                        <p className="text-sm font-medium" style={{ color: '#1a1a1a' }}>{file.name}</p>
+                        <p className="text-xs" style={{ color: '#888' }}>
                           {(file.size / 1024 / 1024).toFixed(2)} MB
                         </p>
                       </div>
@@ -626,7 +631,7 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
 
               {isUploading ? (
                 <div className="w-full space-y-2">
-                  <div className="flex items-center justify-between text-sm text-foreground/80">
+                  <div className="flex items-center justify-between text-sm" style={{ color: '#555' }}>
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Uploading...</span>
@@ -649,12 +654,12 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
           )}
 
           {/* Video URL Input Section */}
-          <div className="space-y-4 border-t border-foreground/10 pt-4">
+          <div className="space-y-4 border-t pt-4" style={{ borderColor: '#e5e5e5' }}>
             <div>
               <Label htmlFor="video-url" className="text-base font-semibold mb-2 block">
                 Add YouTube or Vimeo Video
               </Label>
-              <p className="text-sm text-foreground/60 mb-3">
+              <p className="text-sm mb-3" style={{ color: '#888' }}>
                 Paste a YouTube or Vimeo URL to embed it in your portfolio or project
               </p>
               <div className="flex gap-2">
@@ -687,20 +692,21 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
 
             {videoUrls.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm text-foreground/60">
+                <p className="text-sm" style={{ color: '#888' }}>
                   {videoUrls.length} video{videoUrls.length > 1 ? 's' : ''} ready to add
                 </p>
                 <div className="max-h-60 space-y-2 overflow-y-auto">
                   {videoUrls.map((video, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between rounded-md border border-foreground/10 bg-foreground/5 p-3"
+                      className="flex items-center justify-between rounded-md border p-3"
+                      style={{ borderColor: '#e5e5e5', backgroundColor: '#fafafa' }}
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <Video className="h-5 w-5 flex-shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate">{video.filename}</p>
-                          <p className="text-xs text-foreground/60 truncate">{video.url}</p>
+                          <p className="text-sm font-medium truncate" style={{ color: '#1a1a1a' }}>{video.filename}</p>
+                          <p className="text-xs truncate" style={{ color: '#888' }}>{video.url}</p>
                         </div>
                       </div>
                       <Button
@@ -753,7 +759,7 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
             {/* Filters */}
             <div className="flex gap-2 items-center flex-shrink-0">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/40" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4" style={{ color: '#999' }} />
                 <Input
                   placeholder="Search media..."
                   value={mediaSearchQuery}
@@ -806,19 +812,19 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
                 </div>
               ) : (
                 <div className="py-16 text-center">
-                  <ImageIcon className="mx-auto h-16 w-16 text-foreground/40 mb-6" />
-                  <p className="mb-4 text-xl font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                  <ImageIcon className="mx-auto h-16 w-16 mb-6" style={{ color: '#ccc' }} />
+                  <p className="mb-4 text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900', color: '#1a1a1a' }}>
                     No media found
                   </p>
-                  <p className="text-sm text-foreground/70">
+                  <p className="text-sm" style={{ color: '#666' }}>
                     Upload media to your media library first.
                   </p>
                 </div>
               )}
             </div>
             {selectedMediaItems.length > 0 && (
-              <div className="border-t border-foreground/10 pt-4 flex-shrink-0">
-                <p className="text-sm text-foreground/60 mb-2">
+              <div className="border-t pt-4 flex-shrink-0" style={{ borderColor: '#e5e5e5' }}>
+                <p className="text-sm mb-2" style={{ color: '#888' }}>
                   {selectedMediaItems.length} item{selectedMediaItems.length > 1 ? 's' : ''} selected
                 </p>
               </div>
@@ -831,14 +837,13 @@ export function AssetUploader({ projectId, portfolioId, deliveryId, uploadType, 
                 setMediaLibraryOpen(false);
                 setSelectedMediaItems([]);
               }}
-              className="border-foreground/20 hover:bg-foreground/10"
             >
               Cancel
             </Button>
             <Button
               onClick={handleAddSelectedMedia}
               disabled={isUploading || selectedMediaItems.length === 0}
-              className="bg-accent hover:bg-accent/90 text-background"
+              className="bg-accent hover:bg-accent/90 text-white"
             >
               {isUploading ? (
                 <>
@@ -881,15 +886,16 @@ function MediaSelectorItem({
   return (
     <div
       className={`relative aspect-square border rounded overflow-hidden cursor-pointer hover:border-accent transition ${
-        isSelected ? "border-accent ring-2 ring-accent" : "border-foreground/20"
+        isSelected ? "border-accent ring-2 ring-accent" : ""
       }`}
+      style={!isSelected ? { borderColor: '#e5e5e5' } : {}}
       onClick={handleClick}
     >
       {imageUrl ? (
         <img src={imageUrl} alt={media.filename || "Media"} className="w-full h-full object-cover" />
       ) : (
-        <div className="w-full h-full bg-foreground/5 flex items-center justify-center">
-          <ImageIcon className="h-8 w-8 text-foreground/30" />
+        <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#f5f5f5' }}>
+          <ImageIcon className="h-8 w-8" style={{ color: '#ccc' }} />
         </div>
       )}
       {isSelected && (
