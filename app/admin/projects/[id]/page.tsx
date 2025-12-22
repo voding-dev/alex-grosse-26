@@ -119,7 +119,7 @@ export default function EditProjectPage() {
     return (
       <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
         <div className="text-center py-16">
-          <p className="text-foreground/60">Loading project...</p>
+          <p style={{ color: '#666' }}>Loading project...</p>
         </div>
       </div>
     );
@@ -129,7 +129,7 @@ export default function EditProjectPage() {
     return (
       <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
         <div className="text-center py-16">
-          <p className="text-foreground/60 mb-4">Project not found</p>
+          <p className="mb-4" style={{ color: '#666' }}>Project not found</p>
           <Link href="/admin/website-editor">
             <Button variant="outline">Back to Website Editor</Button>
           </Link>
@@ -145,25 +145,27 @@ export default function EditProjectPage() {
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
           Back to Website Editor
         </Link>
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em', color: '#1a1a1a' }}>
           Edit Project
         </h1>
-        <p className="text-foreground/70 text-base sm:text-lg">
+        <p className="text-base sm:text-lg" style={{ color: '#666' }}>
           Edit project details and settings
         </p>
       </div>
 
       <Tabs defaultValue="details" className="space-y-8">
-        <TabsList className="grid w-full grid-cols-2 max-w-md bg-foreground/5 border border-foreground/20 rounded-lg p-1.5 h-auto items-center gap-1">
+        <TabsList className="grid w-full grid-cols-2 max-w-md border rounded-lg p-1.5 h-auto items-center gap-1" style={{ backgroundColor: '#fafafa', borderColor: '#e5e5e5' }}>
           <TabsTrigger 
             value="details" 
-            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            style={{ color: '#666' }}
           >
             Details
           </TabsTrigger>
           <TabsTrigger 
             value="assets" 
-            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background data-[state=inactive]:text-foreground/60 hover:text-foreground transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-background transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
+            style={{ color: '#666' }}
           >
             Assets ({assets?.length || 0})
           </TabsTrigger>
@@ -174,14 +176,14 @@ export default function EditProjectPage() {
         {/* Info Banner */}
         <Card className="border border-accent/30 bg-accent/5">
           <CardContent className="p-4 sm:p-6">
-            <p className="text-sm text-foreground/80 leading-relaxed">
-              <strong className="text-foreground font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>Projects</strong> are for client delivery portals (PIN-gated file delivery). These are separate from portfolio items, which are for public website display.
+            <p className="text-sm leading-relaxed" style={{ color: '#555' }}>
+              <strong className="font-black uppercase tracking-wider" style={{ fontWeight: '900', color: '#1a1a1a' }}>Projects</strong> are for client delivery portals (PIN-gated file delivery). These are separate from portfolio items, which are for public website display.
             </p>
           </CardContent>
         </Card>
 
         {/* Basic Information */}
-        <Card className="border border-foreground/20">
+        <Card className="border" style={{ borderColor: '#e5e5e5', backgroundColor: '#fff' }}>
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Basic Information
@@ -217,7 +219,7 @@ export default function EditProjectPage() {
                 required
                 className="h-12 text-base"
               />
-              <p className="mt-2 text-xs text-foreground/60">
+              <p className="mt-2 text-xs" style={{ color: '#888' }}>
                 Used in the URL: /project/{formData.slug || "..."}
               </p>
             </div>
@@ -238,7 +240,7 @@ export default function EditProjectPage() {
         </Card>
 
         {/* Categories */}
-        <Card className="border border-foreground/20">
+        <Card className="border" style={{ borderColor: '#e5e5e5', backgroundColor: '#fff' }}>
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Categories *
@@ -257,8 +259,9 @@ export default function EditProjectPage() {
                   className={`p-4 rounded-lg border-2 transition-all font-bold uppercase tracking-wider ${
                     formData.categories.includes(category)
                       ? "border-accent bg-accent/10 text-accent"
-                      : "border-foreground/20 hover:border-accent/50 hover:bg-foreground/5"
+                      : "hover:border-accent/50"
                   }`}
+                  style={formData.categories.includes(category) ? {} : { borderColor: '#e5e5e5', backgroundColor: '#fff', color: '#1a1a1a' }}
                 >
                   {category.charAt(0).toUpperCase() + category.slice(1)}
                 </button>
@@ -268,7 +271,7 @@ export default function EditProjectPage() {
         </Card>
 
         {/* Status */}
-        <Card className="border border-foreground/20">
+        <Card className="border" style={{ borderColor: '#e5e5e5', backgroundColor: '#fff' }}>
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Status
@@ -281,7 +284,8 @@ export default function EditProjectPage() {
             <select
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-              className="flex h-12 w-full rounded-md border border-foreground/20 bg-background px-3 py-2 text-base"
+              className="flex h-12 w-full rounded-md border px-3 py-2 text-base"
+              style={{ borderColor: '#e5e5e5', backgroundColor: '#fff', color: '#1a1a1a' }}
             >
               <option value="draft">Draft</option>
               <option value="review">Review</option>
@@ -289,14 +293,14 @@ export default function EditProjectPage() {
               <option value="delivered">Delivered</option>
               <option value="archived">Archived</option>
             </select>
-            <p className="mt-2 text-xs text-foreground/60">
+            <p className="mt-2 text-xs" style={{ color: '#888' }}>
               Only "approved" or "delivered" projects appear on the public website
             </p>
           </CardContent>
         </Card>
 
         {/* Notes */}
-        <Card className="border border-foreground/20">
+        <Card className="border" style={{ borderColor: '#e5e5e5', backgroundColor: '#fff' }}>
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Notes
@@ -360,7 +364,8 @@ export default function EditProjectPage() {
             <Button 
               type="button" 
               variant="outline"
-              className="w-full sm:w-auto font-bold uppercase tracking-wider hover:bg-foreground/10 transition-colors"
+              className="w-full sm:w-auto font-bold uppercase tracking-wider transition-colors"
+              style={{ borderColor: '#e5e5e5' }}
             >
               Cancel
             </Button>
@@ -371,16 +376,16 @@ export default function EditProjectPage() {
 
         <TabsContent value="assets" className="space-y-8">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-foreground mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+            <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em', color: '#1a1a1a' }}>
               Assets
             </h2>
-            <p className="text-foreground/70 text-base sm:text-lg mb-8">
+            <p className="text-base sm:text-lg mb-8" style={{ color: '#666' }}>
               Upload and manage assets for this project
             </p>
           </div>
 
           {/* Asset Uploader */}
-          <Card className="border border-foreground/20">
+          <Card className="border" style={{ borderColor: '#e5e5e5', backgroundColor: '#fff' }}>
             <CardHeader className="pb-4">
               <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
                 Upload Assets
@@ -400,7 +405,7 @@ export default function EditProjectPage() {
 
           {/* Asset List */}
           {assets && assets.length > 0 && (
-            <Card className="border border-foreground/20">
+            <Card className="border" style={{ borderColor: '#e5e5e5', backgroundColor: '#fff' }}>
               <CardHeader className="pb-4">
                 <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
                   Assets ({assets.length})
@@ -416,7 +421,7 @@ export default function EditProjectPage() {
 
                     return (
                       <div key={asset._id} className="relative group">
-                        <div className={`aspect-square rounded-lg border-2 overflow-hidden ${isCover ? "border-accent" : "border-foreground/20"}`}>
+                        <div className={`aspect-square rounded-lg border-2 overflow-hidden ${isCover ? "border-accent" : ""}`} style={!isCover ? { borderColor: '#e5e5e5' } : {}}>
                           <AssetThumbnail
                             asset={asset}
                             className="w-full h-full object-cover"
@@ -547,13 +552,13 @@ export default function EditProjectPage() {
           )}
 
           {(!assets || assets.length === 0) && (
-            <Card className="border border-foreground/20">
+            <Card className="border" style={{ borderColor: '#e5e5e5', backgroundColor: '#fff' }}>
               <CardContent className="py-16 text-center">
-                <Upload className="mx-auto h-16 w-16 text-foreground/40 mb-6" />
-                <p className="mb-4 text-xl font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                <Upload className="mx-auto h-16 w-16 mb-6" style={{ color: '#ccc' }} />
+                <p className="mb-4 text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900', color: '#1a1a1a' }}>
                   No assets yet
                 </p>
-                <p className="text-sm text-foreground/70">
+                <p className="text-sm" style={{ color: '#666' }}>
                   Upload assets using the uploader above
                 </p>
               </CardContent>

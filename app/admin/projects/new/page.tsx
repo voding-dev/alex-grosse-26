@@ -100,10 +100,10 @@ export default function NewProjectPage() {
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
           Back to Website Editor
         </Link>
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em' }}>
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight mb-4" style={{ fontWeight: '900', letterSpacing: '-0.02em', color: '#1a1a1a' }}>
           Create Project
         </h1>
-        <p className="text-foreground/70 text-base sm:text-lg">
+        <p className="text-base sm:text-lg" style={{ color: '#666' }}>
           Create a new project for client delivery portals (separate from portfolio items)
         </p>
       </div>
@@ -112,14 +112,14 @@ export default function NewProjectPage() {
         {/* Info Banner */}
         <Card className="border border-accent/30 bg-accent/5">
           <CardContent className="p-4 sm:p-6">
-            <p className="text-sm text-foreground/80 leading-relaxed">
-              <strong className="text-foreground font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>Projects</strong> are for client delivery portals (PIN-gated file delivery). These are separate from portfolio items, which are for public website display. All approved/delivered projects appear in the Projects section on your homepage.
+            <p className="text-sm leading-relaxed" style={{ color: '#555' }}>
+              <strong className="font-black uppercase tracking-wider" style={{ fontWeight: '900', color: '#1a1a1a' }}>Projects</strong> are for client delivery portals (PIN-gated file delivery). These are separate from portfolio items, which are for public website display. All approved/delivered projects appear in the Projects section on your homepage.
             </p>
           </CardContent>
         </Card>
 
         {/* Basic Information */}
-        <Card className="border border-foreground/20">
+        <Card className="border" style={{ borderColor: '#e5e5e5', backgroundColor: '#fff' }}>
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Basic Information
@@ -155,7 +155,7 @@ export default function NewProjectPage() {
                 required
                 className="h-12 text-base"
               />
-              <p className="mt-2 text-xs text-foreground/60">
+              <p className="mt-2 text-xs" style={{ color: '#888' }}>
                 Used in the URL: /project/{formData.slug || "..."}
               </p>
             </div>
@@ -176,7 +176,7 @@ export default function NewProjectPage() {
         </Card>
 
         {/* Categories */}
-        <Card className="border border-foreground/20">
+        <Card className="border" style={{ borderColor: '#e5e5e5', backgroundColor: '#fff' }}>
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Categories *
@@ -195,8 +195,9 @@ export default function NewProjectPage() {
                   className={`p-4 rounded-lg border-2 transition-all font-bold uppercase tracking-wider ${
                     formData.categories.includes(category)
                       ? "border-accent bg-accent/10 text-accent"
-                      : "border-foreground/20 hover:border-accent/50 hover:bg-foreground/5"
+                      : "hover:border-accent/50"
                   }`}
+                  style={formData.categories.includes(category) ? {} : { borderColor: '#e5e5e5', backgroundColor: '#fff', color: '#1a1a1a' }}
                 >
                   {category.charAt(0).toUpperCase() + category.slice(1)}
                 </button>
@@ -206,7 +207,7 @@ export default function NewProjectPage() {
         </Card>
 
         {/* Status */}
-        <Card className="border border-foreground/20">
+        <Card className="border" style={{ borderColor: '#e5e5e5', backgroundColor: '#fff' }}>
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Status
@@ -219,7 +220,8 @@ export default function NewProjectPage() {
             <select
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-              className="flex h-12 w-full rounded-md border border-foreground/20 bg-background px-3 py-2 text-base"
+              className="flex h-12 w-full rounded-md border px-3 py-2 text-base"
+              style={{ borderColor: '#e5e5e5', backgroundColor: '#fff', color: '#1a1a1a' }}
             >
               <option value="draft">Draft</option>
               <option value="review">Review</option>
@@ -227,14 +229,14 @@ export default function NewProjectPage() {
               <option value="delivered">Delivered</option>
               <option value="archived">Archived</option>
             </select>
-            <p className="mt-2 text-xs text-foreground/60">
+            <p className="mt-2 text-xs" style={{ color: '#888' }}>
               Only "approved" or "delivered" projects appear on the public website
             </p>
           </CardContent>
         </Card>
 
         {/* Notes */}
-        <Card className="border border-foreground/20">
+        <Card className="border" style={{ borderColor: '#e5e5e5', backgroundColor: '#fff' }}>
           <CardHeader className="pb-4">
             <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Notes
@@ -288,7 +290,8 @@ export default function NewProjectPage() {
             <Button 
               type="button" 
               variant="outline"
-              className="w-full sm:w-auto font-bold uppercase tracking-wider hover:bg-foreground/10 transition-colors"
+              className="w-full sm:w-auto font-bold uppercase tracking-wider transition-colors"
+              style={{ borderColor: '#e5e5e5' }}
             >
               Cancel
             </Button>
