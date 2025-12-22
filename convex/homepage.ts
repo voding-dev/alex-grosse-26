@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 import { requireAdmin } from "./auth";
 
 // Get homepage content
@@ -19,7 +20,7 @@ export const get = query({
       
       // Validate and filter out invalid project references
       // This prevents errors when project IDs reference deleted projects
-      const validateProjectIds = async (ids: string[] | undefined): Promise<string[]> => {
+      const validateProjectIds = async (ids: Id<"projects">[] | undefined): Promise<Id<"projects">[]> => {
         if (!ids || ids.length === 0) return [];
         const checks = await Promise.all(
           ids.map(async (id) => {
@@ -31,7 +32,7 @@ export const get = query({
             }
           })
         );
-        return checks.filter((id): id is string => id !== null);
+        return checks.filter((id): id is Id<"projects"> => id !== null);
       };
       
       const validPortfolioIds = await validateProjectIds(homepage.portfolioProjectIds);
