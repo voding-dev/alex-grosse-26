@@ -210,7 +210,7 @@ async function renderCoverPage(
   doc.rect(0, 0, pageWidth, pageHeight, "F");
 
   // Alex Grosse wordmark at top center (matching preview - larger size)
-  const wordmarkPath = "/ag-wordmark-white.svg";
+  const wordmarkPath = "/wordmark-alexgrosse-white.svg";
   try {
     const wordmarkDataUrl = await convertImageToPNG(wordmarkPath);
     const wordmarkWidth = 200; // Larger to match preview h-20 to h-36

@@ -16,7 +16,7 @@ export const BRAND_PRESETS: Record<BrandingPresetId, BrandingPreset> = {
     primary: "#161616",
     accent: "#586034",
     text: "#FFFFFF",
-    logoUrl: "/ag-wordmark-white.svg",
+    logoUrl: "/wordmark-alexgrosse-white.svg",
   },
   voding: {
     id: "voding",
@@ -24,7 +24,6 @@ export const BRAND_PRESETS: Record<BrandingPresetId, BrandingPreset> = {
     primary: "#0A0F0D",
     accent: "#10EC7F",
     text: "#D6F7E6",
-    logoUrl: "/voding-logo-white.svg",
   },
   styledriven: {
     id: "styledriven",
@@ -32,7 +31,6 @@ export const BRAND_PRESETS: Record<BrandingPresetId, BrandingPreset> = {
     primary: "#0A0A0A",
     accent: "#D2FF65",
     text: "#FFFFFF",
-    logoUrl: "/style-driven-logo-lime.svg",
   },
 };
 

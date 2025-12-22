@@ -94,7 +94,7 @@ export default function AdminLogin() {
             <div className="mb-4 sm:mb-6 flex items-center justify-center">
               <div className="p-4 rounded-2xl" style={{ backgroundColor: '#586034' }}>
                 <Image
-                  src="/ag-brandmark-white.svg"
+                  src="/smallbrandmark-alexgrosse-white.svg"
                   alt="Alex Grosse"
                   width={48}
                   height={48}

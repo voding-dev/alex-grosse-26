@@ -17,7 +17,7 @@ export function LightboxHeader({ onClose }: LightboxHeaderProps) {
       {/* Centered SVG */}
       <div className="flex items-center justify-center">
         <Image
-          src="/ag-wordmark-white.svg"
+          src="/wordmark-alexgrosse-white.svg"
           alt="Alex Grosse"
           width={280}
           height={70}

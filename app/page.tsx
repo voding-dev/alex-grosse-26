@@ -374,15 +374,9 @@ export default function Home() {
                         href="https://styledriven.com" 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="inline-block border border-black/20 rounded-md p-1.5 transition-opacity hover:border-black/40 hover:shadow-md hover:opacity-70"
+                        className="text-black font-medium text-sm sm:text-base hover:opacity-70"
                       >
-                        <Image
-                          src="/style-driven-logo-dark.svg"
-                          alt="Style Driven"
-                          width={300}
-                          height={60}
-                          className="h-4 w-auto sm:h-5"
-                        />
+                        Style Driven
                       </a>
                       <span className="text-black font-medium text-sm sm:text-base">- production house</span>
                     </div>
@@ -391,15 +385,9 @@ export default function Home() {
                         href="https://voding.dev" 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="inline-block border border-black/20 rounded-md p-1.5 transition-opacity hover:border-black/40 hover:shadow-md hover:opacity-70"
+                        className="text-black font-medium text-sm sm:text-base hover:opacity-70"
                       >
-                        <Image
-                          src="/voding-logo-dark.svg"
-                          alt="Voding"
-                          width={200}
-                          height={60}
-                          className="h-4 w-auto sm:h-5"
-                        />
+                        Voding
                       </a>
                       <span className="text-black font-medium text-sm sm:text-base">- software development</span>
                     </div>
@@ -609,7 +597,7 @@ export default function Home() {
             <div className="flex flex-col items-center justify-center gap-6">
               <div className="flex items-center">
                 <Image
-                  src="/ag-brandmark-white.svg"
+                  src="/smallbrandmark-alexgrosse-white.svg"
                   alt="Alex Grosse"
                   width={32}
                   height={32}

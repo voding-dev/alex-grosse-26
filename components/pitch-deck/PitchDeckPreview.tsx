@@ -55,7 +55,7 @@ export function PitchDeckPreview(props: PitchDeckPreviewProps) {
         <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
           <div className="mb-6 flex items-center justify-center">
             <Image
-              src="/ag-wordmark-white.svg"
+              src="/wordmark-alexgrosse-white.svg"
               alt="ALEX GROSSE"
               width={600}
               height={150}

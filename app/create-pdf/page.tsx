@@ -114,7 +114,7 @@ export default function CreatePdfPage() {
         email: (settings?.pdfEmail as string) || "",
         phone: (settings?.pdfPhone as string) || "",
         website: (settings?.pdfWebsite as string) || "",
-        logoUrl: "/ag-wordmark-white.svg",
+        logoUrl: "/wordmark-alexgrosse-white.svg",
       };
 
       const images: SelectedImage[] = selectedImages.map(img => ({
@@ -145,7 +145,7 @@ export default function CreatePdfPage() {
         <div className="p-6 border-b border-gray-200">
           <Link href="/" className="block mb-4">
             <Image
-              src="/ag-wordmark-dark.svg"
+              src="/wordmark-alexgrosse-dark.svg"
               alt="Alex Grosse"
               width={140}
               height={35}

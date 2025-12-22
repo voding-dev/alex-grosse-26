@@ -155,7 +155,7 @@ export default function PortfolioPage({ params }: { params: Promise<{ slug: stri
             <div className="flex flex-col items-center justify-center gap-4">
               <div className="flex items-center">
                 <Image
-                  src="/ag-wordmark-white.svg"
+                  src="/wordmark-alexgrosse-white.svg"
                   alt="Alex Grosse"
                   width={600}
                   height={150}

@@ -40,7 +40,7 @@ export function LoadingPage() {
           }}
         >
           <Image
-            src="/ag-brandmark-white.svg"
+            src="/smallbrandmark-alexgrosse-white.svg"
             alt="Alex Grosse"
             width={32}
             height={32}

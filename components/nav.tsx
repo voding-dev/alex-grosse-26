@@ -37,7 +37,7 @@ export function Nav() {
           {/* Center logo - Wordmark */}
           <Link href="/" className="flex items-center justify-center">
             <Image
-              src="/ag-wordmark-white.svg"
+              src="/wordmark-alexgrosse-white.svg"
               alt="Alex Grosse"
               width={180}
               height={45}
@@ -64,7 +64,7 @@ export function Nav() {
             <div className="flex items-center justify-between border-b border-black/10 px-6 py-6">
               <Link href="/" onClick={() => setIsMenuOpen(false)} className="flex items-center">
                 <Image
-                  src="/ag-brandmark.svg"
+                  src="/smallbrandmark-alexgrosse.svg"
                   alt="Alex Grosse"
                   width={40}
                   height={40}

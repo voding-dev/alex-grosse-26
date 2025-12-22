@@ -67,7 +67,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="mb-4 flex items-center justify-center">
             <div className="p-3 rounded-xl" style={{ backgroundColor: '#586034' }}>
               <Image
-                src="/ag-brandmark-white.svg"
+                src="/smallbrandmark-alexgrosse-white.svg"
                 alt="Loading"
                 width={32}
                 height={32}
@@ -100,7 +100,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="mb-4 flex items-center justify-center">
             <div className="p-3 rounded-xl" style={{ backgroundColor: '#586034' }}>
               <Image
-                src="/ag-brandmark-white.svg"
+                src="/smallbrandmark-alexgrosse-white.svg"
                 alt="Loading"
                 width={32}
                 height={32}
@@ -159,7 +159,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link href="/admin/website-editor/hero" className="flex items-center gap-3 group" onClick={() => setMobileMenuOpen(false)}>
               <div className="relative overflow-hidden rounded-xl p-2 transition-all duration-300 group-hover:scale-105" style={{ backgroundColor: '#586034' }}>
                 <Image
-                  src="/ag-brandmark-white.svg"
+                  src="/smallbrandmark-alexgrosse-white.svg"
                   alt="Admin"
                   width={32}
                   height={32}
