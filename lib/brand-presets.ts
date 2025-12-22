@@ -1,4 +1,4 @@
-export type BrandingPresetId = "ian" | "voding" | "styledriven";
+export type BrandingPresetId = "alexgrosse" | "voding" | "styledriven";
 
 export type BrandingPreset = {
   id: BrandingPresetId;
@@ -10,13 +10,13 @@ export type BrandingPreset = {
 };
 
 export const BRAND_PRESETS: Record<BrandingPresetId, BrandingPreset> = {
-  ian: {
-    id: "ian",
-    name: "Ian Courtright",
-    primary: "#0B0F0E",
-    accent: "#FFA617",
+  alexgrosse: {
+    id: "alexgrosse",
+    name: "Alex Grosse",
+    primary: "#161616",
+    accent: "#586034",
     text: "#FFFFFF",
-    logoUrl: "/ic-wordmark-white.svg",
+    logoUrl: "/ag-wordmark-white.svg",
   },
   voding: {
     id: "voding",
@@ -40,7 +40,7 @@ export function resolveBranding(
   presetId?: BrandingPresetId | null,
   overrides?: Partial<Pick<BrandingPreset, "primary" | "accent" | "text" | "logoUrl">>
 ) {
-  const base = (presetId && BRAND_PRESETS[presetId]) || BRAND_PRESETS.ian;
+  const base = (presetId && BRAND_PRESETS[presetId]) || BRAND_PRESETS.alexgrosse;
   return {
     ...base,
     ...overrides,

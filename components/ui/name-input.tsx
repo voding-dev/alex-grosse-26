@@ -31,7 +31,7 @@ export function NameInput({ value, onChange, disabled, required, className = "" 
         {/* User icon */}
         <div className="absolute left-4 pointer-events-none">
           <User className={`h-4 w-4 transition-colors ${
-            isFocused ? "text-foreground/60" : "text-foreground/30"
+            isFocused ? "text-black/60" : "text-black/30"
           }`} />
         </div>
 
@@ -50,7 +50,7 @@ export function NameInput({ value, onChange, disabled, required, className = "" 
           }}
           required={required}
           disabled={disabled}
-          className="w-full bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground pl-11 pr-11 py-3 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 disabled:opacity-50 outline-none"
+          className="w-full bg-black/5 hover:bg-black/8 focus:bg-white border-2 border-transparent focus:border-black pl-11 pr-11 py-3 text-sm text-black placeholder:text-black/40 transition-all duration-200 disabled:opacity-50 outline-none"
           style={{ fontWeight: "500" }}
         />
 

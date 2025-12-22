@@ -107,12 +107,17 @@ export function MediaLibrarySelector({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent 
+        className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col !bg-[#FAFAF9] !border-gray-200 [&>button]:text-gray-500 [&>button:hover]:text-gray-800"
+      >
         <DialogHeader>
-          <DialogTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+          <DialogTitle 
+            className="text-2xl font-black uppercase tracking-wider !text-[#1a1a1a]" 
+            style={{ fontWeight: '900' }}
+          >
             {title}
           </DialogTitle>
-          <DialogDescription className="text-base pt-2">
+          <DialogDescription className="text-base pt-2 !text-[#666]">
             {description}
           </DialogDescription>
         </DialogHeader>
@@ -121,20 +126,20 @@ export function MediaLibrarySelector({
           {/* Filters */}
           <div className="flex gap-2 items-center flex-shrink-0">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/40" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search media..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className="pl-9 !bg-white !border-gray-200 !text-gray-900 placeholder:!text-gray-400"
               />
             </div>
             {mediaType === "all" && (
               <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-[140px] !bg-white !border-gray-200 !text-gray-900">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="!bg-white !border-gray-200">
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="image">Images</SelectItem>
                   <SelectItem value="video">Videos</SelectItem>
@@ -142,10 +147,10 @@ export function MediaLibrarySelector({
               </Select>
             )}
             <Select value={folderFilter} onValueChange={setFolderFilter}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-[160px] !bg-white !border-gray-200 !text-gray-900">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="!bg-white !border-gray-200">
                 <SelectItem value="all">All Folders</SelectItem>
                 {mediaFolders?.map((folder) => (
                   <SelectItem key={folder} value={folder}>
@@ -180,11 +185,11 @@ export function MediaLibrarySelector({
               </div>
             ) : (
               <div className="py-16 text-center">
-                <ImageIcon className="mx-auto h-16 w-16 text-foreground/40 mb-6" />
-                <p className="mb-4 text-xl font-black uppercase tracking-wider text-foreground" style={{ fontWeight: '900' }}>
+                <ImageIcon className="mx-auto h-16 w-16 mb-6 text-gray-300" />
+                <p className="mb-4 text-xl font-black uppercase tracking-wider text-gray-900" style={{ fontWeight: '900' }}>
                   No media found
                 </p>
-                <p className="text-sm text-foreground/70">
+                <p className="text-sm text-gray-500">
                   {searchQuery || folderFilter !== "all"
                     ? "Try adjusting your filters."
                     : "Upload media to your media library first."}
@@ -195,8 +200,8 @@ export function MediaLibrarySelector({
 
           {/* Selected count */}
           {selectedItems.length > 0 && (
-            <div className="border-t border-foreground/10 pt-4 flex-shrink-0">
-              <p className="text-sm font-bold text-foreground/70 uppercase tracking-wider">
+            <div className="border-t border-gray-200 pt-4 flex-shrink-0">
+              <p className="text-sm font-bold uppercase tracking-wider text-gray-500">
                 {selectedItems.length} item{selectedItems.length !== 1 ? 's' : ''} selected
               </p>
             </div>
@@ -207,15 +212,15 @@ export function MediaLibrarySelector({
           <Button
             variant="outline"
             onClick={handleCancel}
-            className="font-bold uppercase tracking-wider"
+            className="font-bold uppercase tracking-wider !bg-white !border-gray-200 !text-gray-700 hover:!bg-gray-50"
           >
             Cancel
           </Button>
           <Button
             onClick={handleConfirm}
             disabled={selectedItems.length === 0}
-            className="font-black uppercase tracking-wider"
-            style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+            className="font-black uppercase tracking-wider !bg-[#586034] hover:!bg-[#4a5229] !text-white"
+            style={{ fontWeight: '900' }}
           >
             <ImageIcon className="mr-2 h-4 w-4" />
             {confirmButtonText || `Add ${selectedItems.length} Image${selectedItems.length !== 1 ? 's' : ''}`}
@@ -244,8 +249,8 @@ function MediaSelectorItem({ media, onSelect, isSelected }: MediaSelectorItemPro
 
   return (
     <div
-      className={`relative aspect-square border-2 rounded-lg overflow-hidden cursor-pointer hover:border-accent transition-all ${
-        isSelected ? "border-accent ring-2 ring-accent" : "border-foreground/20"
+      className={`relative aspect-square border-2 rounded-lg overflow-hidden cursor-pointer transition-all hover:shadow-md ${
+        isSelected ? 'border-[#586034] ring-2 ring-[#586034]' : 'border-gray-200 hover:border-gray-300'
       }`}
       onClick={handleClick}
     >
@@ -256,13 +261,13 @@ function MediaSelectorItem({ media, onSelect, isSelected }: MediaSelectorItemPro
           className="w-full h-full object-cover"
         />
       ) : (
-        <div className="w-full h-full bg-foreground/5 flex items-center justify-center">
-          <ImageIcon className="h-8 w-8 text-foreground/40" />
+        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+          <ImageIcon className="h-8 w-8 text-gray-300" />
         </div>
       )}
       {isSelected && (
-        <div className="absolute inset-0 bg-accent/20 flex items-center justify-center">
-          <div className="bg-accent rounded-full p-2">
+        <div className="absolute inset-0 flex items-center justify-center bg-[#586034]/30">
+          <div className="rounded-full p-2 bg-[#586034]">
             <Check className="h-6 w-6 text-white" />
           </div>
         </div>
@@ -273,5 +278,3 @@ function MediaSelectorItem({ media, onSelect, isSelected }: MediaSelectorItemPro
     </div>
   );
 }
-
-

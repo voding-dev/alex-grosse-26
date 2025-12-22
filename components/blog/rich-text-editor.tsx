@@ -166,12 +166,11 @@ export function RichTextEditor({ content, onChange, placeholder, className = "" 
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`p-2 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-        active
-          ? 'bg-accent text-white'
-          : 'hover:bg-foreground/10 text-foreground/70 hover:text-foreground'
-      }`}
-      style={active ? { backgroundColor: '#FFA617' } : {}}
+      className="p-2 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+      style={active 
+        ? { backgroundColor: '#586034', color: '#fff' } 
+        : { color: '#666', backgroundColor: 'transparent' }
+      }
       type="button"
     >
       {children}
@@ -179,39 +178,45 @@ export function RichTextEditor({ content, onChange, placeholder, className = "" 
   );
 
   return (
-    <div className={`border border-foreground/20 rounded-lg bg-background ${className}`}>
+    <div className={`border rounded-lg ${className}`} style={{ borderColor: 'rgba(0,0,0,0.15)', backgroundColor: '#fff' }}>
       <style jsx global>{`
         .ProseMirror {
           outline: none !important;
+          color: #1a1a1a !important;
         }
         .ProseMirror h1 {
           font-size: 2.5rem !important;
           line-height: 1.2 !important;
           margin-top: 2rem !important;
           margin-bottom: 1.5rem !important;
+          color: #1a1a1a !important;
         }
         .ProseMirror h2 {
           font-size: 2rem !important;
           line-height: 1.3 !important;
           margin-top: 1.75rem !important;
           margin-bottom: 1.25rem !important;
+          color: #1a1a1a !important;
         }
         .ProseMirror h3 {
           font-size: 1.5rem !important;
           line-height: 1.4 !important;
           margin-top: 1.5rem !important;
           margin-bottom: 1rem !important;
+          color: #1a1a1a !important;
         }
         .ProseMirror p {
           font-size: 1.125rem !important;
           line-height: 1.75 !important;
           margin-bottom: 1rem !important;
+          color: #333 !important;
         }
         .ProseMirror strong {
           font-weight: 900 !important;
+          color: #1a1a1a !important;
         }
         .ProseMirror a {
-          color: #FFA617 !important;
+          color: #586034 !important;
           font-weight: 700 !important;
           text-decoration: none !important;
         }
@@ -232,28 +237,31 @@ export function RichTextEditor({ content, onChange, placeholder, className = "" 
         .ProseMirror li {
           margin-bottom: 0.5rem !important;
           display: list-item !important;
+          color: #333 !important;
         }
         .ProseMirror li p {
           margin-bottom: 0.25rem !important;
         }
         .ProseMirror blockquote {
-          border-left: 4px solid #FFA617 !important;
+          border-left: 4px solid #586034 !important;
           padding-left: 1.5rem !important;
           font-style: italic !important;
           margin: 1.5rem 0 !important;
+          color: #666 !important;
         }
         .ProseMirror code {
-          background-color: rgba(255, 255, 255, 0.1) !important;
+          background-color: rgba(0, 0, 0, 0.05) !important;
           padding: 0.125rem 0.5rem !important;
           border-radius: 0.25rem !important;
           font-family: monospace !important;
           font-size: 0.9em !important;
+          color: #1a1a1a !important;
         }
       `}</style>
       {/* Toolbar */}
-      <div className="border-b border-foreground/10 p-2 flex flex-wrap gap-1 items-center">
+      <div className="p-2 flex flex-wrap gap-1 items-center" style={{ borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
         {/* Headings */}
-        <div className="flex gap-1 pr-2 border-r border-foreground/10">
+        <div className="flex gap-1 pr-2" style={{ borderRight: '1px solid rgba(0,0,0,0.1)' }}>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             active={editor.isActive('heading', { level: 1 })}
@@ -278,7 +286,7 @@ export function RichTextEditor({ content, onChange, placeholder, className = "" 
         </div>
 
         {/* Text Formatting */}
-        <div className="flex gap-1 pr-2 border-r border-foreground/10">
+        <div className="flex gap-1 pr-2" style={{ borderRight: '1px solid rgba(0,0,0,0.1)' }}>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             active={editor.isActive('bold')}
@@ -310,7 +318,7 @@ export function RichTextEditor({ content, onChange, placeholder, className = "" 
         </div>
 
         {/* Lists */}
-        <div className="flex gap-1 pr-2 border-r border-foreground/10">
+        <div className="flex gap-1 pr-2" style={{ borderRight: '1px solid rgba(0,0,0,0.1)' }}>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             active={editor.isActive('bulletList')}
@@ -328,7 +336,7 @@ export function RichTextEditor({ content, onChange, placeholder, className = "" 
         </div>
 
         {/* Other */}
-        <div className="flex gap-1 pr-2 border-r border-foreground/10">
+        <div className="flex gap-1 pr-2" style={{ borderRight: '1px solid rgba(0,0,0,0.1)' }}>
           <ToolbarButton
             onClick={setLink}
             active={editor.isActive('link')}
@@ -353,7 +361,7 @@ export function RichTextEditor({ content, onChange, placeholder, className = "" 
         </div>
 
         {/* Font Size */}
-        <div className="flex gap-1 pr-2 border-r border-foreground/10">
+        <div className="flex gap-1 pr-2" style={{ borderRight: '1px solid rgba(0,0,0,0.1)' }}>
           <Select
             value={editor.getAttributes('textStyle').fontSize || '16px'}
             onValueChange={(value) => {
@@ -445,7 +453,7 @@ export function RichTextEditor({ content, onChange, placeholder, className = "" 
             <Button
               onClick={saveLink}
               className="font-black uppercase tracking-wider"
-              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              style={{ backgroundColor: '#586034', fontWeight: '900' }}
             >
               Save Link
             </Button>

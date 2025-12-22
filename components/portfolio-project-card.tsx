@@ -39,8 +39,8 @@ export function PortfolioProjectCard({ id, slug, title, clientName, isPortfolio 
       <div className="absolute inset-0 bg-black/0 transition-opacity duration-300 group-hover:bg-black/60" />
       <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
         <div className="text-center text-white">
-          <h3 className="text-lg font-medium">{title}</h3>
-          {clientName && <p className="text-sm text-white/80">{clientName}</p>}
+          <h3 className="text-2xl font-medium uppercase">{title}</h3>
+          {clientName && <p className="text-lg text-white/80 uppercase">{clientName}</p>}
         </div>
       </div>
     </Link>

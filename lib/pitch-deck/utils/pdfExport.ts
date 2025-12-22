@@ -10,7 +10,7 @@ const PAGE_HEIGHT = 210; // A4 landscape height in mm
 const COLORS = {
   background: "#161616", // Dark background
   foreground: "#FFFFFF", // White text
-  accent: "#FFA617", // Orange accent
+  accent: "#586034", // Orange accent
 };
 
 // Helper function to convert hex to RGB
@@ -72,8 +72,8 @@ interface PitchDeckData {
 }
 
 export async function generatePitchDeckPDF(deck: PitchDeckData): Promise<void> {
-  // Force Ian Courtright branding for pitch decks
-  const brandId = "ian-courtright";
+  // Force Alex Grosse branding for pitch decks
+  const brandId = "alex-grosse";
   const brand = BRANDS[brandId];
   
   // Create landscape PDF
@@ -209,8 +209,8 @@ async function renderCoverPage(
   doc.setFillColor(60, 60, 60); // Dark gray to simulate 60% black overlay
   doc.rect(0, 0, pageWidth, pageHeight, "F");
 
-  // Ian Courtright wordmark at top center (matching preview - larger size)
-  const wordmarkPath = "/ic-wordmark-white.svg";
+  // Alex Grosse wordmark at top center (matching preview - larger size)
+  const wordmarkPath = "/ag-wordmark-white.svg";
   try {
     const wordmarkDataUrl = await convertImageToPNG(wordmarkPath);
     const wordmarkWidth = 200; // Larger to match preview h-20 to h-36
@@ -232,7 +232,7 @@ async function renderCoverPage(
     doc.setTextColor(accentRgb.r, accentRgb.g, accentRgb.b);
     doc.setFontSize(24);
     doc.setFont("helvetica", "bold");
-    doc.text("IAN COURTRIGHT", pageWidth / 2, 50, { align: "center" });
+    doc.text("ALEX GROSSE", pageWidth / 2, 50, { align: "center" });
   }
 
   // Title - ULTRA-BOLD, UPPERCASE, centered (matching preview)

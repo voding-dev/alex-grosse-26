@@ -144,7 +144,7 @@ export function QuoteSummary({ quote, onExportPDF }: QuoteSummaryProps) {
         <Button
           onClick={onExportPDF}
           className="w-full font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
-          style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+          style={{ backgroundColor: '#586034', fontWeight: '900' }}
         >
           <FileDown className="mr-2 h-4 w-4" />
           Export Branded PDF

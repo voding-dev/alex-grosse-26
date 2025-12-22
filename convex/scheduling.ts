@@ -92,7 +92,7 @@ export const createRequest = mutation({
     // Branding selections
     brandingPreset: v.optional(
       v.union(
-        v.literal("ian"),
+        v.literal("alexgrosse"),
         v.literal("voding"),
         v.literal("styledriven")
       )
@@ -863,7 +863,7 @@ export const updateRequest = mutation({
     windowEnd: v.optional(v.number()),
     brandingPreset: v.optional(
       v.union(
-        v.literal("ian"),
+        v.literal("alexgrosse"),
         v.literal("voding"),
         v.literal("styledriven")
       )

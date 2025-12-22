@@ -12,7 +12,7 @@ interface Country {
 
 // SVG flag component for cleaner, more professional look
 const CountryFlag = ({ code }: { code: string }) => (
-  <div className="w-6 h-4 bg-gradient-to-br from-foreground/10 to-foreground/5 flex items-center justify-center text-[10px] font-bold text-foreground/40 border border-foreground/10">
+  <div className="w-6 h-4 bg-gradient-to-br from-black/10 to-black/5 flex items-center justify-center text-[10px] font-bold text-black/40 border border-black/10">
     {code}
   </div>
 );
@@ -158,11 +158,11 @@ export function PhoneInput({ value, onChange, disabled, required, className = ""
             type="button"
             onClick={() => setIsOpen(!isOpen)}
             disabled={disabled}
-            className="h-full px-3 py-3 bg-foreground/3 hover:bg-foreground/5 border-2 border-transparent transition-all duration-200 disabled:opacity-50 flex items-center gap-2 min-w-[120px]"
+            className="h-full px-3 py-3 bg-black/5 hover:bg-black/8 border-2 border-transparent transition-all duration-200 disabled:opacity-50 flex items-center gap-2 min-w-[120px]"
           >
             <CountryFlag code={selectedCountry.code} />
-            <span className="text-sm font-medium text-foreground/70">{selectedCountry.dialCode}</span>
-            <ChevronDown className={`h-4 w-4 text-foreground/40 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+            <span className="text-sm font-medium text-black/70">{selectedCountry.dialCode}</span>
+            <ChevronDown className={`h-4 w-4 text-black/40 transition-transform ${isOpen ? "rotate-180" : ""}`} />
           </button>
 
           {/* Dropdown */}
@@ -175,15 +175,15 @@ export function PhoneInput({ value, onChange, disabled, required, className = ""
               />
               
               {/* Dropdown Menu */}
-              <div className="absolute top-full left-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 bg-background border-2 border-foreground/20 shadow-2xl z-20 max-h-96 overflow-hidden flex flex-col">
+              <div className="absolute top-full left-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 bg-white border-2 border-black/20 shadow-2xl z-20 max-h-96 overflow-hidden flex flex-col">
                 {/* Search */}
-                <div className="p-3 border-b-2 border-foreground/10">
+                <div className="p-3 border-b-2 border-black/10">
                   <input
                     type="text"
                     placeholder="Search countries..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-3 py-2 bg-foreground/3 text-foreground text-sm outline-none"
+                    className="w-full px-3 py-2 bg-black/5 text-black text-sm outline-none"
                     autoFocus
                   />
                 </div>
@@ -195,23 +195,23 @@ export function PhoneInput({ value, onChange, disabled, required, className = ""
                       key={country.code}
                       type="button"
                       onClick={() => handleCountrySelect(country)}
-                      className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-foreground/5 transition-colors text-left ${
-                        selectedCountry.code === country.code ? "bg-foreground/8" : ""
+                      className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-black/5 transition-colors text-left ${
+                        selectedCountry.code === country.code ? "bg-black/8" : ""
                       }`}
                     >
                       <CountryFlag code={country.code} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-foreground truncate">
+                        <div className="text-sm font-medium text-black truncate">
                           {country.name}
                         </div>
                       </div>
-                      <span className="text-sm text-foreground/60 font-medium">
+                      <span className="text-sm text-black/60 font-medium">
                         {country.dialCode}
                       </span>
                     </button>
                   ))}
                   {filteredCountries.length === 0 && (
-                    <div className="px-4 py-8 text-center text-sm text-foreground/40">
+                    <div className="px-4 py-8 text-center text-sm text-black/40">
                       No countries found
                     </div>
                   )}
@@ -232,7 +232,7 @@ export function PhoneInput({ value, onChange, disabled, required, className = ""
             onBlur={() => setIsFocused(false)}
             required={required}
             disabled={disabled}
-            className="w-full bg-foreground/3 hover:bg-foreground/5 focus:bg-background border-2 border-transparent focus:border-foreground px-4 py-3 pr-11 text-sm text-foreground placeholder:text-foreground/40 transition-all duration-200 disabled:opacity-50 outline-none"
+            className="w-full bg-black/5 hover:bg-black/8 focus:bg-white border-2 border-transparent focus:border-black px-4 py-3 pr-11 text-sm text-black placeholder:text-black/40 transition-all duration-200 disabled:opacity-50 outline-none"
             style={{ fontWeight: "500" }}
           />
           

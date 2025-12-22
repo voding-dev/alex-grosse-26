@@ -121,7 +121,7 @@ export default function NewPortfolioPage() {
         {/* Basic Information */}
         <Card className="border border-foreground/20">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+            <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Basic Information
             </CardTitle>
             <CardDescription className="text-base">
@@ -179,7 +179,7 @@ export default function NewPortfolioPage() {
         {/* Categories */}
         <Card className="border border-foreground/20">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+            <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Categories *
             </CardTitle>
             <CardDescription className="text-base">
@@ -209,7 +209,7 @@ export default function NewPortfolioPage() {
         {/* Status */}
         <Card className="border border-foreground/20">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+            <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Status
             </CardTitle>
             <CardDescription className="text-base">
@@ -237,7 +237,7 @@ export default function NewPortfolioPage() {
         {/* Notes */}
         <Card className="border border-foreground/20">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+            <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Notes
             </CardTitle>
             <CardDescription className="text-base">
@@ -280,7 +280,7 @@ export default function NewPortfolioPage() {
           <Button 
             type="submit" 
             className="w-full sm:flex-1 font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
-            style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+            style={{ backgroundColor: '#586034', fontWeight: '900' }}
           >
             <Image className="mr-2 h-4 w-4" />
             Create Portfolio Item
@@ -299,6 +299,11 @@ export default function NewPortfolioPage() {
     </div>
   );
 }
+
+
+
+
+
 
 
 

@@ -282,7 +282,7 @@ export function MasonryGrid({ items, onItemClick, selectable, selectedIds, onTog
                         onFeedbackClick(item.id);
                       }}
                       className="px-4 py-2 rounded-full bg-accent text-background hover:bg-accent/90 font-black uppercase tracking-wider text-xs shadow-lg transition-all hover:scale-105"
-                      style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+                      style={{ backgroundColor: '#586034', fontWeight: '900' }}
                     >
                       {showFeedbackStatus && item.hasFeedback ? (
                         <>

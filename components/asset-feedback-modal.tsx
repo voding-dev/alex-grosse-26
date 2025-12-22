@@ -194,7 +194,7 @@ export function AssetFeedbackModal({
             onClick={handleSubmit}
             disabled={!selectedDecision || isSubmitting}
             className="w-full font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
-            style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+            style={{ backgroundColor: '#586034', fontWeight: '900' }}
           >
             <Send className="mr-2 h-4 w-4" />
             {isSubmitting ? "Submitting..." : "Submit Feedback"}

@@ -122,7 +122,7 @@ export function BlogSectionRenderer({ section }: BlogSectionRendererProps) {
             text-decoration: line-through !important;
           }
           .blog-text-section :global(a) {
-            color: #FFA617 !important;
+            color: #586034 !important;
             font-weight: 700 !important;
             text-decoration: none !important;
           }
@@ -151,7 +151,7 @@ export function BlogSectionRenderer({ section }: BlogSectionRendererProps) {
             margin-bottom: 0.25rem !important;
           }
           .blog-text-section :global(blockquote) {
-            border-left: 4px solid #FFA617 !important;
+            border-left: 4px solid #586034 !important;
             padding-left: 1.5rem !important;
             font-style: italic !important;
             margin: 1.5rem 0 !important;
@@ -306,7 +306,7 @@ export function BlogSectionRenderer({ section }: BlogSectionRendererProps) {
         <Button
           onClick={() => setBookingModalOpen(true)}
           className="font-black uppercase tracking-wider px-8 py-6 text-lg h-auto"
-          style={{ backgroundColor: '#FFA617', fontWeight: '900', color: 'white' }}
+          style={{ backgroundColor: '#586034', fontWeight: '900', color: 'white' }}
         >
           Schedule Now
         </Button>
@@ -340,7 +340,7 @@ export function BlogSectionRenderer({ section }: BlogSectionRendererProps) {
             }
           }}
           className="font-black uppercase tracking-wider px-8 py-6 text-lg h-auto"
-          style={{ backgroundColor: '#FFA617', fontWeight: '900', color: 'white' }}
+          style={{ backgroundColor: '#586034', fontWeight: '900', color: 'white' }}
         >
           <ExternalLink className="h-4 w-4 mr-2" />
           Purchase Now

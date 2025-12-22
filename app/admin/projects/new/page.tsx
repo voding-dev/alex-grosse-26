@@ -121,7 +121,7 @@ export default function NewProjectPage() {
         {/* Basic Information */}
         <Card className="border border-foreground/20">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+            <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Basic Information
             </CardTitle>
             <CardDescription className="text-base">
@@ -178,7 +178,7 @@ export default function NewProjectPage() {
         {/* Categories */}
         <Card className="border border-foreground/20">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+            <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Categories *
             </CardTitle>
             <CardDescription className="text-base">
@@ -208,7 +208,7 @@ export default function NewProjectPage() {
         {/* Status */}
         <Card className="border border-foreground/20">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+            <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Status
             </CardTitle>
             <CardDescription className="text-base">
@@ -236,7 +236,7 @@ export default function NewProjectPage() {
         {/* Notes */}
         <Card className="border border-foreground/20">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
+            <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900' }}>
               Notes
             </CardTitle>
             <CardDescription className="text-base">
@@ -279,7 +279,7 @@ export default function NewProjectPage() {
           <Button 
             type="submit" 
             className="w-full sm:flex-1 font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
-            style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+            style={{ backgroundColor: '#586034', fontWeight: '900' }}
           >
             <Briefcase className="mr-2 h-4 w-4" />
             Create Project

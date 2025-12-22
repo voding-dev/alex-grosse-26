@@ -10,6 +10,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { EmailInput } from "@/components/ui/email-input";
 import { NameInput } from "@/components/ui/name-input";
 import Image from "next/image";
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -145,7 +146,7 @@ export default function Home() {
   return (
     <>
       <Nav />
-      <main className="min-h-screen bg-background pt-20">
+      <main className="min-h-screen bg-background pt-24">
         {/* Hero Section with Carousel */}
         <section className="relative h-screen w-full overflow-hidden bg-black">
           {heroCarouselImages.length > 0 ? (
@@ -169,20 +170,22 @@ export default function Home() {
           ) : (
             <div className="absolute inset-0 bg-black/80" />
           )}
-          <div className="absolute inset-0 flex items-center justify-center px-4">
-            <div className="text-center">
-              <div className="mb-3 flex items-center justify-center sm:mb-4">
-                <Image
-                  src="/ic-wordmark-white.svg"
-                  alt="COURTRIGHT"
-                  width={600}
-                  height={150}
-                  className="h-16 w-auto object-contain sm:h-20 md:h-28 lg:h-36"
-                />
-              </div>
-              <p className="px-4 text-base font-black uppercase text-white/90 sm:text-lg md:text-xl lg:text-2xl" style={{ fontWeight: '900' }}>
+          <div className="absolute inset-0 flex items-center justify-center px-6 sm:px-8 md:px-12">
+            <div className="text-center max-w-6xl">
+              <h1 
+                className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-extrabold uppercase text-white leading-tight"
+                style={{ 
+                  fontWeight: '800', 
+                  letterSpacing: '-0.03em', 
+                  lineHeight: '1.1',
+                  textShadow: '0 4px 30px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3)'
+                }}
+              >
                 {homepage?.heroText || "Creative Director & Growth Marketing Partner"}
-              </p>
+              </h1>
+              <div className="mt-6 sm:mt-8 flex justify-center">
+                <div className="h-1 w-24 sm:w-32 bg-accent rounded-full" />
+              </div>
             </div>
           </div>
           
@@ -221,9 +224,9 @@ export default function Home() {
 
         {/* PORTFOLIO Section */}
         <section id="portfolio" className="w-full">
-          <div className="bg-accent w-full px-0 overflow-hidden" style={{ paddingTop: '0', paddingBottom: '0' }}>
-            <div className="w-full text-center">
-              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.7', margin: '0', fontSize: 'clamp(4.5rem, 15vw, 26rem)' }}>
+          <div className="bg-accent w-full px-0 overflow-hidden flex items-center justify-center" style={{ paddingTop: 'clamp(0.25rem, 0.5vw, 0.5rem)', paddingBottom: 'clamp(0.25rem, 0.5vw, 0.5rem)' }}>
+            <div className="w-full text-center flex items-center justify-center">
+              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.85', margin: '0', fontSize: 'clamp(5.5rem, 18vw, 30rem)', transform: 'translateY(0.035em)' }}>
                 PORTFOLIO
               </h2>
             </div>
@@ -252,9 +255,9 @@ export default function Home() {
 
         {/* PROJECTS Section */}
         <section id="projects" className="w-full">
-          <div className="bg-accent w-full px-0 overflow-hidden" style={{ paddingTop: '0', paddingBottom: '0' }}>
-            <div className="w-full text-center">
-              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.7', margin: '0', fontSize: 'clamp(4.5rem, 15vw, 26rem)' }}>
+          <div className="bg-accent w-full px-0 overflow-hidden flex items-center justify-center" style={{ paddingTop: 'clamp(0.25rem, 0.5vw, 0.5rem)', paddingBottom: 'clamp(0.25rem, 0.5vw, 0.5rem)' }}>
+            <div className="w-full text-center flex items-center justify-center">
+              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.85', margin: '0', fontSize: 'clamp(5.5rem, 18vw, 30rem)', transform: 'translateY(0.035em)' }}>
                 PROJECTS
               </h2>
             </div>
@@ -281,33 +284,19 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Middle Name Section */}
-        <section className="bg-accent w-full" style={{ padding: '0', paddingTop: '0', paddingBottom: '0', marginTop: 'clamp(-1.5rem, -6vw, -4rem)', marginBottom: 'clamp(-0.5rem, -2vw, -1.5rem)', marginLeft: '0', marginRight: '0', lineHeight: '0', fontSize: '0', overflow: 'hidden', height: 'fit-content' }}>
-          <Image
-            src="/ic-wordmark-white.svg"
-            alt="COURTRIGHT"
-            width={1200}
-            height={300}
-            className="w-full"
-            style={{ 
-              height: 'clamp(3.5rem, 9vw, 13rem)',
-              width: '100%',
-              display: 'block',
-              margin: '0',
-              marginTop: 'clamp(-1rem, -3vw, -2rem)',
-              padding: '0',
-              border: 'none',
-              outline: 'none',
-              lineHeight: '0',
-              fontSize: '0',
-              objectFit: 'contain',
-              objectPosition: 'center bottom'
-            }}
-          />
+        {/* ABOUT Section Header */}
+        <section id="about" className="w-full">
+          <div className="bg-accent w-full px-0 overflow-hidden flex items-center justify-center" style={{ paddingTop: 'clamp(0.25rem, 0.5vw, 0.5rem)', paddingBottom: 'clamp(0.25rem, 0.5vw, 0.5rem)' }}>
+            <div className="w-full text-center flex items-center justify-center">
+              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.85', margin: '0', fontSize: 'clamp(5.5rem, 18vw, 30rem)', transform: 'translateY(0.035em)' }}>
+                ABOUT
+              </h2>
+            </div>
+          </div>
         </section>
 
-        {/* ABOUT ME Section */}
-        <section id="about" className="bg-white py-12 sm:py-16 md:py-20 lg:py-24">
+        {/* ABOUT Content Section */}
+        <section className="bg-white py-12 sm:py-16 md:py-20 lg:py-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 gap-8 sm:gap-10 md:gap-12 lg:grid-cols-[1.5fr_1.5fr_1fr] lg:gap-12 lg:items-stretch">
               {/* Left Column - Image */}
@@ -423,9 +412,9 @@ export default function Home() {
 
         {/* CONTACT Section */}
         <section id="contact" className="w-full">
-          <div className="bg-accent w-full px-0 overflow-hidden" style={{ paddingTop: '0', paddingBottom: '0' }}>
-            <div className="w-full text-center">
-              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.7', margin: '0', fontSize: 'clamp(4.5rem, 15vw, 26rem)' }}>
+          <div className="bg-accent w-full px-0 overflow-hidden flex items-center justify-center" style={{ paddingTop: 'clamp(0.25rem, 0.5vw, 0.5rem)', paddingBottom: 'clamp(0.25rem, 0.5vw, 0.5rem)' }}>
+            <div className="w-full text-center flex items-center justify-center">
+              <h2 className="w-full font-black uppercase text-white" style={{ letterSpacing: '-0.02em', width: '100%', display: 'block', fontWeight: '900', lineHeight: '0.85', margin: '0', fontSize: 'clamp(5.5rem, 18vw, 30rem)', transform: 'translateY(0.035em)' }}>
                 CONTACT
               </h2>
             </div>
@@ -548,7 +537,7 @@ export default function Home() {
                       type="submit"
                       disabled={isSubmitting}
                       className="mt-6 w-full px-8 py-4 text-sm font-black uppercase tracking-wider text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg hover:shadow-xl"
-                      style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+                      style={{ backgroundColor: '#586034', fontWeight: '900' }}
                     >
                       {isSubmitting ? "SENDING..." : "SEND MESSAGE"}
                     </button>
@@ -615,20 +604,27 @@ export default function Home() {
         </section>
 
         {/* Footer */}
-        <footer className="bg-background py-8">
+        <footer className="bg-background py-12">
           <div className="mx-auto max-w-7xl px-6">
-            <div className="flex flex-col items-center justify-center gap-4">
+            <div className="flex flex-col items-center justify-center gap-6">
               <div className="flex items-center">
                 <Image
-                  src="/ic-brandmark-white.svg"
-                  alt="Ian Courtright"
+                  src="/ag-brandmark-white.svg"
+                  alt="Alex Grosse"
                   width={32}
                   height={32}
                   className="h-8 w-8 object-contain"
                 />
               </div>
+              <Link
+                href="/create-pdf"
+                className="px-6 py-3 text-sm font-black uppercase tracking-wider text-white transition-all hover:scale-105 hover:shadow-lg rounded-sm"
+                style={{ fontWeight: '900', backgroundColor: '#586034' }}
+              >
+                Create PDF
+              </Link>
               <p className="text-sm text-white/60">
-                © {new Date().getFullYear()} IAN COURTRIGHT. ALL RIGHTS RESERVED.
+                © {new Date().getFullYear()} ALEX GROSSE. ALL RIGHTS RESERVED.
               </p>
             </div>
           </div>

@@ -36,7 +36,7 @@ function generateUUID(): string {
 
 export function ServicesManager({ settings, onUpdate }: ServicesManagerProps) {
   const { toast } = useToast();
-  const [selectedBrand, setSelectedBrand] = useState<"ian-courtright" | "style-driven" | "voding">("ian-courtright");
+  const [selectedBrand, setSelectedBrand] = useState<"alex-grosse" | "style-driven" | "voding">("alex-grosse");
   const [categories, setCategories] = useState<PricingCategory[]>(() => {
     return JSON.parse(JSON.stringify(settings.brandCategories[selectedBrand] || []));
   });
@@ -53,7 +53,7 @@ export function ServicesManager({ settings, onUpdate }: ServicesManagerProps) {
   const [deleteCategoryDialog, setDeleteCategoryDialog] = useState<{ open: boolean; categoryId: string | null }>({ open: false, categoryId: null });
   const [deleteItemDialog, setDeleteItemDialog] = useState<{ open: boolean; categoryId: string | null; itemId: string | null }>({ open: false, categoryId: null, itemId: null });
 
-  const handleBrandChange = (brand: "ian-courtright" | "style-driven" | "voding") => {
+  const handleBrandChange = (brand: "alex-grosse" | "style-driven" | "voding") => {
     // Save current brand's categories before switching
     updateBrandCategories(selectedBrand, categories);
     setSelectedBrand(brand);
@@ -190,7 +190,7 @@ export function ServicesManager({ settings, onUpdate }: ServicesManagerProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ian-courtright">Ian Courtright</SelectItem>
+                <SelectItem value="alex-grosse">Alex Grosse</SelectItem>
                 <SelectItem value="style-driven">Style Driven</SelectItem>
                 <SelectItem value="voding">Voding</SelectItem>
               </SelectContent>
@@ -229,7 +229,7 @@ export function ServicesManager({ settings, onUpdate }: ServicesManagerProps) {
             <Button
               onClick={handleAddCategory}
               className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
-              style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+              style={{ backgroundColor: '#586034', fontWeight: '900' }}
             >
               <Plus className="mr-2 h-4 w-4" />
               Add Category

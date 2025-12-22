@@ -26,14 +26,14 @@ export interface AppSettings {
   discountDefault: number; // Default discount percentage
   discountMaxLimit: number; // Maximum discount percentage allowed
   brandCategories: {
-    "ian-courtright": PricingCategory[];
+    "alex-grosse": PricingCategory[];
     "style-driven": PricingCategory[];
     "voding": PricingCategory[];
   };
 }
 
 export interface BrandConfig {
-  id: "ian-courtright" | "style-driven" | "voding";
+  id: "alex-grosse" | "style-driven" | "voding";
   name: string;
   tagline: string;
   website: string;

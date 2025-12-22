@@ -1,13 +1,13 @@
 import { BrandConfig } from "./types/settings";
 
 export const BRANDS: Record<string, BrandConfig> = {
-  "ian-courtright": {
-    id: "ian-courtright",
-    name: "IAN COURTRIGHT",
-    tagline: "Freelance Quote Builder",
-    website: "iancourtright.com",
+  "alex-grosse": {
+    id: "alex-grosse",
+    name: "ALEX GROSSE",
+    tagline: "Creative Quote Builder",
+    website: "alexgrosse.com",
     primaryColor: "#0D0D0D", // Black
-    secondaryColor: "#FFA617", // Orange accent from site
+    secondaryColor: "#586034", // Olive accent from site
   },
   "style-driven": {
     id: "style-driven",
@@ -27,5 +27,5 @@ export const BRANDS: Record<string, BrandConfig> = {
   },
 };
 
-export const DEFAULT_BRAND = "ian-courtright";
+export const DEFAULT_BRAND = "alex-grosse";
 

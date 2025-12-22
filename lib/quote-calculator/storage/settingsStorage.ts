@@ -1,6 +1,6 @@
 import { AppSettings, SLATerm, PaymentMethod, PaymentInfo } from "../types/settings";
 import { PricingCategory } from "../types/pricing";
-import { IAN_COURTRIGHT_CATEGORIES, VODING_CATEGORIES, STYLE_DRIVEN_CATEGORIES } from "../data/brandCategories";
+import { ALEX_GROSSE_CATEGORIES, VODING_CATEGORIES, STYLE_DRIVEN_CATEGORIES } from "../data/brandCategories";
 
 const STORAGE_KEY = "quote_calculator_settings";
 
@@ -15,7 +15,7 @@ export const defaultSettings: AppSettings = {
   discountDefault: 0,
   discountMaxLimit: 50,
   brandCategories: {
-    "ian-courtright": JSON.parse(JSON.stringify(IAN_COURTRIGHT_CATEGORIES)),
+    "alex-grosse": JSON.parse(JSON.stringify(ALEX_GROSSE_CATEGORIES)),
     "style-driven": JSON.parse(JSON.stringify(STYLE_DRIVEN_CATEGORIES)),
     "voding": JSON.parse(JSON.stringify(VODING_CATEGORIES)),
   },
@@ -147,7 +147,7 @@ export function updateQuoteValidityDays(days: number): void {
 }
 
 export function updateBrandCategories(
-  brand: "ian-courtright" | "style-driven" | "voding",
+  brand: "alex-grosse" | "style-driven" | "voding",
   categories: PricingCategory[]
 ): void {
   const settings = loadSettings();
@@ -156,7 +156,7 @@ export function updateBrandCategories(
 }
 
 export function getBrandCategories(
-  brand: "ian-courtright" | "style-driven" | "voding"
+  brand: "alex-grosse" | "style-driven" | "voding"
 ): PricingCategory[] {
   const settings = loadSettings();
   return JSON.parse(JSON.stringify(settings.brandCategories[brand] || []));

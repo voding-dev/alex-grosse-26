@@ -55,8 +55,8 @@ export function PitchDeckPreview(props: PitchDeckPreviewProps) {
         <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
           <div className="mb-6 flex items-center justify-center">
             <Image
-              src="/ic-wordmark-white.svg"
-              alt="IAN COURTRIGHT"
+              src="/ag-wordmark-white.svg"
+              alt="ALEX GROSSE"
               width={600}
               height={150}
               className="h-20 w-auto object-contain sm:h-28 md:h-36"

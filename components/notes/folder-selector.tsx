@@ -10,9 +10,10 @@ interface FolderSelectorProps {
   folder: string;
   onFolderChange: (folder: string) => void;
   availableFolders: string[];
+  lightMode?: boolean;
 }
 
-export function FolderSelector({ folder, onFolderChange, availableFolders }: FolderSelectorProps) {
+export function FolderSelector({ folder, onFolderChange, availableFolders, lightMode = false }: FolderSelectorProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,6 +37,18 @@ export function FolderSelector({ folder, onFolderChange, availableFolders }: Fol
     }
   };
 
+  const inputStyle = lightMode
+    ? { backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.15)', color: '#1a1a1a' }
+    : { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.15)', color: '#fff' };
+
+  const buttonStyle = lightMode
+    ? { borderColor: 'rgba(0,0,0,0.15)', color: '#666' }
+    : { borderColor: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.8)' };
+
+  const selectContentStyle = lightMode
+    ? { backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.15)' }
+    : { backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.15)' };
+
   return (
     <div className="space-y-2">
       {isCreating ? (
@@ -46,12 +59,14 @@ export function FolderSelector({ folder, onFolderChange, availableFolders }: Fol
             onChange={(e) => setNewFolderName(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Folder name..."
-            className="flex-1"
+            className="flex-1 border"
+            style={inputStyle}
             autoFocus
           />
           <button
             onClick={handleCreateFolder}
-            className="px-3 py-2 bg-accent text-background rounded-md hover:bg-accent/90 transition-colors"
+            className="px-3 py-2 rounded-md transition-colors"
+            style={{ backgroundColor: '#586034', color: '#fff' }}
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -60,7 +75,8 @@ export function FolderSelector({ folder, onFolderChange, availableFolders }: Fol
               setIsCreating(false);
               setNewFolderName("");
             }}
-            className="px-3 py-2 border border-foreground/20 rounded-md hover:bg-foreground/5 transition-colors"
+            className="px-3 py-2 border rounded-md transition-colors"
+            style={buttonStyle}
           >
             Cancel
           </button>
@@ -68,7 +84,7 @@ export function FolderSelector({ folder, onFolderChange, availableFolders }: Fol
       ) : (
         <div className="flex gap-2">
           <Select value={folder || "none"} onValueChange={(value) => onFolderChange(value === "none" ? "" : value)}>
-            <SelectTrigger className="flex-1">
+            <SelectTrigger className="flex-1 border" style={inputStyle}>
               <SelectValue placeholder="Select folder">
                 {folder ? (
                   <div className="flex items-center gap-2">
@@ -80,7 +96,7 @@ export function FolderSelector({ folder, onFolderChange, availableFolders }: Fol
                 )}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent style={selectContentStyle}>
               <SelectItem value="none">No folder</SelectItem>
               {availableFolders.map((f) => (
                 <SelectItem key={f} value={f}>
@@ -97,7 +113,8 @@ export function FolderSelector({ folder, onFolderChange, availableFolders }: Fol
               setIsCreating(true);
               setTimeout(() => inputRef.current?.focus(), 0);
             }}
-            className="px-3 py-2 border border-foreground/20 rounded-md hover:bg-foreground/5 transition-colors flex items-center gap-2"
+            className="px-3 py-2 border rounded-md transition-colors flex items-center gap-2"
+            style={buttonStyle}
           >
             <Plus className="h-4 w-4" />
             New
@@ -107,14 +124,3 @@ export function FolderSelector({ folder, onFolderChange, availableFolders }: Fol
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-

@@ -93,7 +93,7 @@ export function BlogPostCard({ post, featured = false }: BlogPostCardProps) {
               {postCategories.slice(0, 2).map((cat) => (
                 <Badge
                   key={cat._id}
-                  style={{ backgroundColor: cat.color || "#FFA617" }}
+                  style={{ backgroundColor: cat.color || "#586034" }}
                   className="text-white font-black uppercase tracking-wider text-xs px-3 py-1"
                 >
                   {cat.name}

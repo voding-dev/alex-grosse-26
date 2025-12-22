@@ -105,7 +105,7 @@ export function deleteQuote(id: string): boolean {
   }
 }
 
-export function createEmptyQuote(brand?: "ian-courtright" | "style-driven" | "voding"): Omit<Quote, "id" | "createdAt" | "updatedAt"> {
+export function createEmptyQuote(brand?: "alex-grosse" | "style-driven" | "voding"): Omit<Quote, "id" | "createdAt" | "updatedAt"> {
   const selectedBrand = brand || DEFAULT_BRAND;
   // Load brand-specific categories from settings
   const categories: PricingCategory[] = getBrandCategories(selectedBrand);

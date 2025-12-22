@@ -419,7 +419,7 @@ export default defineSchema({
     // Branding
     brandingPreset: v.optional(
       v.union(
-        v.literal("ian"),
+        v.literal("alexgrosse"),
         v.literal("voding"),
         v.literal("styledriven")
       )
@@ -726,7 +726,237 @@ export default defineSchema({
     .index("by_landing_page", ["landingPageId"])
     .index("by_sort_order", ["sortOrder"]),
 
-  // Client Projects (admin-only project management)
+  // Project module configuration - which universal workflow modules are active per project
+  projectModuleConfigs: defineTable({
+    projectId: v.id("clientProjects"),
+    // Core module toggles (universal across project types)
+    modules: v.object({
+      references: v.boolean(),
+      notes: v.boolean(),
+      tasks: v.boolean(),
+      schedule: v.boolean(),
+      assets: v.boolean(),
+      deliverables: v.boolean(),
+      timeline: v.boolean(),
+      team: v.boolean(),
+    }),
+    // Optional per-module settings
+    scheduleSettings: v.optional(v.object({
+      enabledForProduction: v.optional(v.boolean()),
+      timezone: v.optional(v.string()),
+    })),
+    timelineSettings: v.optional(v.object({
+      phases: v.array(v.object({
+        key: v.string(), // e.g. "pre", "production", "post"
+        label: v.string(), // e.g. "Pre-Production"
+        sortOrder: v.number(),
+      })),
+    })),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"]),
+
+  // Team & access per client project
+  projectMembers: defineTable({
+    projectId: v.id("clientProjects"),
+    userId: v.optional(v.id("users")), // Internal user
+    contactId: v.optional(v.id("contacts")), // External/client contact
+    role: v.union(
+      v.literal("creative_director"),
+      v.literal("producer"),
+      v.literal("developer"),
+      v.literal("designer"),
+      v.literal("client"),
+      v.literal("other")
+    ),
+    label: v.optional(v.string()), // Custom label if role = "other"
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_contact", ["contactId"])
+    .index("by_user", ["userId"]),
+
+  // Project-scoped notes (separate from global notes)
+  projectNotes: defineTable({
+    projectId: v.id("clientProjects"),
+    title: v.string(),
+    content: v.string(), // markdown or rich text HTML
+    format: v.union(
+      v.literal("markdown"),
+      v.literal("richtext")
+    ),
+    isPinned: v.optional(v.boolean()),
+    tags: v.array(v.string()),
+    createdBy: v.optional(v.string()), // email or user identifier
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_tags", ["tags"])
+    .index("by_pinned", ["isPinned"])
+    .index("by_updated", ["updatedAt"]),
+
+  // Project-scoped tasks (simple kanban/checklist)
+  projectTasks: defineTable({
+    projectId: v.id("clientProjects"),
+    title: v.string(),
+    description: v.optional(v.string()),
+    status: v.union(
+      v.literal("todo"),
+      v.literal("in_progress"),
+      v.literal("waiting"),
+      v.literal("done")
+    ),
+    sortOrder: v.number(),
+    assigneeMemberId: v.optional(v.id("projectMembers")),
+    dueAt: v.optional(v.number()),
+    tags: v.array(v.string()),
+    // Lightweight checklist support within a task
+    checklistItems: v.optional(v.array(v.object({
+      id: v.string(),
+      label: v.string(),
+      done: v.boolean(),
+    }))),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_status", ["status"])
+    .index("by_assignee", ["assigneeMemberId"])
+    .index("by_due_at", ["dueAt"])
+    .index("by_tags", ["tags"]),
+
+  // Reference gallery items per project (linked to media library or direct storage)
+  projectReferences: defineTable({
+    projectId: v.id("clientProjects"),
+    // Optional link to global media library
+    mediaLibraryId: v.optional(v.id("mediaLibrary")),
+    // Optional direct storage reference for non-media-library assets
+    storageKey: v.optional(v.string()),
+    thumbnailStorageKey: v.optional(v.string()),
+    url: v.optional(v.string()), // For external references (e.g., Dribbble, YouTube, product links)
+    board: v.optional(v.string()), // Board or group name (e.g., "Moodboard", "Shot Ideas")
+    title: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    tags: v.array(v.string()),
+    sortOrder: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_board", ["board"])
+    .index("by_tags", ["tags"])
+    .index("by_sort_order", ["sortOrder"]),
+
+  // Assets & files library per project (raws, briefs, PDFs, etc.)
+  projectAssets: defineTable({
+    projectId: v.id("clientProjects"),
+    kind: v.union(
+      v.literal("raw"),
+      v.literal("brief"),
+      v.literal("document"),
+      v.literal("script"),
+      v.literal("design_source"),
+      v.literal("audio"),
+      v.literal("other")
+    ),
+    label: v.string(),
+    description: v.optional(v.string()),
+    mediaLibraryId: v.optional(v.id("mediaLibrary")),
+    assetId: v.optional(v.id("assets")), // Link to delivery/project asset if relevant
+    storageKey: v.optional(v.string()),
+    filename: v.optional(v.string()),
+    size: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_kind", ["kind"]),
+
+  // Deliverables board per project
+  projectDeliverables: defineTable({
+    projectId: v.id("clientProjects"),
+    title: v.string(),
+    description: v.optional(v.string()),
+    // Workflow status for deliverables
+    status: v.union(
+      v.literal("planned"),
+      v.literal("in_progress"),
+      v.literal("review"),
+      v.literal("approved"),
+      v.literal("delivered"),
+      v.literal("archived")
+    ),
+    // Versioning
+    versionLabel: v.optional(v.string()), // e.g., "v1", "v2"
+    revisionOfId: v.optional(v.id("projectDeliverables")), // Link to previous version
+    // Storage / links
+    assetId: v.optional(v.id("assets")),
+    mediaLibraryId: v.optional(v.id("mediaLibrary")),
+    externalUrl: v.optional(v.string()), // Link to S3, Frame.io, etc.
+    thumbnailStorageKey: v.optional(v.string()),
+    // Client approval state
+    approvalStatus: v.optional(v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("changes_requested"),
+      v.literal("rejected")
+    )),
+    approvedAt: v.optional(v.number()),
+    approvedByMemberId: v.optional(v.id("projectMembers")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_status", ["status"])
+    .index("by_revision_of", ["revisionOfId"]),
+
+  // Timeline phases per project (configurable labels per project type)
+  projectTimelinePhases: defineTable({
+    projectId: v.id("clientProjects"),
+    key: v.string(), // stable key used in configs (e.g., "pre", "production", "post")
+    label: v.string(),
+    sortOrder: v.number(),
+    // Optional type hint (e.g., "video", "design", "web") for analytics
+    projectTypeHint: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_sort_order", ["projectId", "sortOrder"]),
+
+  // Production schedule items (primarily for photo/video, but flexible)
+  projectScheduleItems: defineTable({
+    projectId: v.id("clientProjects"),
+    date: v.number(), // start-of-day timestamp
+    callTime: v.optional(v.number()),
+    wrapTime: v.optional(v.number()),
+    location: v.optional(v.string()),
+    // Crew & roles
+    crew: v.optional(v.array(v.object({
+      memberId: v.optional(v.id("projectMembers")),
+      name: v.optional(v.string()),
+      role: v.optional(v.string()), // e.g., "DP", "AC", "Gaffer"
+      notes: v.optional(v.string()),
+    }))),
+    // Gear list
+    gear: v.optional(v.array(v.object({
+      label: v.string(),
+      quantity: v.optional(v.number()),
+      notes: v.optional(v.string()),
+    }))),
+    // Optional shot identifier to link to shot ideas / references
+    shotCode: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_date", ["projectId", "date"]),
+
+  // Client Projects (admin-only project management, foundation for universal workflow)
   clientProjects: defineTable({
     title: v.string(),
     clientName: v.string(),
@@ -739,6 +969,16 @@ export default defineSchema({
       v.literal("on_hold"),
       v.literal("cancelled")
     ),
+    // Universal workflow project type preset
+    projectType: v.optional(v.union(
+      v.literal("photo_video"),
+      v.literal("design"),
+      v.literal("web"),
+      v.literal("software"),
+      v.literal("branding")
+    )),
+    // Link to project module configuration
+    moduleConfigId: v.optional(v.id("projectModuleConfigs")),
     scope: v.optional(v.string()),
     notes: v.optional(v.string()),
     keyMoments: v.array(v.object({

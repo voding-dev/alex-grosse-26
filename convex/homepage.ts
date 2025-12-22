@@ -6,12 +6,17 @@ import { requireAdmin } from "./auth";
 export const get = query({
   handler: async (ctx) => {
     // Get the single homepage record (there should only be one)
-    const homepage = await ctx.db
+    // Get all records and return the most recent one
+    const allHomepages = await ctx.db
       .query("homepage")
-      .order("desc")
-      .first();
+      .collect();
     
-    return homepage || null;
+    if (allHomepages.length === 0) {
+      return null;
+    }
+    
+    // Return the most recent one by updatedAt
+    return allHomepages.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0] || null;
   },
 });
 
@@ -51,6 +56,7 @@ export const update = mutation({
     // Get existing homepage record or create new one
     const existing = await ctx.db
       .query("homepage")
+      .withIndex("by_updated")
       .order("desc")
       .first();
 

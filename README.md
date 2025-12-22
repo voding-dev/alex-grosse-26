@@ -1,6 +1,8 @@
-# IanCourtright.com — Portfolio + Booking + Delivery
+# Alex Grosse — Portfolio + Booking + Delivery
 
 A minimalist, fast portfolio site with booking integration and secure client delivery portals.
+
+> **New Client?** See [CLIENT_SETUP.md](./CLIENT_SETUP.md) for the full customization guide.
 
 ## Features
 

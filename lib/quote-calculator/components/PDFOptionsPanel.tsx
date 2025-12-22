@@ -205,7 +205,7 @@ export function PDFOptionsPanel({
               onOpenChange(false);
             }}
             className="font-black uppercase tracking-wider hover:bg-accent/90 transition-colors"
-            style={{ backgroundColor: '#FFA617', fontWeight: '900' }}
+            style={{ backgroundColor: '#586034', fontWeight: '900' }}
           >
             Export PDF
           </Button>
@@ -214,6 +214,11 @@ export function PDFOptionsPanel({
     </Dialog>
   );
 }
+
+
+
+
+
 
 
 

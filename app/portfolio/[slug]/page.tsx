@@ -155,15 +155,15 @@ export default function PortfolioPage({ params }: { params: Promise<{ slug: stri
             <div className="flex flex-col items-center justify-center gap-4">
               <div className="flex items-center">
                 <Image
-                  src="/ic-wordmark-white.svg"
-                  alt="Ian Courtright"
+                  src="/ag-wordmark-white.svg"
+                  alt="Alex Grosse"
                   width={600}
                   height={150}
                   className="h-8 w-auto object-contain"
                 />
               </div>
               <p className="text-sm text-white/60">
-                © {new Date().getFullYear()} IAN COURTRIGHT. ALL RIGHTS RESERVED.
+                © {new Date().getFullYear()} ALEX GROSSE. ALL RIGHTS RESERVED.
               </p>
             </div>
           </div>

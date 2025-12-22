@@ -1,8 +1,8 @@
 import { PricingCategory } from "../types/pricing";
 import { DEFAULT_CATEGORIES } from "./defaultCategories";
 
-// Ian Courtright - Freelance Services
-export const IAN_COURTRIGHT_CATEGORIES: PricingCategory[] = [
+// Alex Grosse - Creative Services
+export const ALEX_GROSSE_CATEGORIES: PricingCategory[] = [
   {
     id: "creative-services",
     name: "Creative Services",
@@ -165,6 +165,11 @@ export const VODING_CATEGORIES: PricingCategory[] = [
 
 // Style Driven uses the existing DEFAULT_CATEGORIES (production-focused)
 export const STYLE_DRIVEN_CATEGORIES: PricingCategory[] = DEFAULT_CATEGORIES;
+
+
+
+
+
 
 
 

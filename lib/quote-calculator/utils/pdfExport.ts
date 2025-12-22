@@ -21,7 +21,7 @@ function ensureSpace(
 ): number {
   if (yPos + needed > pageHeight - MARGINS.bottom) {
     doc.addPage();
-    addHeader(doc, quoteData.brand || "ian-courtright", quoteData);
+    addHeader(doc, quoteData.brand || "alex-grosse", quoteData);
     return MARGINS.top;
   }
   return yPos;
@@ -38,7 +38,7 @@ function hexToRgb(hex: string) {
 }
 
 function addHeader(doc: jsPDF, brandId: string, quoteData: Quote) {
-  const brand = BRANDS[brandId] || BRANDS["ian-courtright"];
+  const brand = BRANDS[brandId] || BRANDS["alex-grosse"];
   const pageWidth = doc.internal.pageSize.getWidth();
 
   // Black header bar
@@ -104,14 +104,14 @@ export async function generatePDF({
   settings,
   pdfOptions,
 }: PDFExportOptions): Promise<void> {
-  const brand = BRANDS[quoteData.brand || "ian-courtright"];
+  const brand = BRANDS[quoteData.brand || "alex-grosse"];
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   let yPos = MARGINS.top;
 
   // Add header to first page
-  addHeader(doc, quoteData.brand || "ian-courtright", quoteData);
+  addHeader(doc, quoteData.brand || "alex-grosse", quoteData);
 
   // Page 1: Quote Details & Line Items
   doc.setTextColor(0, 0, 0);
@@ -202,7 +202,7 @@ export async function generatePDF({
       },
       margin: { left: MARGINS.left, right: MARGINS.right, top: 55, bottom: 40 },
       didDrawPage: () => {
-        addHeader(doc, quoteData.brand || "ian-courtright", quoteData);
+        addHeader(doc, quoteData.brand || "alex-grosse", quoteData);
       },
       showHead: "everyPage",
     });
@@ -329,7 +329,7 @@ export async function generatePDF({
 
   // Page 2: Payment Details
   doc.addPage();
-  addHeader(doc, quoteData.brand || "ian-courtright", quoteData);
+  addHeader(doc, quoteData.brand || "alex-grosse", quoteData);
   yPos = MARGINS.top;
 
   // Grand Total display
@@ -452,7 +452,7 @@ export async function generatePDF({
   // Page 3: Terms & Conditions (if any selected)
   if (pdfOptions.selectedSLATermIds.length > 0) {
     doc.addPage();
-    addHeader(doc, quoteData.brand || "ian-courtright", quoteData);
+    addHeader(doc, quoteData.brand || "alex-grosse", quoteData);
     yPos = MARGINS.top;
 
     doc.setFillColor(13, 13, 13);

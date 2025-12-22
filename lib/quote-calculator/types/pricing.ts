@@ -39,6 +39,6 @@ export interface Quote {
   jobControls: JobControls;
   categories: PricingCategory[];
   pdfOptions?: QuotePDFOptions;
-  brand?: "ian-courtright" | "style-driven" | "voding"; // Brand toggle
+  brand?: "alex-grosse" | "style-driven" | "voding"; // Brand toggle
 }
 

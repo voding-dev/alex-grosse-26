@@ -8,7 +8,6 @@ import { Id } from "@/convex/_generated/dataModel";
 import { X, Plus, Search, Filter, Pin, Tag as TagIcon, Folder, Trash2, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +16,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { TagInput } from "./tag-input";
 import { FolderSelector } from "./folder-selector";
 import { formatDistanceToNow } from "date-fns";
+import { RichTextEditor } from "@/components/blog/rich-text-editor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -232,12 +232,22 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
   const folders = allFolders || [];
   const availableTags = allTags || [];
 
+  // Strip HTML for preview
+  const stripHtml = (html: string) => {
+    const tmp = typeof document !== 'undefined' ? document.createElement('div') : null;
+    if (tmp) {
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || '';
+    }
+    return html.replace(/<[^>]*>/g, '');
+  };
+
   return (
     <>
       {/* Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 z-[110] bg-black/30 backdrop-blur-sm transition-opacity"
           onClick={() => {
             resetForm();
             onClose();
@@ -250,22 +260,23 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         className={cn(
           "fixed left-0 top-0 bottom-0 z-[120]",
           "w-full sm:w-[500px] lg:w-[600px]",
-          "bg-background border-r border-foreground/10",
+          "border-r",
           "shadow-2xl",
           "transform transition-transform duration-300 ease-in-out",
           "max-h-screen overflow-hidden",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
+        style={{ backgroundColor: '#FAFAF9', borderColor: 'rgba(0,0,0,0.1)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between p-3 sm:p-4 border-b border-foreground/10 flex-shrink-0">
+          <div className="flex items-center justify-between p-3 sm:p-4 border-b flex-shrink-0" style={{ borderColor: 'rgba(0,0,0,0.1)' }}>
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="p-1.5 sm:p-2 rounded-lg bg-accent/10">
-                <TagIcon className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
+              <div className="p-1.5 sm:p-2 rounded-lg" style={{ backgroundColor: 'rgba(88, 96, 52, 0.15)' }}>
+                <TagIcon className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: '#586034' }} />
               </div>
-              <h2 className="text-lg sm:text-xl font-black uppercase tracking-tight text-foreground" style={{ fontWeight: '900' }}>
+              <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight" style={{ fontWeight: '900', color: '#1a1a1a' }}>
                 Notes
               </h2>
             </div>
@@ -274,7 +285,8 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                 resetForm();
                 onClose();
               }}
-              className="p-2 sm:p-2 rounded-lg text-foreground/70 hover:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center md:min-h-0 md:min-w-0"
+              className="p-2 sm:p-2 rounded-lg transition-colors touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center md:min-h-0 md:min-w-0 hover:bg-black/5"
+              style={{ color: '#666' }}
               aria-label="Close notes"
             >
               <X className="h-6 w-6 sm:h-5 sm:w-5" />
@@ -285,22 +297,23 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
           <div className="flex-1 overflow-hidden flex flex-col">
             {/* Filters */}
             {!isCreating && !editingNote && (
-              <div className="p-3 sm:p-4 border-b border-foreground/10 space-y-2 sm:space-y-3 flex-shrink-0">
+              <div className="p-3 sm:p-4 border-b space-y-2 sm:space-y-3 flex-shrink-0" style={{ borderColor: 'rgba(0,0,0,0.1)' }}>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/40" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#999' }} />
                   <Input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search notes..."
-                    className="pl-10"
+                    className="pl-10 border"
+                    style={{ backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.15)', color: '#1a1a1a' }}
                   />
                 </div>
                 <div className="flex gap-2">
                   <Select value={folderFilter} onValueChange={setFolderFilter}>
-                    <SelectTrigger className="flex-1">
+                    <SelectTrigger className="flex-1 border" style={{ backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.15)', color: '#1a1a1a' }}>
                       <SelectValue placeholder="All folders" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent style={{ backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.15)' }}>
                       <SelectItem value="all">All folders</SelectItem>
                       <SelectItem value="uncategorized">Uncategorized</SelectItem>
                       {folders.map((f) => (
@@ -314,10 +327,14 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                 {availableTags.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {availableTags.map((tag) => (
-                      <Badge
+                      <span
                         key={tag}
-                        variant={selectedTags.includes(tag) ? "default" : "outline"}
-                        className="text-xs cursor-pointer hover:bg-foreground/10"
+                        className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold cursor-pointer transition-colors"
+                        style={{ 
+                          backgroundColor: selectedTags.includes(tag) ? '#586034' : '#fff',
+                          borderColor: selectedTags.includes(tag) ? '#586034' : 'rgba(0,0,0,0.15)',
+                          color: selectedTags.includes(tag) ? '#fff' : '#333'
+                        }}
                         onClick={() => {
                           if (selectedTags.includes(tag)) {
                             setSelectedTags(selectedTags.filter((t) => t !== tag));
@@ -327,24 +344,24 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                         }}
                       >
                         {tag}
-                      </Badge>
+                      </span>
                     ))}
                   </div>
                 )}
                 {selectedTags.length > 0 && (
-                  <div className="flex items-center gap-2 pt-2 border-t border-foreground/10">
-                    <span className="text-xs text-foreground/50">Filtered by:</span>
+                  <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: 'rgba(0,0,0,0.1)' }}>
+                    <span className="text-xs" style={{ color: '#666' }}>Filtered by:</span>
                     <div className="flex flex-wrap gap-2">
                       {selectedTags.map((tag) => (
-                        <Badge
+                        <span
                           key={tag}
-                          variant="default"
-                          className="text-xs cursor-pointer hover:bg-foreground/80"
+                          className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold cursor-pointer"
+                          style={{ backgroundColor: '#586034', borderColor: '#586034', color: '#fff' }}
                           onClick={() => setSelectedTags(selectedTags.filter((t) => t !== tag))}
                         >
                           {tag}
                           <X className="h-3 w-3 ml-1" />
-                        </Badge>
+                        </span>
                       ))}
                     </div>
                   </div>
@@ -361,46 +378,49 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Note title..."
-                      className="font-semibold text-lg"
+                      className="font-semibold text-lg border"
+                      style={{ backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.15)', color: '#1a1a1a' }}
                     />
                   </div>
-                  <div>
-                    <Textarea
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
+                  <div className="notes-editor">
+                    <RichTextEditor
+                      content={content}
+                      onChange={setContent}
                       placeholder="Write your note here..."
-                      className="min-h-[200px] sm:min-h-[300px] resize-none"
+                      className="min-h-[200px] sm:min-h-[250px]"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-foreground/70 mb-2 block">
+                    <label className="text-xs font-bold uppercase tracking-wider mb-2 block" style={{ color: '#666' }}>
                       Tags
                     </label>
                     <TagInput
                       tags={tags}
                       onTagsChange={setTags}
                       availableTags={availableTags}
+                      lightMode
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-foreground/70 mb-2 block">
+                    <label className="text-xs font-bold uppercase tracking-wider mb-2 block" style={{ color: '#666' }}>
                       Folder
                     </label>
                     <FolderSelector
                       folder={folder}
                       onFolderChange={setFolder}
                       availableFolders={folders}
+                      lightMode
                     />
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setIsPinned(!isPinned)}
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                        isPinned
-                          ? "bg-accent/10 text-accent"
-                          : "bg-foreground/5 text-foreground/70 hover:bg-foreground/10"
-                      )}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors border"
+                      style={{ 
+                        backgroundColor: isPinned ? 'rgba(88, 96, 52, 0.15)' : '#fff',
+                        borderColor: isPinned ? '#586034' : 'rgba(0,0,0,0.15)',
+                        color: isPinned ? '#586034' : '#666'
+                      }}
                     >
                       <Pin className={cn("h-4 w-4", isPinned && "fill-current")} />
                       {isPinned ? "Pinned" : "Pin"}
@@ -409,14 +429,16 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                   <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button
                       onClick={handleSave}
-                      className="flex-1 bg-accent text-background hover:bg-accent/90 touch-manipulation"
+                      className="flex-1 touch-manipulation"
+                      style={{ backgroundColor: '#586034', color: '#fff' }}
                     >
                       Save
                     </Button>
                     <Button
                       onClick={resetForm}
                       variant="outline"
-                      className="flex-1 touch-manipulation"
+                      className="flex-1 touch-manipulation border"
+                      style={{ backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.15)', color: '#333' }}
                     >
                       Cancel
                     </Button>
@@ -426,7 +448,8 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                 <div className="p-3 sm:p-4">
                   <button
                     onClick={() => setIsCreating(true)}
-                    className="w-full mb-3 sm:mb-4 p-3 sm:p-4 border-2 border-dashed border-foreground/20 rounded-lg hover:border-accent/40 hover:bg-accent/5 transition-colors flex items-center justify-center gap-2 text-foreground/70 hover:text-accent touch-manipulation"
+                    className="w-full mb-3 sm:mb-4 p-3 sm:p-4 border-2 border-dashed rounded-lg transition-colors flex items-center justify-center gap-2 touch-manipulation hover:border-[#586034]/50 hover:bg-[#586034]/5"
+                    style={{ borderColor: 'rgba(0,0,0,0.2)', color: '#666' }}
                   >
                     <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
                     <span className="font-medium text-sm sm:text-base">New Note</span>
@@ -437,14 +460,15 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                       {notes.map((note) => (
                         <Card
                           key={note._id}
-                          className="group relative overflow-hidden border border-foreground/10 hover:border-accent/30 transition-all duration-200 cursor-pointer touch-manipulation"
+                          className="group relative overflow-hidden border transition-all duration-200 cursor-pointer touch-manipulation hover:border-[#586034]/30 hover:shadow-md"
+                          style={{ backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.1)' }}
                           onClick={() => handleEdit(note)}
                         >
                           <CardHeader className="pb-2 p-3 sm:p-6">
                             <div className="flex items-start justify-between gap-2">
-                              <CardTitle className="text-sm sm:text-base font-bold uppercase tracking-tight line-clamp-2 flex-1">
+                              <CardTitle className="text-base sm:text-lg font-bold uppercase tracking-tight line-clamp-2 flex-1" style={{ color: '#1a1a1a' }}>
                                 {note.isPinned && (
-                                  <Pin className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2 text-accent fill-current flex-shrink-0" />
+                                  <Pin className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2 fill-current flex-shrink-0" style={{ color: '#586034' }} />
                                 )}
                                 {note.title}
                               </CardTitle>
@@ -454,17 +478,19 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                                     e.stopPropagation();
                                     handleTogglePin(note._id);
                                   }}
-                                  className="p-1.5 rounded hover:bg-foreground/5 text-foreground/50 hover:text-accent touch-manipulation"
+                                  className="p-1.5 rounded touch-manipulation hover:bg-black/5"
+                                  style={{ color: note.isPinned ? '#586034' : '#999' }}
                                   aria-label={note.isPinned ? "Unpin note" : "Pin note"}
                                 >
-                                  <Pin className={cn("h-3 w-3 sm:h-4 sm:w-4", note.isPinned && "fill-current text-accent")} />
+                                  <Pin className={cn("h-3 w-3 sm:h-4 sm:w-4", note.isPinned && "fill-current")} />
                                 </button>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleDelete(note._id);
                                   }}
-                                  className="p-1.5 rounded hover:bg-red-500/10 text-foreground/50 hover:text-red-400 touch-manipulation"
+                                  className="p-1.5 rounded hover:bg-red-500/10 touch-manipulation"
+                                  style={{ color: '#999' }}
                                   aria-label="Delete note"
                                 >
                                   <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -473,23 +499,23 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                             </div>
                           </CardHeader>
                           <CardContent className="p-3 sm:p-6 pt-0">
-                            <p className="text-xs sm:text-sm text-foreground/70 line-clamp-3 mb-2 sm:mb-3">
-                              {note.content}
+                            <p className="text-xs sm:text-sm line-clamp-3 mb-2 sm:mb-3" style={{ color: '#666' }}>
+                              {stripHtml(note.content)}
                             </p>
                             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
                               {note.tags.map((tag) => (
-                                <Badge key={tag} variant="outline" className="text-xs">
+                                <span key={tag} className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold" style={{ borderColor: 'rgba(0,0,0,0.15)', color: '#666', backgroundColor: '#fff' }}>
                                   {tag}
-                                </Badge>
+                                </span>
                               ))}
                               {note.folder && (
-                                <Badge variant="secondary" className="text-xs">
+                                <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold" style={{ backgroundColor: 'rgba(0,0,0,0.05)', borderColor: 'rgba(0,0,0,0.1)', color: '#666' }}>
                                   <Folder className="h-3 w-3 mr-1" />
                                   {note.folder}
-                                </Badge>
+                                </span>
                               )}
                             </div>
-                            <p className="text-xs text-foreground/40">
+                            <p className="text-xs" style={{ color: '#999' }}>
                               {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })}
                             </p>
                           </CardContent>
@@ -497,7 +523,7 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 sm:py-12 text-foreground/50 px-4">
+                    <div className="text-center py-8 sm:py-12 px-4" style={{ color: '#999' }}>
                       <TagIcon className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-4 opacity-50" />
                       <p className="mt-2 font-medium text-sm sm:text-base">No notes yet</p>
                       <p className="text-xs sm:text-sm">Create your first note to get started</p>
@@ -512,15 +538,15 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
       {/* Delete Note Dialog */}
       <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, noteId: deleteDialog.noteId })}>
-        <AlertDialogContent>
+        <AlertDialogContent style={{ backgroundColor: '#fff' }}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Note</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle style={{ color: '#1a1a1a' }}>Delete Note</AlertDialogTitle>
+            <AlertDialogDescription style={{ color: '#666' }}>
               Are you sure you want to delete this note? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel style={{ backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.15)', color: '#333' }}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-red-500 hover:bg-red-600"
@@ -530,7 +556,46 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Custom styles for the notes editor */}
+      <style jsx global>{`
+        .notes-editor .ProseMirror {
+          min-height: 200px !important;
+          background-color: #fff !important;
+          color: #1a1a1a !important;
+        }
+        .notes-editor .border {
+          border-color: rgba(0,0,0,0.15) !important;
+          background-color: #fff !important;
+        }
+        .notes-editor .border-foreground\\/20 {
+          border-color: rgba(0,0,0,0.15) !important;
+        }
+        .notes-editor .border-foreground\\/10 {
+          border-color: rgba(0,0,0,0.1) !important;
+        }
+        .notes-editor .bg-background {
+          background-color: #fff !important;
+        }
+        .notes-editor .text-foreground {
+          color: #1a1a1a !important;
+        }
+        .notes-editor .text-foreground\\/70 {
+          color: #666 !important;
+        }
+        .notes-editor .hover\\:bg-foreground\\/10:hover {
+          background-color: rgba(0,0,0,0.05) !important;
+        }
+        .notes-editor .prose-headings\\:text-foreground h1,
+        .notes-editor .prose-headings\\:text-foreground h2,
+        .notes-editor .prose-headings\\:text-foreground h3 {
+          color: #1a1a1a !important;
+        }
+        .notes-editor .prose p,
+        .notes-editor .prose li {
+          color: #333 !important;
+        }
+      `}</style>
     </>
   );
 }
-

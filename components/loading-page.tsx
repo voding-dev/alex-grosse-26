@@ -40,8 +40,8 @@ export function LoadingPage() {
           }}
         >
           <Image
-            src="/ic-brandmark-white.svg"
-            alt="Ian Courtright"
+            src="/ag-brandmark-white.svg"
+            alt="Alex Grosse"
             width={32}
             height={32}
             className="h-8 w-8 object-contain"

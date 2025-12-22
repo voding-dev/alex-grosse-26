@@ -64,7 +64,7 @@ export const testResendConnection = mutation({
       
       const domain = domainSetting?.value || "onboarding.resend.dev";
       const fromEmail = `noreply@${domain}`;
-      const fromName = "Ian Courtright";
+      const fromName = "Alex Grosse";
       
       // Send test email
       const result = await resend.emails.send({
@@ -826,7 +826,7 @@ export const sendCampaign = mutation({
     
     const domain = domainSetting?.value || "onboarding.resend.dev";
     const fromEmail = campaign.fromEmail || `noreply@${domain}`;
-    const fromName = campaign.fromName || "Ian Courtright";
+    const fromName = campaign.fromName || "Alex Grosse";
     
     // Create send records and send emails
     const sendIds = [];
@@ -1097,7 +1097,7 @@ export const quickSend = mutation({
     
     const domain = domainSetting?.value || "onboarding.resend.dev";
     const fromEmail = args.fromEmail || `noreply@${domain}`;
-    const fromName = args.fromName || "Ian Courtright";
+    const fromName = args.fromName || "Alex Grosse";
     
     // Send emails
     const sendIds = [];
@@ -1366,7 +1366,7 @@ export const sendBookingConfirmationEmail = internalMutation({
       
       const domain = domainSetting?.value || "onboarding.resend.dev";
       const fromEmail = `noreply@${domain}`;
-      const fromName = "Ian Courtright";
+      const fromName = "Alex Grosse";
       
       const startDate = new Date(args.slotStart);
       const endDate = new Date(args.slotEnd);
@@ -1396,7 +1396,7 @@ export const sendBookingConfirmationEmail = internalMutation({
               <p><strong>Time:</strong> ${timeStr}</p>
             </div>
             <p>We look forward to meeting with you!</p>
-            <p>Best regards,<br>Ian Courtright</p>
+            <p>Best regards,<br>Alex Grosse</p>
           </body>
         </html>
       `;
@@ -1434,7 +1434,7 @@ export const sendBookingReminderEmail = internalMutation({
       
       const domain = domainSetting?.value || "onboarding.resend.dev";
       const fromEmail = `noreply@${domain}`;
-      const fromName = "Ian Courtright";
+      const fromName = "Alex Grosse";
       
       const startDate = new Date(args.slotStart);
       const endDate = new Date(args.slotEnd);
@@ -1463,7 +1463,7 @@ export const sendBookingReminderEmail = internalMutation({
               <p><strong>Time:</strong> ${timeStr}</p>
             </div>
             <p>We look forward to meeting with you!</p>
-            <p>Best regards,<br>Ian Courtright</p>
+            <p>Best regards,<br>Alex Grosse</p>
           </body>
         </html>
       `;
@@ -1607,7 +1607,7 @@ export const sendTriggerCampaign = internalMutation({
       
       const domain = domainSetting?.value || "onboarding.resend.dev";
       const fromEmail = campaign.fromEmail || `noreply@${domain}`;
-      const fromName = campaign.fromName || "Ian Courtright";
+      const fromName = campaign.fromName || "Alex Grosse";
 
       // Personalize content
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
