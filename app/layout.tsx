@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import localFont from "next/font/local";
+import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "@/lib/convex-provider";
 import { Toaster } from "@/components/ui/toaster";
@@ -16,9 +15,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const mountager = localFont({
-  src: "../public/Mountager-SVG.otf",
-  variable: "--font-mountager",
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
   display: "swap",
 });
 
@@ -59,7 +59,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${mountager.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} antialiased`}
       >
         <ConvexClientProvider>
           <LenisProvider>

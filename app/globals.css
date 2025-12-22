@@ -9,7 +9,7 @@
   --color-cta-secondary: #D65780;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-mountager);
+  --font-heading: var(--font-inter);
 }
 
 :root {
@@ -32,9 +32,9 @@ body {
   font-weight: 400;
 }
 
-/* Modern bold typography - using Mountager for headings */
+/* Modern bold typography - using Inter for headings */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-mountager), var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), var(--font-geist-sans), Arial, Helvetica, sans-serif;
   font-weight: 900;
   letter-spacing: -0.02em;
   line-height: 0.9;
@@ -42,7 +42,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Utility class for section headings */
 .section-heading {
-  font-family: var(--font-mountager), sans-serif;
+  font-family: var(--font-inter), sans-serif;
 }
 
 /* Bounce animation using transform only */
