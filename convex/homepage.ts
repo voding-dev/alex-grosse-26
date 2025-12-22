@@ -3,6 +3,8 @@ import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { requireAdmin } from "./auth";
 
+// Fixed homepage:get query to handle invalid project references and use proper TypeScript types
+
 // Get homepage content
 export const get = query({
   handler: async (ctx) => {
