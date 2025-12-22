@@ -21,7 +21,7 @@ export const get = query({
       }
       
       // Validate and filter out invalid project references
-      // This prevents errors when project IDs reference deleted projects
+      // Prevents errors when project IDs reference deleted projects
       const validateProjectIds = async (ids: Id<"projects">[] | undefined): Promise<Id<"projects">[]> => {
         if (!ids || ids.length === 0) return [];
         const checks = await Promise.all(
