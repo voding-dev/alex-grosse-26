@@ -9,7 +9,7 @@
   --color-cta-secondary: #D65780;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-inter);
+  --font-heading: var(--font-roboto-mono);
 }
 
 :root {
@@ -32,17 +32,17 @@ body {
   font-weight: 400;
 }
 
-/* Modern bold typography - using Inter for headings */
+/* Modern bold typography - using Roboto Mono for headings */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-inter), var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  font-weight: 900;
+  font-family: var(--font-roboto-mono), var(--font-geist-mono), monospace;
+  font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 0.9;
 }
 
 /* Utility class for section headings */
 .section-heading {
-  font-family: var(--font-inter), sans-serif;
+  font-family: var(--font-roboto-mono), monospace;
 }
 
 /* Bounce animation using transform only */
