@@ -5,18 +5,54 @@ import { requireAdmin } from "./auth";
 // Get homepage content
 export const get = query({
   handler: async (ctx) => {
-    // Get the single homepage record (there should only be one)
-    // Get all records and return the most recent one
-    const allHomepages = await ctx.db
-      .query("homepage")
-      .collect();
-    
-    if (allHomepages.length === 0) {
+    try {
+      // Use the index to get the most recent homepage record
+      const homepage = await ctx.db
+        .query("homepage")
+        .withIndex("by_updated")
+        .order("desc")
+        .first();
+      
+      if (!homepage) {
+        return null;
+      }
+      
+      // Validate and filter out invalid project references
+      // Check all project IDs in parallel for better performance
+      const allProjectIds = [
+        ...(homepage.portfolioProjectIds || []),
+        ...(homepage.projectsProjectIds || [])
+      ];
+      
+      const projectIdSet = new Set(allProjectIds);
+      const projectChecks = await Promise.all(
+        Array.from(projectIdSet).map(async (id) => {
+          try {
+            const project = await ctx.db.get(id);
+            return { id, exists: !!project };
+          } catch {
+            return { id, exists: false };
+          }
+        })
+      );
+      
+      const validProjectIds = new Set(
+        projectChecks.filter(check => check.exists).map(check => check.id)
+      );
+      
+      // Filter out invalid IDs from arrays
+      const validatedHomepage = {
+        ...homepage,
+        portfolioProjectIds: homepage.portfolioProjectIds?.filter(id => validProjectIds.has(id)) || [],
+        projectsProjectIds: homepage.projectsProjectIds?.filter(id => validProjectIds.has(id)) || [],
+      };
+      
+      return validatedHomepage;
+    } catch (error: any) {
+      // Log error and return null to prevent client crash
+      console.error("homepage.get error:", error);
       return null;
     }
-    
-    // Return the most recent one by updatedAt
-    return allHomepages.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0] || null;
   },
 });
 

@@ -363,36 +363,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* My Companies */}
-                <div className="space-y-4 sm:space-y-6">
-                  <h3 className="mb-3 sm:mb-4 text-lg sm:text-xl font-black uppercase tracking-wide text-black" style={{ fontWeight: '900' }}>
-                    MY COMPANIES
-                  </h3>
-                  <div className="flex flex-col gap-4 sm:gap-5 items-start">
-                    <div className="flex items-center gap-3">
-                      <a 
-                        href="https://styledriven.com" 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-black font-medium text-sm sm:text-base hover:opacity-70"
-                      >
-                        Style Driven
-                      </a>
-                      <span className="text-black font-medium text-sm sm:text-base">- production house</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <a 
-                        href="https://voding.dev" 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-black font-medium text-sm sm:text-base hover:opacity-70"
-                      >
-                        Voding
-                      </a>
-                      <span className="text-black font-medium text-sm sm:text-base">- software development</span>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
