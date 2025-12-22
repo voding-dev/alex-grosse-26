@@ -38,7 +38,7 @@ const TabsTrigger = React.forwardRef<
       className
     )}
     style={{ 
-      color: '#666',
+      color: '#1a1a1a',
       ...style
     } as React.CSSProperties}
     {...props}

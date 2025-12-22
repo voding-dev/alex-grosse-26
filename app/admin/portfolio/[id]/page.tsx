@@ -158,14 +158,14 @@ export default function EditPortfolioPage() {
           <TabsTrigger 
             value="details" 
             className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-white transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
-            style={{ color: '#666' }}
+            style={{ color: '#1a1a1a' }}
           >
             Details
           </TabsTrigger>
           <TabsTrigger 
             value="assets" 
             className="font-bold uppercase tracking-wider data-[state=active]:bg-accent data-[state=active]:text-white transition-all rounded-md py-2 sm:py-3 px-2 sm:px-4 h-full flex items-center justify-center text-xs sm:text-sm"
-            style={{ color: '#666' }}
+            style={{ color: '#1a1a1a' }}
           >
             Assets ({assets?.length || 0})
           </TabsTrigger>
