@@ -214,6 +214,29 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
     }
   };
 
+  // Lock body scroll when panel is open
+  useEffect(() => {
+    if (isOpen) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      // Lock body scroll
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      
+      return () => {
+        // Restore body scroll
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        // Restore scroll position
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isOpen]);
+
   // Close panel when clicking outside
   useEffect(() => {
     if (!isOpen) return;
@@ -252,6 +275,9 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
             resetForm();
             onClose();
           }}
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.preventDefault()}
+          style={{ touchAction: 'none' }}
         />
       )}
 
@@ -370,7 +396,14 @@ export function NotesPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =
             )}
 
             {/* Editor or List */}
-            <div className="flex-1 overflow-y-auto overscroll-contain">
+            <div 
+              className="flex-1 overflow-y-auto overscroll-contain"
+              onWheel={(e) => e.stopPropagation()}
+              style={{ 
+                WebkitOverflowScrolling: 'touch',
+                overscrollBehavior: 'contain'
+              }}
+            >
               {isCreating || editingNote ? (
                 <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
                   <div>

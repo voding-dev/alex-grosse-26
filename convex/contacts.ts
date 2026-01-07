@@ -55,7 +55,6 @@ export const contactsList = query({
       contacts.map(async (contact) => {
         const lead = contact.leadId ? await ctx.db.get(contact.leadId) : null;
         const prospect = contact.prospectId ? await ctx.db.get(contact.prospectId) : null;
-        const emailMarketing = contact.emailMarketingId ? await ctx.db.get(contact.emailMarketingId) : null;
         const company = contact.companyId ? await ctx.db.get(contact.companyId) : null;
         
         // Get projects for this contact
@@ -74,9 +73,7 @@ export const contactsList = query({
           ...contact,
           lead,
           prospect,
-          emailMarketing,
           company,
-          hasEmailMarketing: !!emailMarketing,
           projects,
           bookings,
         };
@@ -133,14 +130,12 @@ export const contactsGet = query({
 
     const lead = contact.leadId ? await ctx.db.get(contact.leadId) : null;
     const prospect = contact.prospectId ? await ctx.db.get(contact.prospectId) : null;
-    const emailMarketing = contact.emailMarketingId ? await ctx.db.get(contact.emailMarketingId) : null;
     const company = contact.companyId ? await ctx.db.get(contact.companyId) : null;
 
     return {
       ...contact,
       lead,
       prospect,
-      emailMarketing,
       company,
     };
   },
@@ -169,7 +164,6 @@ export const contactsCreate = mutation({
     tags: v.optional(v.array(v.string())),
     notes: v.optional(v.string()),
     lastContactedAt: v.optional(v.number()),
-    syncToEmailMarketing: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     // Check if contact already exists
@@ -209,17 +203,6 @@ export const contactsCreate = mutation({
       updatedAt: now,
     });
 
-    // Auto-sync to email marketing by default (unless explicitly disabled)
-    // This ensures all contacts are available for email marketing
-    if (args.syncToEmailMarketing !== false) {
-      try {
-        await syncToEmailMarketingInternal(ctx, contactId);
-      } catch (error) {
-        // Log error but don't fail contact creation if email marketing sync fails
-        console.error("Failed to sync contact to email marketing:", error);
-      }
-    }
-
     return contactId;
   },
 });
@@ -247,7 +230,6 @@ export const contactsUpdate = mutation({
     tags: v.optional(v.array(v.string())),
     notes: v.optional(v.string()),
     lastContactedAt: v.optional(v.number()),
-    syncToEmailMarketing: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const contact = await ctx.db.get(args.id);
@@ -292,17 +274,6 @@ export const contactsUpdate = mutation({
 
     await ctx.db.patch(args.id, update);
 
-    // Auto-sync to email marketing by default (unless explicitly disabled)
-    // This ensures contact updates are reflected in email marketing
-    if (args.syncToEmailMarketing !== false) {
-      try {
-        await syncToEmailMarketingInternal(ctx, args.id);
-      } catch (error) {
-        // Log error but don't fail contact update if email marketing sync fails
-        console.error("Failed to sync contact to email marketing:", error);
-      }
-    }
-
     // Sync to lead if exists
     if (contact.leadId) {
       const lead = await ctx.db.get(contact.leadId);
@@ -341,143 +312,8 @@ export const contactsRemove = mutation({
       throw new Error("Contact not found");
     }
 
-    // Optionally remove email marketing contact
-    if (contact.emailMarketingId) {
-      await ctx.db.delete(contact.emailMarketingId);
-    }
-
     // Delete the contact
     await ctx.db.delete(args.id);
-  },
-});
-
-// ============ Sync Functions ============
-
-async function syncToEmailMarketingInternal(ctx: any, contactId: Id<"contacts">) {
-  const contact = await ctx.db.get(contactId);
-  if (!contact) {
-    throw new Error("Contact not found");
-  }
-
-  // Check if email marketing contact already exists
-  let emailMarketingId: Id<"emailContacts">;
-
-  if (contact.emailMarketingId) {
-    // Update existing
-    emailMarketingId = contact.emailMarketingId;
-    const emailContact = await ctx.db.get(emailMarketingId);
-    if (emailContact) {
-      await ctx.db.patch(emailMarketingId, {
-        email: contact.email,
-        firstName: contact.firstName || contact.contactName?.split(" ")[0],
-        lastName: contact.lastName || contact.contactName?.split(" ").slice(1).join(" ") || undefined,
-        tags: contact.tags,
-        source: contact.source,
-        metadata: {
-          businessName: contact.businessName,
-          address: contact.address,
-          website: contact.website,
-          phone: contact.phone,
-          contactName: contact.contactName,
-          contactTitle: contact.contactTitle,
-          contactPhone: contact.contactPhone,
-        },
-        updatedAt: Date.now(),
-      });
-    }
-  } else {
-    // Check if email contact exists with this email
-    const existing = await ctx.db
-      .query("emailContacts")
-      .withIndex("by_email", (q: any) => q.eq("email", contact.email))
-      .first();
-
-    if (existing) {
-      // Link to existing
-      emailMarketingId = existing._id;
-      await ctx.db.patch(emailMarketingId, {
-        contactId: contactId,
-        firstName: contact.firstName || contact.contactName?.split(" ")[0],
-        lastName: contact.lastName || contact.contactName?.split(" ").slice(1).join(" ") || undefined,
-        tags: contact.tags,
-        source: contact.source,
-        metadata: {
-          businessName: contact.businessName,
-          address: contact.address,
-          website: contact.website,
-          phone: contact.phone,
-          contactName: contact.contactName,
-          contactTitle: contact.contactTitle,
-          contactPhone: contact.contactPhone,
-        },
-        updatedAt: Date.now(),
-      });
-    } else {
-      // Create new
-      const now = Date.now();
-      emailMarketingId = await ctx.db.insert("emailContacts", {
-        email: contact.email,
-        firstName: contact.firstName || contact.contactName?.split(" ")[0],
-        lastName: contact.lastName || contact.contactName?.split(" ").slice(1).join(" ") || undefined,
-        tags: contact.tags,
-        status: "subscribed",
-        source: contact.source,
-        metadata: {
-          businessName: contact.businessName,
-          address: contact.address,
-          website: contact.website,
-          phone: contact.phone,
-          contactName: contact.contactName,
-          contactTitle: contact.contactTitle,
-          contactPhone: contact.contactPhone,
-        },
-        contactId: contactId,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-
-    // Update contact with email marketing ID
-    await ctx.db.patch(contactId, {
-      emailMarketingId: emailMarketingId,
-      updatedAt: Date.now(),
-    });
-  }
-}
-
-export const syncToEmailMarketing = internalMutation({
-  args: {
-    contactId: v.id("contacts"),
-  },
-  handler: async (ctx, args) => {
-    await syncToEmailMarketingInternal(ctx, args.contactId);
-  },
-});
-
-export const syncFromEmailMarketing = internalMutation({
-  args: {
-    emailMarketingId: v.id("emailContacts"),
-  },
-  handler: async (ctx, args) => {
-    const emailContact = await ctx.db.get(args.emailMarketingId);
-    if (!emailContact) {
-      throw new Error("Email marketing contact not found");
-    }
-
-    // If linked to contact, update it
-    if (emailContact.contactId) {
-      const contact = await ctx.db.get(emailContact.contactId);
-      if (contact) {
-        await ctx.db.patch(emailContact.contactId, {
-          email: emailContact.email,
-          firstName: emailContact.firstName,
-          lastName: emailContact.lastName,
-          tags: emailContact.tags,
-          source: emailContact.source || "email_marketing",
-          updatedAt: Date.now(),
-        });
-      }
-    }
   },
 });
 
@@ -510,59 +346,64 @@ export const submitContactForm = mutation({
       throw new Error("Invalid email format.");
     }
 
-    // Parse name into first and last name
-    const nameParts = args.name.trim().split(" ");
-    const firstName = nameParts[0];
-    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined;
-
-    // Check if contact already exists with this email
-    const existingContact = await ctx.db
-      .query("contacts")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
-      .first();
-
     // Format notes with message
-    const formattedNotes = `Message: ${args.message}`;
+    const formattedNotes = `Contact Form Message:\n${args.message}`;
 
     const now = Date.now();
 
-    if (existingContact) {
-      // Update existing contact with new inquiry
-      const existingNotes = existingContact.notes || "";
+    // Check if lead already exists with this email
+    // First check by contactEmail index
+    let existingLead = await ctx.db
+      .query("leads")
+      .withIndex("by_contact_email", (q) => q.eq("contactEmail", args.email))
+      .first();
+    
+    // If not found, check emails array
+    if (!existingLead) {
+      const allLeads = await ctx.db
+        .query("leads")
+        .collect();
+      existingLead = allLeads.find(lead => lead.emails.includes(args.email)) || null;
+    }
+
+    if (existingLead) {
+      // Update existing lead with new inquiry
+      const existingNotes = existingLead.notes || "";
       const updatedNotes = existingNotes 
         ? `${existingNotes}\n\n---\n\nNew inquiry (${new Date(now).toLocaleDateString()}):\n${formattedNotes}`
         : formattedNotes;
 
-      await ctx.db.patch(existingContact._id, {
-        phone: args.phone,
+      await ctx.db.patch(existingLead._id, {
+        contactPhone: args.phone,
         notes: updatedNotes,
         updatedAt: now,
       });
 
-      return { success: true, contactId: existingContact._id };
+      return { success: true, leadId: existingLead._id };
     } else {
-      // Create new contact from form submission
-      const contactId = await ctx.db.insert("contacts", {
-        email: args.email,
-        firstName,
-        lastName,
+      // Create new lead from form submission
+      // Parse name - use as contactName, and try to extract business name if provided
+      const nameParts = args.name.trim().split(" ");
+      const contactName = args.name.trim();
+      
+      // Create lead with contact form data
+      const leadId = await ctx.db.insert("leads", {
+        // No prospectId for contact form leads
+        name: contactName, // Use contact name as business name placeholder
+        address: "", // Not provided in form
         phone: args.phone,
-        source: "contact_form",
-        tags: ["website-inquiry"],
+        emails: [args.email],
+        contactName: contactName,
+        contactEmail: args.email,
+        contactPhone: args.phone,
+        status: "new",
+        tags: ["website-inquiry", "contact-form"],
         notes: formattedNotes,
         createdAt: now,
         updatedAt: now,
       });
 
-      // Auto-sync to email marketing
-      try {
-        await syncToEmailMarketingInternal(ctx, contactId);
-      } catch (error) {
-        // Log error but don't fail submission if email marketing sync fails
-        console.error("Failed to sync contact form submission to email marketing:", error);
-      }
-
-      return { success: true, contactId };
+      return { success: true, leadId };
     }
   },
 });

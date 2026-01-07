@@ -469,193 +469,6 @@ export default defineSchema({
     .index("by_request", ["requestId"]) 
     .index("by_token", ["token"]),
 
-  // Email Marketing
-  emailContacts: defineTable({
-    email: v.string(),
-    firstName: v.optional(v.string()),
-    lastName: v.optional(v.string()),
-    tags: v.array(v.string()), // For segmentation
-    status: v.union(
-      v.literal("subscribed"),
-      v.literal("unsubscribed"),
-      v.literal("bounced"),
-      v.literal("spam")
-    ),
-    source: v.optional(v.string()), // Where they came from
-    metadata: v.optional(v.any()), // Custom metadata
-    contactId: v.optional(v.id("contacts")), // Link to unified contacts
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_email", ["email"])
-    .index("by_status", ["status"])
-    .index("by_tags", ["tags"])
-    .index("by_contact", ["contactId"]),
-
-  emailCampaigns: defineTable({
-    name: v.string(),
-    subject: v.string(),
-    fromEmail: v.optional(v.string()),
-    fromName: v.optional(v.string()),
-    htmlContent: v.optional(v.string()),
-    textContent: v.optional(v.string()),
-    status: v.union(
-      v.literal("draft"),
-      v.literal("scheduled"),
-      v.literal("sending"),
-      v.literal("sent"),
-      v.literal("cancelled")
-    ),
-    scheduledAt: v.optional(v.number()),
-    sentAt: v.optional(v.number()),
-    tags: v.array(v.string()), // Campaign tags for segmentation
-    projectId: v.optional(v.id("clientProjects")), // Link to project if campaign is project-related
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_status", ["status"])
-    .index("by_scheduled_at", ["scheduledAt"])
-    .index("by_tags", ["tags"])
-    .index("by_project", ["projectId"]),
-
-  emailSends: defineTable({
-    campaignId: v.id("emailCampaigns"),
-    contactId: v.id("emailContacts"),
-    resendEmailId: v.optional(v.string()), // RESEND email ID for tracking
-    status: v.union(
-      v.literal("pending"),
-      v.literal("sent"),
-      v.literal("delivered"),
-      v.literal("bounced"),
-      v.literal("failed")
-    ),
-    sentAt: v.optional(v.number()),
-    deliveredAt: v.optional(v.number()),
-    opened: v.boolean(),
-    openedCount: v.number(),
-    lastOpenedAt: v.optional(v.number()),
-    clicked: v.boolean(),
-    clickedCount: v.number(),
-    lastClickedAt: v.optional(v.number()),
-    unsubscribed: v.boolean(),
-    unsubscribedAt: v.optional(v.number()),
-    markedAsSpam: v.boolean(),
-    markedAsSpamAt: v.optional(v.number()),
-    bounced: v.boolean(),
-    bouncedAt: v.optional(v.number()),
-    bounceReason: v.optional(v.string()),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_campaign", ["campaignId"])
-    .index("by_contact", ["contactId"])
-    .index("by_status", ["status"])
-    .index("by_resend_email_id", ["resendEmailId"]),
-
-  emailEvents: defineTable({
-    sendId: v.id("emailSends"),
-    type: v.union(
-      v.literal("sent"),
-      v.literal("delivered"),
-      v.literal("opened"),
-      v.literal("clicked"),
-      v.literal("bounced"),
-      v.literal("complained"), // Marked as spam
-      v.literal("unsubscribed")
-    ),
-    metadata: v.optional(v.any()), // Additional event data
-    createdAt: v.number(),
-  })
-    .index("by_send", ["sendId"])
-    .index("by_type", ["type"])
-    .index("by_created_at", ["createdAt"]),
-
-  emailJourneys: defineTable({
-    name: v.string(),
-    description: v.optional(v.string()),
-    status: v.union(
-      v.literal("draft"),
-      v.literal("active"),
-      v.literal("paused"),
-      v.literal("archived")
-    ),
-    entryTrigger: v.union(
-      v.literal("manual"),
-      v.literal("tag_added"),
-      v.literal("campaign_opened"),
-      v.literal("campaign_clicked"),
-      v.literal("contact_created"),
-      v.literal("booking_created"),
-      v.literal("booking_confirmed"),
-      v.literal("custom")
-    ),
-    entryTriggerData: v.optional(v.any()), // Trigger-specific data
-    steps: v.array(v.object({
-      stepNumber: v.number(),
-      campaignId: v.id("emailCampaigns"),
-      delayDays: v.number(), // Days to wait before sending this step
-      condition: v.optional(v.union(
-        v.literal("always"),
-        v.literal("if_opened"),
-        v.literal("if_clicked"),
-        v.literal("if_not_opened")
-      )),
-    })),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_status", ["status"]),
-
-  emailJourneyParticipants: defineTable({
-    journeyId: v.id("emailJourneys"),
-    contactId: v.id("emailContacts"),
-    currentStep: v.number(),
-    status: v.union(
-      v.literal("active"),
-      v.literal("completed"),
-      v.literal("paused"),
-      v.literal("exited")
-    ),
-    enteredAt: v.number(),
-    nextStepAt: v.optional(v.number()),
-    completedAt: v.optional(v.number()),
-    updatedAt: v.number(),
-  })
-    .index("by_journey", ["journeyId"])
-    .index("by_contact", ["contactId"])
-    .index("by_status", ["status"])
-    .index("by_next_step_at", ["nextStepAt"]),
-
-  emailSegments: defineTable({
-    name: v.string(),
-    description: v.optional(v.string()),
-    filters: v.object({
-      status: v.optional(v.array(v.union(
-        v.literal("subscribed"),
-        v.literal("unsubscribed"),
-        v.literal("bounced"),
-        v.literal("spam")
-      ))),
-      tags: v.optional(v.array(v.string())),
-      sources: v.optional(v.array(v.string())),
-      dateRange: v.optional(v.object({
-        field: v.union(v.literal("createdAt"), v.literal("updatedAt")),
-        start: v.optional(v.number()),
-        end: v.optional(v.number()),
-      })),
-      hasOpened: v.optional(v.boolean()),
-      hasClicked: v.optional(v.boolean()),
-      lastActivityRange: v.optional(v.object({
-        start: v.optional(v.number()),
-        end: v.optional(v.number()),
-      })),
-    }),
-    contactCount: v.number(), // Cached count
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_created_at", ["createdAt"]),
-
   // Portfolio (public website portfolio items - separate from projects)
   portfolio: defineTable({
     title: v.string(),
@@ -1232,9 +1045,9 @@ export default defineSchema({
     .index("by_created_at", ["createdAt"])
     .index("by_converted", ["convertedToLeadId"]),
 
-  // Leads - prospects converted to leads with decision maker info
+  // Leads - prospects converted to leads with decision maker info, or direct from contact form
   leads: defineTable({
-    prospectId: v.id("prospects"), // Link back to original prospect
+    prospectId: v.optional(v.id("prospects")), // Link back to original prospect (optional for contact form leads)
     contactId: v.optional(v.id("contacts")), // Link to contact if created
     // All prospect data copied over
     name: v.string(),
@@ -1270,7 +1083,8 @@ export default defineSchema({
     .index("by_prospect", ["prospectId"])
     .index("by_contact", ["contactId"])
     .index("by_status", ["status"])
-    .index("by_created_at", ["createdAt"]),
+    .index("by_created_at", ["createdAt"])
+    .index("by_contact_email", ["contactEmail"]),
 
   // Companies - separate entities for organizing contacts
   companies: defineTable({
@@ -1317,11 +1131,9 @@ export default defineSchema({
     contactTitle: v.optional(v.string()),
     contactPhone: v.optional(v.string()),
     // Source tracking
-    source: v.optional(v.string()), // "lead", "email_marketing", "manual", "contact_form"
+    source: v.optional(v.string()), // "lead", "manual", "contact_form"
     leadId: v.optional(v.id("leads")), // If from lead
     prospectId: v.optional(v.id("prospects")), // If from prospect
-    // Email marketing sync
-    emailMarketingId: v.optional(v.id("emailContacts")), // Link to email marketing contact
     // Company relationship
     companyId: v.optional(v.id("companies")), // Link to company
     // Status and metadata
@@ -1336,7 +1148,6 @@ export default defineSchema({
     .index("by_source", ["source"])
     .index("by_lead", ["leadId"])
     .index("by_prospect", ["prospectId"])
-    .index("by_email_marketing", ["emailMarketingId"])
     .index("by_company", ["companyId"]),
 
   // Subscription Payment Methods - customizable payment methods

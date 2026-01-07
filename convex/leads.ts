@@ -58,7 +58,7 @@ export const leadsList = query({
     // Populate prospect and contact info
     const leadsWithInfo = await Promise.all(
       leads.map(async (lead) => {
-        const prospect = await ctx.db.get(lead.prospectId);
+        const prospect = lead.prospectId ? await ctx.db.get(lead.prospectId) : null;
         const contact = lead.contactId ? await ctx.db.get(lead.contactId) : null;
 
         return {
@@ -113,7 +113,7 @@ export const leadsGet = query({
     const lead = await ctx.db.get(args.id);
     if (!lead) return null;
 
-    const prospect = await ctx.db.get(lead.prospectId);
+    const prospect = lead.prospectId ? await ctx.db.get(lead.prospectId) : null;
     const contact = lead.contactId ? await ctx.db.get(lead.contactId) : null;
 
     return {
@@ -248,67 +248,6 @@ export const leadsCreate = mutation({
         contactId: contactId,
       });
 
-      // Sync to email marketing (create email marketing contact)
-      const contact = await ctx.db.get(contactId);
-      if (contact) {
-        // Check if email contact exists with this email
-        const existing = await ctx.db
-          .query("emailContacts")
-          .withIndex("by_email", (q) => q.eq("email", contact.email))
-          .first();
-
-        let emailMarketingId: Id<"emailContacts">;
-
-        if (existing) {
-          // Link to existing
-          emailMarketingId = existing._id;
-          await ctx.db.patch(emailMarketingId, {
-            contactId: contactId,
-            firstName: contact.firstName || contact.contactName?.split(" ")[0],
-            lastName: contact.lastName || contact.contactName?.split(" ").slice(1).join(" ") || undefined,
-            tags: contact.tags,
-            source: contact.source,
-            metadata: {
-              businessName: contact.businessName,
-              address: contact.address,
-              website: contact.website,
-              phone: contact.phone,
-              contactName: contact.contactName,
-              contactTitle: contact.contactTitle,
-              contactPhone: contact.contactPhone,
-            },
-            updatedAt: now,
-          });
-        } else {
-          // Create new
-          emailMarketingId = await ctx.db.insert("emailContacts", {
-            email: contact.email,
-            firstName: contact.firstName || contact.contactName?.split(" ")[0],
-            lastName: contact.lastName || contact.contactName?.split(" ").slice(1).join(" ") || undefined,
-            tags: contact.tags,
-            status: "subscribed",
-            source: contact.source,
-            metadata: {
-              businessName: contact.businessName,
-              address: contact.address,
-              website: contact.website,
-              phone: contact.phone,
-              contactName: contact.contactName,
-              contactTitle: contact.contactTitle,
-              contactPhone: contact.contactPhone,
-            },
-            contactId: contactId,
-            createdAt: now,
-            updatedAt: now,
-          });
-        }
-
-        // Update contact with email marketing ID
-        await ctx.db.patch(contactId, {
-          emailMarketingId: emailMarketingId,
-          updatedAt: now,
-        });
-      }
     }
 
     return leadId;

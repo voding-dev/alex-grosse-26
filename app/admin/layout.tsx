@@ -132,6 +132,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
   const isWebsiteActive = isActive("/admin/website-editor") || isActive("/admin/portfolio") || isActive("/admin/projects");
   const isMediaActive = isActive("/admin/media-library");
+  const isLeadsActive = isActive("/admin/leads");
 
   const handleLogout = async () => {
     if (sessionToken) {
@@ -281,6 +282,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               >
                 <Images className="h-4 w-4" />
                 Media
+              </Link>
+
+              {/* Leads - Direct Link */}
+              <Link
+                href="/admin/leads"
+                className="px-4 py-2.5 text-sm font-bold uppercase tracking-wider transition-all duration-200 rounded-lg flex items-center gap-2 border"
+                style={{ 
+                  fontWeight: '700',
+                  color: isActive("/admin/leads") ? '#586034' : '#555',
+                  backgroundColor: isActive("/admin/leads") ? 'rgba(88, 96, 52, 0.1)' : 'transparent',
+                  borderColor: isActive("/admin/leads") ? 'rgba(88, 96, 52, 0.3)' : 'transparent'
+                }}
+              >
+                <User className="h-4 w-4" />
+                Leads
               </Link>
 
               {/* Divider */}
@@ -471,6 +487,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               >
                 <Images className="h-4 w-4" />
                 Media
+              </Link>
+
+              {/* Leads */}
+              <Link
+                href="/admin/leads"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm font-bold uppercase tracking-wider transition-all duration-200 rounded-lg border"
+                style={{ 
+                  fontWeight: '700',
+                  color: isLeadsActive ? '#586034' : '#555',
+                  backgroundColor: isLeadsActive ? 'rgba(88, 96, 52, 0.1)' : 'transparent',
+                  borderColor: isLeadsActive ? 'rgba(88, 96, 52, 0.3)' : 'transparent'
+                }}
+              >
+                <User className="h-4 w-4" />
+                Leads
               </Link>
 
               {/* Divider */}
