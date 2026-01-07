@@ -24,7 +24,6 @@ import type * as deliveriesMutations from "../deliveriesMutations.js";
 import type * as design from "../design.js";
 import type * as designGallery from "../designGallery.js";
 import type * as designHeroCarousel from "../designHeroCarousel.js";
-import type * as emailMarketing from "../emailMarketing.js";
 import type * as feedback from "../feedback.js";
 import type * as folders from "../folders.js";
 import type * as graphicDesigner from "../graphicDesigner.js";
@@ -90,7 +89,6 @@ declare const fullApi: ApiFromModules<{
   design: typeof design;
   designGallery: typeof designGallery;
   designHeroCarousel: typeof designHeroCarousel;
-  emailMarketing: typeof emailMarketing;
   feedback: typeof feedback;
   folders: typeof folders;
   graphicDesigner: typeof graphicDesigner;
