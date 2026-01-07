@@ -397,12 +397,14 @@ export const leadsRemove = mutation({
     }
 
     // Optionally unmark prospect as converted
-    const prospect = await ctx.db.get(lead.prospectId);
-    if (prospect && prospect.convertedToLeadId === args.id) {
-      await ctx.db.patch(lead.prospectId, {
-        convertedToLeadId: undefined,
-        convertedAt: undefined,
-      });
+    if (lead.prospectId) {
+      const prospect = await ctx.db.get(lead.prospectId);
+      if (prospect && prospect.convertedToLeadId === args.id) {
+        await ctx.db.patch(lead.prospectId, {
+          convertedToLeadId: undefined,
+          convertedAt: undefined,
+        });
+      }
     }
 
     // Delete the lead (contact remains)

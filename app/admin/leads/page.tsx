@@ -241,11 +241,10 @@ export default function LeadsPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2 sm:min-w-[150px]">
+                  <div className="flex flex-col gap-2 sm:min-w-[150px]" onClick={(e) => e.stopPropagation()}>
                     <Select
                       value={lead.status}
                       onValueChange={(value) => handleStatusChange(lead._id, value)}
-                      onClick={(e) => e.stopPropagation()}
                     >
                       <SelectTrigger className="w-full" style={{ backgroundColor: '#fff', borderColor: 'rgba(88, 96, 52, 0.2)' }}>
                         <SelectValue />
