@@ -17,6 +17,16 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Search,
   Mail,
   Phone,
@@ -25,6 +35,7 @@ import {
   MessageSquare,
   Calendar,
   Tag,
+  Trash2,
 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 
@@ -51,6 +62,7 @@ export default function LeadsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; leadId: Id<"leads"> | null }>({ open: false, leadId: null });
 
   const leads = useQuery(api.leads.leadsList, {
     status: statusFilter !== "all" ? statusFilter as any : undefined,
@@ -58,6 +70,7 @@ export default function LeadsPage() {
   }) || [];
 
   const updateLead = useMutation(api.leads.leadsUpdate);
+  const deleteLead = useMutation(api.leads.leadsRemove);
 
   const handleStatusChange = async (leadId: Id<"leads">, newStatus: string) => {
     try {
@@ -73,6 +86,33 @@ export default function LeadsPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to update lead.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = (leadId: Id<"leads">) => {
+    setDeleteDialog({ open: true, leadId });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteDialog.leadId) return;
+
+    try {
+      await deleteLead({ id: deleteDialog.leadId });
+      toast({
+        title: "Lead deleted",
+        description: "The lead has been deleted successfully.",
+      });
+      setDeleteDialog({ open: false, leadId: null });
+      // Close detail modal if the deleted lead was selected
+      if (selectedLead?._id === deleteDialog.leadId) {
+        setSelectedLead(null);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete lead.",
         variant: "destructive",
       });
     }
@@ -257,6 +297,23 @@ export default function LeadsPage() {
                         <SelectItem value="closed">Closed</SelectItem>
                       </SelectContent>
                     </Select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(lead._id);
+                      }}
+                      className="w-full"
+                      style={{ 
+                        backgroundColor: '#fff', 
+                        borderColor: 'rgba(220, 38, 38, 0.3)', 
+                        color: '#dc2626'
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -382,6 +439,25 @@ export default function LeadsPage() {
                   </Select>
                 </div>
 
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider mb-2" style={{ color: '#586034' }}>
+                    Actions
+                  </h3>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleDelete(selectedLead._id)}
+                    className="w-full"
+                    style={{ 
+                      backgroundColor: '#fff', 
+                      borderColor: 'rgba(220, 38, 38, 0.3)', 
+                      color: '#dc2626'
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Lead
+                  </Button>
+                </div>
+
                 <div className="text-xs" style={{ color: '#888' }}>
                   <p>Created: {formatDate(selectedLead.createdAt)}</p>
                   <p>Updated: {formatDate(selectedLead.updatedAt)}</p>
@@ -391,6 +467,29 @@ export default function LeadsPage() {
           </Card>
         </div>
       )}
+
+      {/* Delete Lead Dialog */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, leadId: deleteDialog.leadId })}>
+        <AlertDialogContent style={{ backgroundColor: '#fff' }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle style={{ color: '#1a1a1a' }}>Delete Lead</AlertDialogTitle>
+            <AlertDialogDescription style={{ color: '#666' }}>
+              Are you sure you want to delete this lead? This action cannot be undone. The lead will be permanently removed from your system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel style={{ backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.15)', color: '#333' }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
