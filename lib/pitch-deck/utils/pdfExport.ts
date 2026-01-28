@@ -130,10 +130,11 @@ export async function generatePitchDeckPDF(deck: PitchDeckData): Promise<void> {
     );
   }
 
-  // Generate filename
+  // Generate filename using brand name
   const title = deck.title.replace(/[^a-z0-9]/gi, "_");
   const dateStr = new Date().toISOString().split("T")[0];
-  const filename = `IANCOURTRIGHT_PitchDeck_${title}_${dateStr}.pdf`;
+  const brandFileName = brand.name.replace(/\s+/g, "");
+  const filename = `${brandFileName}_PitchDeck_${title}_${dateStr}.pdf`;
 
   doc.save(filename);
 }

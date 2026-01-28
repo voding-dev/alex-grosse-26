@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { Eye, EyeOff, Key, Mail, Save, FileText, Image as ImageIcon, X } from "lucide-react";
+import { Eye, EyeOff, Key, Mail, Save, FileText, Image as ImageIcon, X, Globe, Search } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
 import { MediaLibrarySelector } from "@/components/media-library/media-library-selector";
 
@@ -32,9 +33,16 @@ export default function SettingsPage() {
     pdfEmail: "",
     pdfPhone: "",
     pdfWebsite: "",
+    // SEO & Metadata settings
+    seoSiteName: "",
+    seoTitle: "",
+    seoDescription: "",
+    seoOgImageStorageKey: "",
+    seoSocialDescription: "",
   });
   const [hasInitialized, setHasInitialized] = useState(false);
   const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false);
+  const [seoOgMediaLibraryOpen, setSeoOgMediaLibraryOpen] = useState(false);
 
   // Password reset form state
   const [passwordForm, setPasswordForm] = useState({
@@ -60,6 +68,12 @@ export default function SettingsPage() {
     formData.pdfCoverStorageKey ? { storageId: formData.pdfCoverStorageKey } : "skip"
   );
 
+  // Get SEO OG image URL from storage
+  const seoOgImageUrl = useQuery(
+    api.storageQueries.getUrl,
+    formData.seoOgImageStorageKey ? { storageId: formData.seoOgImageStorageKey } : "skip"
+  );
+
   // Sync formData when settings load (only once)
   useEffect(() => {
     if (settingsData && !hasInitialized) {
@@ -73,6 +87,12 @@ export default function SettingsPage() {
         pdfEmail: (settingsData.pdfEmail as string) || "",
         pdfPhone: (settingsData.pdfPhone as string) || "",
         pdfWebsite: (settingsData.pdfWebsite as string) || "",
+        // SEO & Metadata settings
+        seoSiteName: (settingsData.seoSiteName as string) || "",
+        seoTitle: (settingsData.seoTitle as string) || "",
+        seoDescription: (settingsData.seoDescription as string) || "",
+        seoOgImageStorageKey: (settingsData.seoOgImageStorageKey as string) || "",
+        seoSocialDescription: (settingsData.seoSocialDescription as string) || "",
       });
       setHasInitialized(true);
     }
@@ -102,6 +122,12 @@ export default function SettingsPage() {
         setSetting({ key: "pdfEmail", value: formData.pdfEmail || "", sessionToken }),
         setSetting({ key: "pdfPhone", value: formData.pdfPhone || "", sessionToken }),
         setSetting({ key: "pdfWebsite", value: formData.pdfWebsite || "", sessionToken }),
+        // SEO & Metadata settings
+        setSetting({ key: "seoSiteName", value: formData.seoSiteName || "", sessionToken }),
+        setSetting({ key: "seoTitle", value: formData.seoTitle || "", sessionToken }),
+        setSetting({ key: "seoDescription", value: formData.seoDescription || "", sessionToken }),
+        setSetting({ key: "seoOgImageStorageKey", value: formData.seoOgImageStorageKey || "", sessionToken }),
+        setSetting({ key: "seoSocialDescription", value: formData.seoSocialDescription || "", sessionToken }),
       ]);
 
       toast({
@@ -246,6 +272,139 @@ export default function SettingsPage() {
                 />
                 <p className="mt-2 text-sm" style={{ color: '#888' }}>
                   Main timezone for site operations. Default: America/New_York (EST/EDT). Common values: America/New_York, America/Chicago, America/Denver, America/Los_Angeles, Europe/London, UTC.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* SEO & Metadata Settings */}
+          <Card className="group relative overflow-hidden border transition-all duration-300 hover:shadow-lg" style={{ backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.1)' }}>
+            <CardHeader className="pb-4 relative z-10">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-1 rounded-lg transition-colors" style={{ backgroundColor: 'rgba(88, 96, 52, 0.1)' }}>
+                  <Search className="h-5 w-5" style={{ color: '#586034' }} />
+                </div>
+                <div>
+                  <CardTitle className="text-2xl font-black uppercase tracking-wider" style={{ fontWeight: '900', color: '#1a1a1a' }}>
+                    SEO & Metadata
+                  </CardTitle>
+                  <CardDescription className="text-base mt-1" style={{ color: '#666' }}>Configure search engine optimization and social sharing metadata</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 relative z-10">
+              {/* Site Name */}
+              <div>
+                <Label htmlFor="seoSiteName" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900', color: '#333' }}>
+                  Site Name
+                </Label>
+                <Input
+                  id="seoSiteName"
+                  type="text"
+                  value={formData.seoSiteName}
+                  onChange={(e) => setFormData({ ...formData, seoSiteName: e.target.value })}
+                  placeholder="Alex Grosse"
+                  className="h-12 text-base border-gray-200 focus:border-accent focus:ring-accent/20"
+                  style={{ backgroundColor: '#FAFAF9', color: '#1a1a1a' }}
+                />
+                <p className="mt-2 text-sm" style={{ color: '#888' }}>
+                  Your name or brand name. Used as the base for page titles.
+                </p>
+              </div>
+
+              {/* Site Title */}
+              <div>
+                <Label htmlFor="seoTitle" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900', color: '#333' }}>
+                  Site Title
+                </Label>
+                <Input
+                  id="seoTitle"
+                  type="text"
+                  value={formData.seoTitle}
+                  onChange={(e) => setFormData({ ...formData, seoTitle: e.target.value })}
+                  placeholder="Alex Grosse — Photographer"
+                  className="h-12 text-base border-gray-200 focus:border-accent focus:ring-accent/20"
+                  style={{ backgroundColor: '#FAFAF9', color: '#1a1a1a' }}
+                />
+                <p className="mt-2 text-sm" style={{ color: '#888' }}>
+                  The main title that appears in browser tabs and search results.
+                </p>
+              </div>
+
+              {/* Site Description */}
+              <div>
+                <Label htmlFor="seoDescription" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900', color: '#333' }}>
+                  Site Description
+                </Label>
+                <Textarea
+                  id="seoDescription"
+                  value={formData.seoDescription}
+                  onChange={(e) => setFormData({ ...formData, seoDescription: e.target.value })}
+                  placeholder="Professional photography services. Book your shoot today."
+                  className="min-h-[80px] text-base border-gray-200 focus:border-accent focus:ring-accent/20 resize-y"
+                  style={{ backgroundColor: '#FAFAF9', color: '#1a1a1a' }}
+                />
+                <p className="mt-2 text-sm" style={{ color: '#888' }}>
+                  A brief description of your site for search engines (recommended: 150-160 characters).
+                </p>
+              </div>
+
+              {/* OG Image */}
+              <div>
+                <Label className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900', color: '#333' }}>
+                  Social Share Image (OG Image)
+                </Label>
+                <p className="mb-3 text-sm" style={{ color: '#888' }}>
+                  This image appears when your site is shared on social media. Recommended size: 1200x630 pixels.
+                </p>
+                {formData.seoOgImageStorageKey && seoOgImageUrl ? (
+                  <div className="relative inline-block">
+                    <img
+                      src={seoOgImageUrl}
+                      alt="OG Image Preview"
+                      className="rounded-lg border object-cover max-w-[300px] max-h-[200px]"
+                      style={{ borderColor: 'rgba(0,0,0,0.1)' }}
+                    />
+                    <button
+                      onClick={() => setFormData({ ...formData, seoOgImageStorageKey: "" })}
+                      className="absolute -top-2 -right-2 p-1 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : formData.seoOgImageStorageKey && !seoOgImageUrl ? (
+                  <div className="w-[300px] h-[200px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+                    <span className="text-gray-400 text-sm">Loading image...</span>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSeoOgMediaLibraryOpen(true)}
+                    className="flex items-center gap-2 border-gray-300 hover:border-accent hover:bg-accent/5"
+                    style={{ color: '#1a1a1a', backgroundColor: '#fff' }}
+                  >
+                    <ImageIcon className="h-4 w-4" />
+                    Select OG Image
+                  </Button>
+                )}
+              </div>
+
+              {/* Social Description */}
+              <div>
+                <Label htmlFor="seoSocialDescription" className="text-sm font-black uppercase tracking-wider mb-3 block" style={{ fontWeight: '900', color: '#333' }}>
+                  Social Description
+                </Label>
+                <Textarea
+                  id="seoSocialDescription"
+                  value={formData.seoSocialDescription}
+                  onChange={(e) => setFormData({ ...formData, seoSocialDescription: e.target.value })}
+                  placeholder="Professional photographer specializing in portraits and commercial work."
+                  className="min-h-[80px] text-base border-gray-200 focus:border-accent focus:ring-accent/20 resize-y"
+                  style={{ backgroundColor: '#FAFAF9', color: '#1a1a1a' }}
+                />
+                <p className="mt-2 text-sm" style={{ color: '#888' }}>
+                  Description for social media cards (OpenGraph & Twitter). Falls back to site description if empty.
                 </p>
               </div>
             </CardContent>
@@ -542,6 +701,24 @@ export default function SettingsPage() {
         }}
         title="Select PDF Cover Image"
         description="Choose an image for the PDF cover page"
+        multiple={false}
+        mediaType="image"
+      />
+
+      {/* Media Library Selector for SEO OG Image */}
+      <MediaLibrarySelector
+        open={seoOgMediaLibraryOpen}
+        onOpenChange={setSeoOgMediaLibraryOpen}
+        onSelect={(items) => {
+          if (items.length > 0) {
+            setFormData({
+              ...formData,
+              seoOgImageStorageKey: items[0].storageKey,
+            });
+          }
+        }}
+        title="Select Social Share Image"
+        description="Choose an image for social media sharing (recommended: 1200x630)"
         multiple={false}
         mediaType="image"
       />

@@ -181,7 +181,7 @@ export default function Home() {
                   textShadow: '0 4px 30px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3)'
                 }}
               >
-                {homepage?.heroText || "Creative Director & Growth Marketing Partner"}
+                {homepage?.heroText || ""}
               </h1>
               <div className="mt-6 sm:mt-8 flex justify-center">
                 <div className="h-1 w-24 sm:w-32 bg-accent rounded-full" />
