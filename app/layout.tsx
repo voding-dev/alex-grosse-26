@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { unstable_noStore as noStore } from "next/cache";
 import { Geist, Geist_Mono, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "@/lib/convex-provider";
@@ -24,8 +25,8 @@ const robotoMono = Roboto_Mono({
 });
 
 // Default fallback values (used when settings are not configured)
-const DEFAULT_TITLE = "Your Site Name";
-const DEFAULT_DESCRIPTION = "Your site description";
+const DEFAULT_TITLE = "Alex Grosse";
+const DEFAULT_DESCRIPTION = "Pro Photo";
 
 // Get the site URL for metadataBase
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL 
@@ -33,6 +34,9 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
   || "http://localhost:3000";
 
 export async function generateMetadata(): Promise<Metadata> {
+  // These settings can change at runtime (admin updates). Avoid serving stale OG tags.
+  noStore();
+
   // Fetch SEO settings from Convex (gracefully handles failures)
   const seo = await getSeoSettings();
   
@@ -47,9 +51,20 @@ export async function generateMetadata(): Promise<Metadata> {
   const socialDescription = seo.seoSocialDescription || description;
   const siteName = seo.seoSiteName || "";
   
-  // Use custom OG image or fall back to default
-  const ogImage = ogImageUrl || "/og-image-main.png";
+  // Only include social images when we have a valid, publicly accessible URL.
+  // (Emitting `null` here causes scrapers to ignore the tag.)
   const altText = siteName ? `${siteName} — ${socialDescription}` : socialDescription;
+  const openGraphImages = ogImageUrl
+    ? [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: altText,
+        },
+      ]
+    : undefined;
+  const twitterImages = ogImageUrl ? [ogImageUrl] : undefined;
 
   return {
     metadataBase: new URL(siteUrl),
@@ -63,21 +78,15 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title,
       description: socialDescription,
-      images: [
-        {
-          url: ogImage,
-          width: 1200,
-          height: 630,
-          alt: altText,
-        },
-      ],
+      ...(siteName ? { siteName } : {}),
+      ...(openGraphImages ? { images: openGraphImages } : {}),
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
       title,
       description: socialDescription,
-      images: [ogImage],
+      ...(twitterImages ? { images: twitterImages } : {}),
     },
   };
 }
